@@ -10,6 +10,10 @@ class EnglishModule:
         
         user_input_lower = user_input.lower()
         
+        if any(word in user_input_lower for word in ["exit", "quit", "stop", "back", "menu", "hello", "hi"]):
+            user_context.setdefault("user_state", {})["requested_module"] = "general"
+            return "Returning to main menu. How can I help you today?"
+        
         if any(word in user_input_lower for word in ["grammar", "correct", "fix"]):
             return await self._grammar_correction(user_input, user_context)
         elif any(word in user_input_lower for word in ["repeat", "practice", "pronunciation"]):

@@ -22,6 +22,12 @@ class DebateModule:
         """Process debate input"""
         
         user_input_lower = user_input.lower()
+        
+        if any(word in user_input_lower for word in ["exit", "quit", "stop", "back", "menu", "hello", "hi"]):
+            user_context.setdefault("user_state", {})["current_debate_topic"] = None
+            user_context["user_state"]["requested_module"] = "general"
+            return "Returning to main menu. How can I help you today?"
+        
         current_topic = user_context.get("user_state", {}).get("current_debate_topic")
         debate_round = user_context.get("user_state", {}).get("debate_round", 0)
         

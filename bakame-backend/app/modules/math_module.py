@@ -11,6 +11,11 @@ class MathModule:
         
         user_input_lower = user_input.lower()
         
+        if any(word in user_input_lower for word in ["exit", "quit", "stop", "back", "menu", "hello", "hi"]):
+            user_context.setdefault("user_state", {})["current_math_problem"] = None
+            user_context["user_state"]["requested_module"] = "general"
+            return "Returning to main menu. How can I help you today?"
+        
         if any(word in user_input_lower for word in ["new", "another", "next", "problem", "question"]):
             return self._generate_math_problem(user_context)
         
