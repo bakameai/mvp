@@ -71,7 +71,7 @@ async def handle_voice_call(
                 media_type="application/xml"
             )
         
-        if user_input and any(word in user_input.lower() for word in ["hello", "hi", "hey", "start", "reset", "new", "help"]):
+        if user_input and (user_input.lower().strip() == "reset" or any(word in user_input.lower() for word in ["hello", "hi", "hey", "start", "new", "help", "menu", "general"])):
             redis_service.clear_user_context(phone_number)
             user_context = redis_service.get_user_context(phone_number)
             current_module_name = "general"
@@ -136,7 +136,7 @@ async def handle_sms(
     user_input = Body.strip()
     
     try:
-        if any(word in user_input.lower() for word in ["hello", "hi", "hey", "start", "reset", "new", "help"]):
+        if user_input.lower().strip() == "reset" or any(word in user_input.lower() for word in ["hello", "hi", "hey", "start", "new", "help", "menu", "general"]):
             redis_service.clear_user_context(phone_number)
             user_context = redis_service.get_user_context(phone_number)
             current_module_name = "general"

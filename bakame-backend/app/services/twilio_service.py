@@ -23,12 +23,12 @@ class TwilioService:
                 action='/voice/process',
                 method='POST'
             )
-            gather.say(message, voice='man', language='en-US')
+            gather.say(message, voice='man', language='en-KE')
             
-            response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
+            response.say("I didn't hear anything. Please try again.", voice='man', language='en-KE')
             response.redirect('/voice/process')
         else:
-            response.say(message, voice='man', language='en-US')
+            response.say(message, voice='man', language='en-KE')
             response.hangup()
         
         return str(response)

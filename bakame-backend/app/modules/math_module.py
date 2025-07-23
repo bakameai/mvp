@@ -28,9 +28,13 @@ class MathModule:
     def _generate_math_problem(self, user_context: Dict[str, Any]) -> str:
         """Generate a new math problem"""
         
-        level = user_context.get("user_state", {}).get("math_level", "easy")
+        level = user_context.get("user_state", {}).get("math_level", "basic")
         
-        if level == "easy":
+        if level == "basic":
+            num1 = random.randint(1, 9)
+            num2 = random.randint(1, 9)
+            operation = random.choice(["+", "-"])
+        elif level == "easy":
             num1 = random.randint(1, 20)
             num2 = random.randint(1, 20)
             operation = random.choice(["+", "-"])
@@ -38,9 +42,13 @@ class MathModule:
             num1 = random.randint(10, 100)
             num2 = random.randint(10, 100)
             operation = random.choice(["+", "-", "*"])
-        else:  # hard
+        elif level == "hard":
             num1 = random.randint(50, 500)
             num2 = random.randint(10, 50)
+            operation = random.choice(["+", "-", "*", "/"])
+        else:  # complex abacus
+            num1 = random.randint(100, 1000)
+            num2 = random.randint(50, 200)
             operation = random.choice(["+", "-", "*", "/"])
         
         if operation == "+":
@@ -81,13 +89,19 @@ class MathModule:
                 
                 accuracy = user_stats["math_problems_correct"] / user_stats["math_problems_attempted"]
                 if accuracy > 0.8 and user_stats["math_problems_attempted"] >= 5:
-                    current_level = user_stats.get("math_level", "easy")
-                    if current_level == "easy":
+                    current_level = user_stats.get("math_level", "basic")
+                    if current_level == "basic":
+                        user_stats["math_level"] = "easy"
+                        level_up_msg = " Great job! Moving to easy abacus level."
+                    elif current_level == "easy":
                         user_stats["math_level"] = "medium"
-                        level_up_msg = " Great job! I'm moving you to medium level problems."
+                        level_up_msg = " Excellent! Moving to medium abacus level."
                     elif current_level == "medium":
                         user_stats["math_level"] = "hard"
-                        level_up_msg = " Excellent! I'm moving you to hard level problems."
+                        level_up_msg = " Outstanding! Moving to hard abacus level."
+                    elif current_level == "hard":
+                        user_stats["math_level"] = "complex"
+                        level_up_msg = " Amazing! Moving to complex abacus level."
                     else:
                         level_up_msg = ""
                 else:
@@ -110,6 +124,6 @@ class MathModule:
     
     def get_welcome_message(self) -> str:
         """Get welcome message for Math module"""
-        return "Welcome to Mental Math! I'll give you arithmetic problems to solve. Say 'new problem' to get started, or just tell me you're ready!"
+        return "Welcome to Abacus Mental Math! I'll give you arithmetic problems starting from basic level and progressing to complex abacus calculations. Say 'new problem' to get started, or just tell me you're ready!"
 
 math_module = MathModule()
