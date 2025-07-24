@@ -6,52 +6,63 @@ import random
 class NewsAPIService:
     def __init__(self):
         self.api_key = settings.newsapi_key
-        self.base_url = "https://newsapi.org/v2"
+        self.base_url = "https://eventregistry.org/api/v1/article/getArticles"
     
     async def get_trending_debate_topics(self, count: int = 5) -> List[str]:
-        """Generate debate topics from trending news headlines"""
+        """Generate debate topics from trending news headlines using newsapi.ai"""
         try:
-            print(f"DEBUG: NewsAPI - API key: {self.api_key[:10]}...")
-            print(f"DEBUG: NewsAPI - Base URL: {self.base_url}")
+            print(f"DEBUG: NewsAPI.ai - API key: {self.api_key[:10]}...")
+            print(f"DEBUG: NewsAPI.ai - Base URL: {self.base_url}")
             
-            categories = ["general", "technology", "business", "health", "science"]
+            keywords = ["technology", "politics", "climate", "education", "healthcare", "economy"]
             all_headlines = []
             
-            for category in categories:
-                print(f"DEBUG: NewsAPI - Fetching category: {category}")
-                response = requests.get(
-                    f"{self.base_url}/top-headlines",
-                    params={
-                        "apiKey": self.api_key,
-                        "country": "us",
-                        "category": category,
-                        "pageSize": 10
-                    }
+            for keyword in keywords:
+                print(f"DEBUG: NewsAPI.ai - Fetching keyword: {keyword}")
+                
+                payload = {
+                    "action": "getArticles",
+                    "keyword": keyword,
+                    "articlesPage": 1,
+                    "articlesCount": 10,
+                    "articlesSortBy": "date",
+                    "articlesSortByAsc": False,
+                    "dataType": ["news"],
+                    "forceMaxDataTimeWindow": 7,
+                    "resultType": "articles",
+                    "apiKey": self.api_key
+                }
+                
+                response = requests.post(
+                    self.base_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
                 )
                 
-                print(f"DEBUG: NewsAPI - Response status: {response.status_code}")
+                print(f"DEBUG: NewsAPI.ai - Response status: {response.status_code}")
                 if response.status_code == 200:
                     data = response.json()
-                    headlines = [article["title"] for article in data.get("articles", [])]
-                    print(f"DEBUG: NewsAPI - Got {len(headlines)} headlines from {category}")
+                    articles = data.get("articles", {}).get("results", [])
+                    headlines = [article.get("title", "") for article in articles if article.get("title")]
+                    print(f"DEBUG: NewsAPI.ai - Got {len(headlines)} headlines for {keyword}")
                     all_headlines.extend(headlines)
                 else:
-                    print(f"DEBUG: NewsAPI - Error response: {response.text}")
+                    print(f"DEBUG: NewsAPI.ai - Error response: {response.text}")
             
-            print(f"DEBUG: NewsAPI - Total headlines: {len(all_headlines)}")
+            print(f"DEBUG: NewsAPI.ai - Total headlines: {len(all_headlines)}")
             debate_topics = self._convert_headlines_to_debate_topics(all_headlines)
-            print(f"DEBUG: NewsAPI - Generated topics: {len(debate_topics)}")
+            print(f"DEBUG: NewsAPI.ai - Generated topics: {len(debate_topics)}")
             
             if debate_topics:
                 selected_topics = random.sample(debate_topics, min(count, len(debate_topics)))
-                print(f"DEBUG: NewsAPI - Selected topics: {selected_topics}")
+                print(f"DEBUG: NewsAPI.ai - Selected topics: {selected_topics}")
                 return selected_topics
             else:
-                print("DEBUG: NewsAPI - No topics generated, using fallback")
+                print("DEBUG: NewsAPI.ai - No topics generated, using fallback")
                 return self._get_fallback_topics()
             
         except Exception as e:
-            print(f"Error fetching trending topics: {e}")
+            print(f"Error fetching trending topics from newsapi.ai: {e}")
             return self._get_fallback_topics()
     
     def _convert_headlines_to_debate_topics(self, headlines: List[str]) -> List[str]:

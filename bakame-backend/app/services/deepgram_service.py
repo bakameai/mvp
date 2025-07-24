@@ -27,7 +27,7 @@ class DeepgramService:
             
             params = {
                 "model": voice,
-                "encoding": "wav"
+                "encoding": "mp3"
             }
             
             print(f"DEBUG: Deepgram - Making request to: {self.base_url}")
