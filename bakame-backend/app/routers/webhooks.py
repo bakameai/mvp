@@ -180,6 +180,18 @@ async def handle_sms(
             media_type="application/xml"
         )
 
+@router.post("/voice/process")
+async def handle_voice_process(
+    request: Request,
+    From: str = Form(...),
+    To: str = Form(...),
+    CallSid: str = Form(...),
+    SpeechResult: Optional[str] = Form(None),
+    RecordingUrl: Optional[str] = Form(None)
+):
+    """Handle continued voice interactions from Twilio"""
+    return await handle_voice_call(request, From, To, CallSid, SpeechResult, RecordingUrl)
+
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""
