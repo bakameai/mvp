@@ -59,8 +59,8 @@ class RedisService:
             "timestamp": str(datetime.utcnow())
         })
         
-        if len(context["conversation_history"]) > 10:
-            context["conversation_history"] = context["conversation_history"][-10:]
+        if len(context["conversation_history"]) > 15:
+            context["conversation_history"] = context["conversation_history"][-15:]
         
         self.set_user_context(phone_number, context)
     

@@ -31,7 +31,7 @@ class GeneralModule:
         
         messages = [{"role": "user", "content": user_input}]
         
-        for interaction in user_context.get("conversation_history", [])[-3:]:
+        for interaction in user_context.get("conversation_history", [])[-5:]:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
@@ -56,6 +56,6 @@ Just say the name of what you'd like to try, like "English" or "Math". What inte
     
     def get_welcome_message(self) -> str:
         """Get welcome message for General module"""
-        return "Hello! I'm BAKAME, your AI learning assistant. I can help you with English, Math, Reading Comprehension, Debate practice, or answer any questions you have. What would you like to learn about today?"
+        return "Hey there! I'm BAKAME, your friendly AI learning companion! 😊 I'm here to chat and help you learn in whatever way feels right for you. Whether you want to practice English, tackle some math, dive into stories, or have a good debate - I'm excited to explore together! What sounds interesting to you today?"
 
 general_module = GeneralModule()

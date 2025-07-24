@@ -109,6 +109,6 @@ class ComprehensionModule:
     
     def get_welcome_message(self) -> str:
         """Get welcome message for Comprehension module"""
-        return "Welcome to Reading Comprehension! I'll share short stories with you and then ask questions to test your understanding. Say 'new story' to get started!"
+        return "Hello, fellow story lover! 📚✨ I'm so excited to share some wonderful tales with you and explore them together! Stories are like little windows into different worlds, and I love discovering what catches your attention and how you interpret things. Ready to dive into a good story? Just say 'new story' and we'll begin our literary adventure!"
 
 comprehension_module = ComprehensionModule()

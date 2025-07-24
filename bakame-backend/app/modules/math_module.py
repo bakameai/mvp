@@ -124,6 +124,6 @@ class MathModule:
     
     def get_welcome_message(self) -> str:
         """Get welcome message for Math module"""
-        return "Welcome to Abacus Mental Math! I'll give you arithmetic problems starting from basic level and progressing to complex abacus calculations. Say 'new problem' to get started, or just tell me you're ready!"
+        return "Hey math explorer! 🧮✨ I'm thrilled to dive into some abacus mental math with you! We'll start nice and easy and work our way up to more challenging calculations as you get stronger. Math is like a puzzle - once you see the patterns, it becomes so satisfying! Ready to flex those mental muscles? Just say you're ready or ask for a problem!"
 
 math_module = MathModule()

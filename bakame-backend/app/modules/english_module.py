@@ -29,7 +29,7 @@ class EnglishModule:
             {"role": "user", "content": f"Please correct any grammar mistakes in this sentence and explain the corrections: '{user_input}'"}
         ]
         
-        for interaction in user_context.get("conversation_history", [])[-3:]:
+        for interaction in user_context.get("conversation_history", [])[-4:]:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
@@ -51,7 +51,7 @@ class EnglishModule:
             {"role": "user", "content": user_input}
         ]
         
-        for interaction in user_context.get("conversation_history", [])[-3:]:
+        for interaction in user_context.get("conversation_history", [])[-4:]:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
@@ -60,6 +60,6 @@ class EnglishModule:
     
     def get_welcome_message(self) -> str:
         """Get welcome message for English module"""
-        return "Welcome to English learning! I can help you with grammar correction, pronunciation practice, and general English conversation. What would you like to work on today?"
+        return "Hi there! 🌟 I'm so excited to practice English with you! Whether you want to polish your grammar, work on pronunciation, or just have a good chat to build confidence - I'm here for it all. English is such a beautiful language, and I love helping people feel more comfortable expressing themselves. What aspect of English would you like to explore together?"
 
 english_module = EnglishModule()

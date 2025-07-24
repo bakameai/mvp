@@ -72,7 +72,7 @@ class DebateModule:
         
         messages = [{"role": "user", "content": prompt}]
         
-        for interaction in user_context.get("conversation_history", [])[-2:]:
+        for interaction in user_context.get("conversation_history", [])[-4:]:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
@@ -90,6 +90,6 @@ class DebateModule:
     
     def get_welcome_message(self) -> str:
         """Get welcome message for Debate module"""
-        return "Welcome to Debate Practice! I'll present you with interesting topics and challenge your thinking. This helps develop critical thinking and argumentation skills. Ready for a topic?"
+        return "Hey! Ready for some friendly intellectual sparring? 🤔 I love exploring different perspectives and challenging ideas together. Debates help us think deeper and see things from new angles. I've got some fascinating topics that'll get our minds racing - want to dive into a good discussion?"
 
 debate_module = DebateModule()
