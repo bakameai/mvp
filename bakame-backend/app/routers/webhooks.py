@@ -53,7 +53,7 @@ async def handle_voice_call(
             )
             
             return Response(
-                content=twilio_service.create_voice_response(welcome_msg),
+                content=await twilio_service.create_voice_response(welcome_msg),
                 media_type="application/xml"
             )
         
@@ -67,7 +67,7 @@ async def handle_voice_call(
         
         if not user_input:
             return Response(
-                content=twilio_service.create_voice_response("I didn't catch that. Could you please repeat?"),
+                content=await twilio_service.create_voice_response("I didn't catch that. Could you please repeat?"),
                 media_type="application/xml"
             )
         
@@ -105,19 +105,19 @@ async def handle_voice_call(
         
         if any(word in user_input.lower() for word in ["goodbye", "bye", "end call", "hang up", "stop"]):
             return Response(
-                content=twilio_service.create_voice_response("Thank you for using BAKAME! Keep learning and have a great day!", gather_input=False),
+                content=await twilio_service.create_voice_response("Thank you for using BAKAME! Keep learning and have a great day!", gather_input=False),
                 media_type="application/xml"
             )
         
         return Response(
-            content=twilio_service.create_voice_response(ai_response),
+            content=await twilio_service.create_voice_response(ai_response),
             media_type="application/xml"
         )
         
     except Exception as e:
         print(f"Error in voice call handler: {e}")
         return Response(
-            content=twilio_service.create_voice_response("I'm sorry, I'm having technical difficulties. Please try again later."),
+            content=await twilio_service.create_voice_response("I'm sorry, I'm having technical difficulties. Please try again later."),
             media_type="application/xml"
         )
 

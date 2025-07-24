@@ -1,6 +1,7 @@
 import random
 from typing import Dict, Any
 from app.services.openai_service import openai_service
+from app.services.newsapi_service import newsapi_service
 
 class DebateModule:
     def __init__(self):
@@ -32,23 +33,28 @@ class DebateModule:
         debate_round = user_context.get("user_state", {}).get("debate_round", 0)
         
         if any(word in user_input_lower for word in ["new", "another", "next", "topic", "different"]):
-            return self._start_new_debate(user_context)
+            return await self._start_new_debate(user_context)
         
         if current_topic:
             return await self._continue_debate(user_input, current_topic, debate_round, user_context)
         
-        return self._start_new_debate(user_context)
+        return await self._start_new_debate(user_context)
     
-    def _start_new_debate(self, user_context: Dict[str, Any]) -> str:
-        """Start a new debate topic"""
+    async def _start_new_debate(self, user_context: Dict[str, Any]) -> str:
+        """Start a new debate topic using trending news"""
         
-        topic = random.choice(self.debate_topics)
+        trending_topics = await newsapi_service.get_trending_debate_topics(count=1)
+        
+        if trending_topics:
+            topic = trending_topics[0]
+        else:
+            topic = random.choice(self.debate_topics)
         
         user_context.setdefault("user_state", {})["current_debate_topic"] = topic
         user_context["user_state"]["debate_round"] = 1
         user_context["user_state"]["user_position"] = None
         
-        return f"Let's debate! Here's today's topic: {topic}\n\nWhat's your opinion? Do you agree or disagree? Please share your thoughts and reasoning."
+        return f"Let's debate a trending topic! Here's what's making headlines: {topic}\n\nWhat's your opinion? Do you agree or disagree? Please share your thoughts and reasoning."
     
     async def _continue_debate(self, user_input: str, current_topic: str, debate_round: int, user_context: Dict[str, Any]) -> str:
         """Continue the debate conversation"""

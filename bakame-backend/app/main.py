@@ -1,8 +1,13 @@
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import webhooks, admin
 from app.models.database import create_tables
 from app.config import settings
+import os
+import asyncio
+import glob
+from datetime import datetime, timedelta
 
 app = FastAPI(
     title="BAKAME MVP - AI Learning Assistant",
@@ -22,10 +27,39 @@ app.add_middleware(
 app.include_router(webhooks.router, prefix="/webhook", tags=["webhooks"])
 app.include_router(admin.router, tags=["admin"])
 
+@app.get("/audio/{filename}")
+async def serve_audio(filename: str):
+    """Serve temporary audio files for Twilio"""
+    file_path = f"/tmp/{filename}"
+    if os.path.exists(file_path):
+        return FileResponse(
+            file_path,
+            media_type="audio/mpeg",
+            headers={"Cache-Control": "no-cache"}
+        )
+    return {"error": "File not found"}
+
+async def cleanup_old_audio_files():
+    """Clean up audio files older than 1 hour"""
+    while True:
+        try:
+            cutoff_time = datetime.now() - timedelta(hours=1)
+            audio_files = glob.glob("/tmp/*.mp3")
+            
+            for file_path in audio_files:
+                if os.path.getctime(file_path) < cutoff_time.timestamp():
+                    os.unlink(file_path)
+                    
+        except Exception as e:
+            print(f"Error cleaning up audio files: {e}")
+        
+        await asyncio.sleep(3600)
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize database tables on startup"""
     create_tables()
+    asyncio.create_task(cleanup_old_audio_files())
 
 @app.get("/")
 async def root():

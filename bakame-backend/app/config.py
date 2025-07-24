@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     twilio_auth_token: str
     twilio_phone_number: str
     openai_api_key: str
+    newsapi_key: str
+    deepgram_api_key: str
     redis_url: str = "redis://localhost:6379/0"
     database_url: str
     app_env: str = "development"
