@@ -15,19 +15,19 @@ class GeneralModule:
         
         if "english" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "english"
-            return "Switching to English learning! I can help you with grammar correction, pronunciation practice, and general English conversation. What would you like to work on?"
+            return "Awesome! 🌟 Let's dive into English together! I'm so excited to help you with grammar, pronunciation, or just have a great conversation to build your confidence. English is such a beautiful language - what aspect would you like to explore?"
         
         elif "math" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "math"
-            return "Switching to Mental Math! I'll give you arithmetic problems to solve. Say 'new problem' to get started!"
+            return "Yes! 🧮✨ Time for some fun with numbers! I love helping people discover how satisfying math can be. We'll start easy and work our way up as you get stronger. Ready to flex those mental muscles?"
         
         elif "comprehension" in user_input_lower or "reading" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "comprehension"
-            return "Switching to Reading Comprehension! I'll share short stories with you and then ask questions. Say 'new story' to begin!"
+            return "Oh wonderful! 📚✨ I absolutely love sharing stories and exploring them together! Stories are like little adventures waiting to unfold. Ready to dive into a tale and see what catches your imagination?"
         
         elif "debate" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "debate"
-            return "Switching to Debate Practice! I'll present interesting topics and challenge your thinking. Ready for a topic?"
+            return "Ooh, I love this! 🤔💭 Ready for some friendly intellectual sparring? I'm excited to explore different perspectives with you and really dig into some fascinating topics. Let's get those mental gears turning!"
         
         messages = [{"role": "user", "content": user_input}]
         
