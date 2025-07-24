@@ -12,6 +12,10 @@ class DeepgramService:
     async def text_to_speech(self, text: str, voice: str = "aura-asteria-en") -> Optional[str]:
         """Convert text to speech using Deepgram and return temporary file path"""
         try:
+            print(f"DEBUG: Deepgram - API key: {self.api_key[:10]}...")
+            print(f"DEBUG: Deepgram - Text length: {len(text)}")
+            print(f"DEBUG: Deepgram - Voice: {voice}")
+            
             headers = {
                 "Authorization": f"Token {self.api_key}",
                 "Content-Type": "application/json"
@@ -23,10 +27,10 @@ class DeepgramService:
             
             params = {
                 "model": voice,
-                "encoding": "mp3",
-                "container": "mp3"
+                "encoding": "wav"
             }
             
+            print(f"DEBUG: Deepgram - Making request to: {self.base_url}")
             response = requests.post(
                 self.base_url,
                 headers=headers,
@@ -34,10 +38,12 @@ class DeepgramService:
                 params=params
             )
             
+            print(f"DEBUG: Deepgram - Response status: {response.status_code}")
             if response.status_code == 200:
                 temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
                 temp_file.write(response.content)
                 temp_file.close()
+                print(f"DEBUG: Deepgram - Audio saved to: {temp_file.name}")
                 return temp_file.name
             else:
                 print(f"Deepgram TTS error: {response.status_code} - {response.text}")

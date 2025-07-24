@@ -18,7 +18,9 @@ class TwilioService:
         response = VoiceResponse()
         
         try:
+            print(f"DEBUG: Attempting Deepgram TTS for message: {message[:50]}...")
             audio_file_path = await deepgram_service.text_to_speech(message)
+            print(f"DEBUG: Deepgram TTS result: {audio_file_path}")
             
             if audio_file_path:
                 filename = os.path.basename(audio_file_path)

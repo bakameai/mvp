@@ -43,12 +43,16 @@ class DebateModule:
     async def _start_new_debate(self, user_context: Dict[str, Any]) -> str:
         """Start a new debate topic using trending news"""
         
+        print("DEBUG: Starting new debate, fetching trending topics...")
         trending_topics = await newsapi_service.get_trending_debate_topics(count=1)
+        print(f"DEBUG: Got trending topics: {trending_topics}")
         
         if trending_topics:
             topic = trending_topics[0]
+            print(f"DEBUG: Using trending topic: {topic}")
         else:
             topic = random.choice(self.debate_topics)
+            print(f"DEBUG: Using fallback topic: {topic}")
         
         user_context.setdefault("user_state", {})["current_debate_topic"] = topic
         user_context["user_state"]["debate_round"] = 1

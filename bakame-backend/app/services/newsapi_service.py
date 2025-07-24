@@ -11,10 +11,14 @@ class NewsAPIService:
     async def get_trending_debate_topics(self, count: int = 5) -> List[str]:
         """Generate debate topics from trending news headlines"""
         try:
+            print(f"DEBUG: NewsAPI - API key: {self.api_key[:10]}...")
+            print(f"DEBUG: NewsAPI - Base URL: {self.base_url}")
+            
             categories = ["general", "technology", "business", "health", "science"]
             all_headlines = []
             
             for category in categories:
+                print(f"DEBUG: NewsAPI - Fetching category: {category}")
                 response = requests.get(
                     f"{self.base_url}/top-headlines",
                     params={
@@ -25,13 +29,26 @@ class NewsAPIService:
                     }
                 )
                 
+                print(f"DEBUG: NewsAPI - Response status: {response.status_code}")
                 if response.status_code == 200:
                     data = response.json()
                     headlines = [article["title"] for article in data.get("articles", [])]
+                    print(f"DEBUG: NewsAPI - Got {len(headlines)} headlines from {category}")
                     all_headlines.extend(headlines)
+                else:
+                    print(f"DEBUG: NewsAPI - Error response: {response.text}")
             
+            print(f"DEBUG: NewsAPI - Total headlines: {len(all_headlines)}")
             debate_topics = self._convert_headlines_to_debate_topics(all_headlines)
-            return random.sample(debate_topics, min(count, len(debate_topics)))
+            print(f"DEBUG: NewsAPI - Generated topics: {len(debate_topics)}")
+            
+            if debate_topics:
+                selected_topics = random.sample(debate_topics, min(count, len(debate_topics)))
+                print(f"DEBUG: NewsAPI - Selected topics: {selected_topics}")
+                return selected_topics
+            else:
+                print("DEBUG: NewsAPI - No topics generated, using fallback")
+                return self._get_fallback_topics()
             
         except Exception as e:
             print(f"Error fetching trending topics: {e}")
