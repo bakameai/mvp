@@ -1,10 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse
 from typing import Dict, Any, List
+from sqlalchemy.orm import Session
 from app.services.logging_service import logging_service
 from app.services.predictive_analytics_service import predictive_analytics
 from app.services.gamification_service import gamification_service
 from app.services.emotional_intelligence_service import emotional_intelligence_service
+from app.services.community_service import community_service
+from app.services.teacher_service import teacher_service
+from app.models.database import get_db
 
 router = APIRouter(prefix="/admin")
 
@@ -176,3 +180,178 @@ async def get_engagement_metrics() -> Dict[str, Any]:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving engagement metrics: {str(e)}")
+
+
+@router.get("/community/analytics")
+async def get_community_analytics():
+    """Get community analytics for Phase 3 features"""
+    try:
+        analytics = await community_service.get_community_analytics()
+        return {
+            "status": "success",
+            "message": "Community analytics retrieved",
+            "data": analytics
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving community analytics: {str(e)}")
+
+@router.get("/community/groups")
+async def get_learning_groups(region: str = None):
+    """Get learning groups, optionally filtered by region"""
+    try:
+        if region:
+            groups = await community_service.get_regional_learning_groups(region)
+        else:
+            groups = []
+            for region in ["Kigali", "Northern", "Southern", "Eastern", "Western"]:
+                regional_groups = await community_service.get_regional_learning_groups(region)
+                groups.extend(regional_groups)
+        
+        return {
+            "status": "success",
+            "message": "Learning groups retrieved",
+            "data": {
+                "groups": groups,
+                "total": len(groups)
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving learning groups: {str(e)}")
+
+@router.post("/community/register-user")
+async def register_community_user(
+    phone_number: str,
+    user_type: str = "student",
+    name: str = None,
+    region: str = None,
+    school: str = None,
+    grade_level: str = None
+):
+    """Register a new user in the community system"""
+    try:
+        result = await community_service.register_user(
+            phone_number=phone_number,
+            user_type=user_type,
+            name=name,
+            region=region,
+            school=school,
+            grade_level=grade_level
+        )
+        return {
+            "status": "success",
+            "message": "User registration processed",
+            "data": result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error registering user: {str(e)}")
+
+@router.get("/teachers/dashboard/{teacher_phone}")
+async def get_teacher_dashboard(teacher_phone: str):
+    """Get teacher dashboard data"""
+    try:
+        dashboard = await teacher_service.get_teacher_dashboard(teacher_phone)
+        return {
+            "status": "success",
+            "message": "Teacher dashboard data retrieved",
+            "data": dashboard
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving teacher dashboard: {str(e)}")
+
+@router.post("/teachers/register")
+async def register_teacher(
+    phone_number: str,
+    name: str,
+    school: str,
+    region: str,
+    subjects: list = None
+):
+    """Register a new teacher"""
+    try:
+        result = await teacher_service.register_teacher(
+            phone_number=phone_number,
+            name=name,
+            school=school,
+            region=region,
+            subjects=subjects or []
+        )
+        return {
+            "status": "success",
+            "message": "Teacher registration processed",
+            "data": result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error registering teacher: {str(e)}")
+
+@router.post("/teachers/create-classroom")
+async def create_classroom(
+    teacher_phone: str,
+    name: str,
+    description: str,
+    grade_level: str,
+    subject: str,
+    max_students: int = 30
+):
+    """Create a new classroom"""
+    try:
+        result = await teacher_service.create_classroom(
+            teacher_phone=teacher_phone,
+            name=name,
+            description=description,
+            grade_level=grade_level,
+            subject=subject,
+            max_students=max_students
+        )
+        return {
+            "status": "success",
+            "message": "Classroom creation processed",
+            "data": result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating classroom: {str(e)}")
+
+@router.get("/teachers/classroom-analytics/{teacher_phone}/{classroom_id}")
+async def get_classroom_analytics(teacher_phone: str, classroom_id: int):
+    """Get analytics for a specific classroom"""
+    try:
+        analytics = await teacher_service.get_classroom_analytics(teacher_phone, classroom_id)
+        return {
+            "status": "success",
+            "message": "Classroom analytics retrieved",
+            "data": analytics
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving classroom analytics: {str(e)}")
+
+@router.get("/peer-learning/sessions")
+async def get_peer_learning_sessions(db: Session = Depends(get_db)):
+    """Get recent peer learning sessions"""
+    try:
+        from app.models.database import PeerLearningSession
+        
+        sessions = db.query(PeerLearningSession).order_by(
+            PeerLearningSession.started_at.desc()
+        ).limit(50).all()
+        
+        session_data = []
+        for session in sessions:
+            session_data.append({
+                "session_id": session.session_id,
+                "module_name": session.module_name,
+                "topic": session.topic,
+                "participants": session.participants,
+                "started_at": str(session.started_at),
+                "ended_at": str(session.ended_at) if session.ended_at else None,
+                "session_summary": session.session_summary
+            })
+        
+        return {
+            "status": "success",
+            "message": "Peer learning sessions retrieved",
+            "data": {
+                "sessions": session_data,
+                "total": len(session_data)
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving peer learning sessions: {str(e)}")
