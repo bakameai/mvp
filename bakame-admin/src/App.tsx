@@ -97,21 +97,6 @@ function App() {
     }
   }
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log('🔥 handleLogin called!')
-    console.log('🔥 Form data:', loginForm)
-    console.log('🔥 Event:', e)
-    
-    if (loginForm.username.trim() && loginForm.password.trim()) {
-      console.log('🔥 Setting isLoggedIn to true...')
-      setIsLoggedIn(true)
-      console.log('🔥 Login successful, localStorage will be updated')
-    } else {
-      console.log('🔥 Login failed - empty credentials')
-      alert('Please enter both username and password')
-    }
-  }
 
   const handleExportCSV = async () => {
     try {
@@ -149,44 +134,40 @@ function App() {
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
                 <input
+                  id="username-input"
                   type="text"
                   required
                   className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                   placeholder="Username"
                   value={loginForm.username}
                   onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      console.log('🔥 Enter key pressed in username field!')
-                      handleLogin(e)
-                    }
-                  }}
                 />
               </div>
               <div>
                 <input
+                  id="password-input"
                   type="password"
                   required
                   className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                   placeholder="Password"
                   value={loginForm.password}
                   onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      console.log('🔥 Enter key pressed in password field!')
-                      handleLogin(e)
-                    }
-                  }}
                 />
               </div>
             </div>
             <div>
               <button
+                id="login-button"
                 type="button"
-                onClick={(e) => {
-                  console.log('🔥 Button onClick triggered!')
-                  console.log('Form data:', loginForm)
-                  handleLogin(e)
+                onClick={() => {
+                  const username = (document.getElementById('username-input') as HTMLInputElement)?.value?.trim();
+                  const password = (document.getElementById('password-input') as HTMLInputElement)?.value?.trim();
+                  if (username && password) {
+                    localStorage.setItem('bakame_admin_logged_in', 'true');
+                    window.location.reload();
+                  } else {
+                    alert('Please enter both username and password');
+                  }
                 }}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
@@ -194,6 +175,51 @@ function App() {
               </button>
             </div>
           </div>
+          <script dangerouslySetInnerHTML={{
+            __html: `
+              document.addEventListener('DOMContentLoaded', function() {
+                const loginButton = document.getElementById('login-button');
+                const usernameInput = document.getElementById('username-input');
+                const passwordInput = document.getElementById('password-input');
+                
+                function performLogin() {
+                  const username = usernameInput?.value?.trim();
+                  const password = passwordInput?.value?.trim();
+                  
+                  console.log('🔥 Manual login triggered!', username, password);
+                  
+                  if (username && password) {
+                    console.log('🔥 Setting login state...');
+                    localStorage.setItem('bakame_admin_logged_in', 'true');
+                    window.location.reload();
+                  } else {
+                    alert('Please enter both username and password');
+                  }
+                }
+                
+                if (loginButton) {
+                  loginButton.addEventListener('click', performLogin);
+                  console.log('🔥 Manual login event listener added');
+                }
+                
+                if (usernameInput) {
+                  usernameInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                      performLogin();
+                    }
+                  });
+                }
+                
+                if (passwordInput) {
+                  passwordInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                      performLogin();
+                    }
+                  });
+                }
+              });
+            `
+          }} />
         </div>
       </div>
     )
