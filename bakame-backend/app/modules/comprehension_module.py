@@ -2,6 +2,9 @@ import random
 from typing import Dict, Any
 from app.services.openai_service import openai_service
 from app.services.llama_service import llama_service
+from app.services.emotional_intelligence_service import emotional_intelligence_service
+from app.services.gamification_service import gamification_service
+from app.services.predictive_analytics_service import predictive_analytics
 from app.config import settings
 
 class ComprehensionModule:
@@ -66,15 +69,27 @@ class ComprehensionModule:
         current_question_index = user_context.get("user_state", {}).get("current_question_index", 0)
         
         if any(word in user_input_lower for word in ["new", "another", "next", "story"]):
-            return self._start_new_story(user_context)
+            return await self._start_new_story(user_context)
         
         if current_story and current_question_index < len(current_story.get("questions", [])):
             return await self._check_comprehension_answer(user_input, current_story, current_question_index, user_context)
         
-        return self._start_new_story(user_context)
+        return await self._start_new_story(user_context)
     
-    def _start_new_story(self, user_context: Dict[str, Any]) -> str:
-        """Start a new comprehension story"""
+    async def _start_new_story(self, user_context: Dict[str, Any]) -> str:
+        """Start a new comprehension story - dynamic generation or static fallback"""
+        
+        user_stats = user_context.get("user_state", {})
+        stories_completed = user_stats.get("comprehension_stories_completed", 0)
+        
+        if stories_completed >= 2:
+            dynamic_story = await self._generate_dynamic_story(user_context)
+            if dynamic_story:
+                user_context.setdefault("user_state", {})["current_story"] = dynamic_story
+                user_context["user_state"]["current_question_index"] = 0
+                user_context["user_state"]["comprehension_score"] = 0
+                
+                return f"Here's a fresh story for you:\n\n{dynamic_story['title']}\n\n{dynamic_story['content']}\n\nNow I'll ask you some questions about the story. Ready? {dynamic_story['questions'][0]}"
         
         story = random.choice(self.sample_stories)
         
@@ -86,6 +101,9 @@ class ComprehensionModule:
     
     async def _check_comprehension_answer(self, user_input: str, current_story: Dict, question_index: int, user_context: Dict[str, Any]) -> str:
         """Check comprehension answer and provide feedback"""
+        
+        emotion_data = await emotional_intelligence_service.detect_emotion(user_input)
+        emotional_intelligence_service.track_emotional_journey(user_context, emotion_data)
         
         correct_answer = current_story["answers"][question_index]
         question = current_story["questions"][question_index]
@@ -102,6 +120,11 @@ class ComprehensionModule:
         
         user_stats = user_context.get("user_state", {})
         
+        points_earned = gamification_service.update_progress(
+            user_context, "correct_answer" if is_correct else "incorrect_answer", 
+            self.module_name, is_correct
+        )
+        
         if is_correct:
             user_stats["comprehension_score"] = user_stats.get("comprehension_score", 0) + 1
             feedback = "Correct! " + evaluation.replace("CORRECT", "").strip()
@@ -113,7 +136,11 @@ class ComprehensionModule:
         if next_question_index < len(current_story["questions"]):
             user_stats["current_question_index"] = next_question_index
             next_question = current_story["questions"][next_question_index]
-            return f"{feedback}\n\nNext question: {next_question}"
+            base_response = f"{feedback}\n\nNext question: {next_question}"
+            
+            return await emotional_intelligence_service.generate_emotionally_aware_response(
+                user_input, base_response, emotion_data, self.module_name
+            )
         else:
             total_questions = len(current_story["questions"])
             score = user_stats.get("comprehension_score", 0)
@@ -124,7 +151,85 @@ class ComprehensionModule:
             user_stats["comprehension_stories_completed"] = user_stats.get("comprehension_stories_completed", 0) + 1
             user_stats["comprehension_total_score"] = user_stats.get("comprehension_total_score", 0) + score
             
-            return f"{feedback}\n\nStory completed! You got {score} out of {total_questions} questions correct. Would you like to try another story?"
+            gamification_service.update_progress(user_context, "completed_story", self.module_name)
+            
+            base_response = f"{feedback}\n\nStory completed! You got {score} out of {total_questions} questions correct."
+            
+            new_achievements = gamification_service.check_achievements(user_context)
+            if new_achievements:
+                achievement_msg = "\n\n" + "\n".join([ach["message"] for ach in new_achievements])
+                base_response += achievement_msg
+            
+            if points_earned > 0:
+                base_response += f"\n\n+{points_earned} points earned! 🌟"
+            
+            base_response += " Would you like to try another story?"
+            
+            return await emotional_intelligence_service.generate_emotionally_aware_response(
+                user_input, base_response, emotion_data, self.module_name
+            )
+    
+    async def _generate_dynamic_story(self, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a new Rwanda-specific story using AI"""
+        try:
+            user_stats = user_context.get("user_state", {})
+            stories_completed = user_stats.get("comprehension_stories_completed", 0)
+            total_score = user_stats.get("comprehension_total_score", 0)
+            
+            if stories_completed > 0:
+                avg_score = total_score / stories_completed
+                if avg_score >= 0.8:
+                    difficulty = "advanced"
+                elif avg_score >= 0.6:
+                    difficulty = "intermediate"
+                else:
+                    difficulty = "basic"
+            else:
+                difficulty = "basic"
+            
+            story_themes = [
+                "community cooperation and Ubuntu philosophy",
+                "innovation and technology in modern Rwanda",
+                "environmental conservation in the Land of a Thousand Hills",
+                "education and youth empowerment",
+                "cultural traditions meeting modern life",
+                "entrepreneurship and economic development",
+                "unity and reconciliation",
+                "agricultural innovation and food security"
+            ]
+            
+            theme = random.choice(story_themes)
+            
+            messages = [
+                {"role": "user", "content": f"Create a {difficulty}-level comprehension story about {theme} set in Rwanda. Include:\n\n1. A compelling title\n2. A 150-200 word story featuring Rwandan characters, places (like Kigali, Butare, Musanze), and cultural elements\n3. Exactly 3 comprehension questions that test understanding\n4. Clear answers for each question\n\nFormat as JSON: {{'title': 'Story Title', 'content': 'Story text...', 'questions': ['Q1', 'Q2', 'Q3'], 'answers': ['A1', 'A2', 'A3']}}"}
+            ]
+            
+            if settings.use_llama:
+                response = await llama_service.generate_response(messages, self.module_name)
+            else:
+                response = await openai_service.generate_response(messages, self.module_name)
+            
+            import json
+            try:
+                start_idx = response.find('{')
+                end_idx = response.rfind('}') + 1
+                if start_idx != -1 and end_idx != 0:
+                    json_str = response[start_idx:end_idx]
+                    story_data = json.loads(json_str)
+                    
+                    required_fields = ['title', 'content', 'questions', 'answers']
+                    if all(field in story_data for field in required_fields):
+                        if len(story_data['questions']) == 3 and len(story_data['answers']) == 3:
+                            return story_data
+                
+            except json.JSONDecodeError:
+                pass
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error generating dynamic story: {e}")
+            return None
     
     def get_welcome_message(self) -> str:
         """Get welcome message for Comprehension module"""

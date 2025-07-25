@@ -2,6 +2,9 @@ import random
 from typing import Dict, Any
 from app.services.openai_service import openai_service
 from app.services.llama_service import llama_service
+from app.services.emotional_intelligence_service import emotional_intelligence_service
+from app.services.gamification_service import gamification_service
+from app.services.predictive_analytics_service import predictive_analytics
 from app.config import settings
 
 class MathModule:
@@ -19,16 +22,25 @@ class MathModule:
             return "Returning to main menu. How can I help you today?"
         
         if any(word in user_input_lower for word in ["new", "another", "next", "problem", "question"]):
-            return self._generate_math_problem(user_context)
+            return await self._generate_math_problem(user_context)
         
         current_problem = user_context.get("user_state", {}).get("current_math_problem")
         if current_problem:
             return await self._check_math_answer(user_input, current_problem, user_context)
         
-        return self._generate_math_problem(user_context)
+        return await self._generate_math_problem(user_context)
     
-    def _generate_math_problem(self, user_context: Dict[str, Any]) -> str:
-        """Generate a new math problem"""
+    async def _generate_math_problem(self, user_context: Dict[str, Any]) -> str:
+        """Generate a new math problem - dynamic generation or static fallback"""
+        
+        user_stats = user_context.get("user_state", {})
+        problems_completed = user_stats.get("math_problems_attempted", 0)
+        
+        if problems_completed >= 3:
+            dynamic_problem = await self._generate_dynamic_problem(user_context)
+            if dynamic_problem:
+                user_context.setdefault("user_state", {})["current_math_problem"] = dynamic_problem
+                return f"Here's a Rwanda-specific math problem: {dynamic_problem['question']} Please give me your answer."
         
         level = user_context.get("user_state", {}).get("math_level", "basic")
         
@@ -77,6 +89,9 @@ class MathModule:
     async def _check_math_answer(self, user_input: str, current_problem: Dict, user_context: Dict[str, Any]) -> str:
         """Check if the user's answer is correct"""
         
+        emotion_data = await emotional_intelligence_service.detect_emotion(user_input)
+        emotional_intelligence_service.track_emotional_journey(user_context, emotion_data)
+        
         try:
             user_answer = float(''.join(filter(lambda x: x.isdigit() or x == '.', user_input)))
             correct_answer = current_problem["answer"]
@@ -85,6 +100,12 @@ class MathModule:
             
             user_stats = user_context.get("user_state", {})
             user_stats["math_problems_attempted"] = user_stats.get("math_problems_attempted", 0) + 1
+            
+            current_level = user_stats.get("math_level", "basic")
+            points_earned = gamification_service.update_progress(
+                user_context, "correct_answer" if is_correct else "incorrect_answer", 
+                self.module_name, is_correct, current_level
+            )
             
             if is_correct:
                 user_stats["math_problems_correct"] = user_stats.get("math_problems_correct", 0) + 1
@@ -111,7 +132,21 @@ class MathModule:
                 
                 user_stats["current_math_problem"] = None
                 
-                return f"Correct! The answer is {correct_answer}.{level_up_msg} Would you like another problem?"
+                base_response = f"Correct! The answer is {correct_answer}.{level_up_msg}"
+                
+                new_achievements = gamification_service.check_achievements(user_context)
+                if new_achievements:
+                    achievement_msg = "\n\n" + "\n".join([ach["message"] for ach in new_achievements])
+                    base_response += achievement_msg
+                
+                if points_earned > 0:
+                    base_response += f"\n\n+{points_earned} points earned! 🌟"
+                
+                base_response += " Would you like another problem?"
+                
+                return await emotional_intelligence_service.generate_emotionally_aware_response(
+                    user_input, base_response, emotion_data, self.module_name
+                )
             
             else:
                 messages = [
@@ -122,13 +157,82 @@ class MathModule:
                     hint = await llama_service.generate_response(messages, self.module_name)
                 else:
                     hint = await openai_service.generate_response(messages, self.module_name)
-                return f"Not quite right. {hint} Try again: What is {current_problem['question']}?"
+                
+                base_response = f"Not quite right. {hint} Try again: What is {current_problem['question']}?"
+                
+                return await emotional_intelligence_service.generate_emotionally_aware_response(
+                    user_input, base_response, emotion_data, self.module_name
+                )
         
         except ValueError:
-            return f"I couldn't understand your answer. Please give me a number for: What is {current_problem['question']}?"
+            base_response = f"I couldn't understand your answer. Please give me a number for: What is {current_problem['question']}?"
+            return await emotional_intelligence_service.generate_emotionally_aware_response(
+                user_input, base_response, emotion_data, self.module_name
+            )
     
     def get_welcome_message(self) -> str:
         """Get welcome message for Math module"""
         return "Muraho! 🧮✨ I'm excited to explore math together using Rwandan contexts! We'll work with Rwandan francs, calculate distances between our beautiful cities like Kigali and Butare, and solve problems that connect to daily life in Rwanda. Math helps build our nation's future in technology and development. Ready to strengthen those mental muscles? Byiza, let's start!"
+
+    async def _generate_dynamic_problem(self, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a new Rwanda-specific math problem using AI"""
+        try:
+            user_stats = user_context.get("user_state", {})
+            problems_attempted = user_stats.get("math_problems_attempted", 0)
+            problems_correct = user_stats.get("math_problems_correct", 0)
+            
+            if problems_attempted > 0:
+                accuracy = problems_correct / problems_attempted
+                if accuracy >= 0.8:
+                    difficulty = "hard"
+                elif accuracy >= 0.6:
+                    difficulty = "medium"
+                else:
+                    difficulty = "easy"
+            else:
+                difficulty = "easy"
+            
+            problem_contexts = [
+                "market transactions in Kigali using Rwandan francs (RWF)",
+                "calculating distances between Rwandan cities (Kigali, Butare, Musanze, Gisenyi)",
+                "agricultural calculations for coffee or tea farming",
+                "construction projects for community buildings",
+                "mobile money transactions and savings",
+                "school supplies and educational costs",
+                "transportation costs between provinces",
+                "community development project budgets"
+            ]
+            
+            context = random.choice(problem_contexts)
+            
+            messages = [
+                {"role": "user", "content": f"Create a {difficulty}-level math problem about {context} in Rwanda. Include:\n\n1. A realistic scenario with Rwandan context\n2. A clear math question\n3. The correct numerical answer\n\nFormat as JSON: {{'question': 'A farmer in Musanze...', 'answer': 150, 'context': 'agricultural'}}"}
+            ]
+            
+            if settings.use_llama:
+                response = await llama_service.generate_response(messages, self.module_name)
+            else:
+                response = await openai_service.generate_response(messages, self.module_name)
+            
+            import json
+            try:
+                start_idx = response.find('{')
+                end_idx = response.rfind('}') + 1
+                if start_idx != -1 and end_idx != 0:
+                    json_str = response[start_idx:end_idx]
+                    problem_data = json.loads(json_str)
+                    
+                    required_fields = ['question', 'answer']
+                    if all(field in problem_data for field in required_fields):
+                        return problem_data
+                
+            except json.JSONDecodeError:
+                pass
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error generating dynamic math problem: {e}")
+            return None
 
 math_module = MathModule()

@@ -1,6 +1,8 @@
 from typing import Dict, Any
 from app.services.openai_service import openai_service
 from app.services.llama_service import llama_service
+from app.services.emotional_intelligence_service import emotional_intelligence_service
+from app.services.gamification_service import gamification_service
 from app.config import settings
 
 class GeneralModule:
@@ -10,26 +12,40 @@ class GeneralModule:
     async def process_input(self, user_input: str, user_context: Dict[str, Any]) -> str:
         """Process general questions and conversations"""
         
+        emotion_data = await emotional_intelligence_service.detect_emotion(user_input)
+        emotional_intelligence_service.track_emotional_journey(user_context, emotion_data)
+        
+        gamification_service.update_progress(user_context, "session_complete", self.module_name)
+        
         user_input_lower = user_input.lower()
         
         if any(word in user_input_lower for word in ["help", "what can you do", "modules", "options", "menu"]):
-            return await self._get_help_message(user_context)
+            base_response = await self._get_help_message(user_context)
+            return await emotional_intelligence_service.generate_emotionally_aware_response(
+                user_input, base_response, emotion_data, self.module_name
+            )
         
         if "english" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "english"
             messages = [{"role": "user", "content": "I want to practice English. Welcome me to the English learning module with enthusiasm, using Kinyarwanda phrases and referencing how English connects Rwanda to the global community."}]
             if settings.use_llama:
-                return await llama_service.generate_response(messages, "english")
+                base_response = await llama_service.generate_response(messages, "english")
             else:
-                return await openai_service.generate_response(messages, "english")
+                base_response = await openai_service.generate_response(messages, "english")
+            return await emotional_intelligence_service.generate_emotionally_aware_response(
+                user_input, base_response, emotion_data, "english"
+            )
         
         elif "math" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "math"
             messages = [{"role": "user", "content": "I want to practice math. Welcome me to the math module with excitement, using Kinyarwanda phrases and mentioning Rwandan contexts like RWF currency and distances between cities."}]
             if settings.use_llama:
-                return await llama_service.generate_response(messages, "math")
+                base_response = await llama_service.generate_response(messages, "math")
             else:
-                return await openai_service.generate_response(messages, "math")
+                base_response = await openai_service.generate_response(messages, "math")
+            return await emotional_intelligence_service.generate_emotionally_aware_response(
+                user_input, base_response, emotion_data, "math"
+            )
         
         elif "comprehension" in user_input_lower or "reading" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "comprehension"

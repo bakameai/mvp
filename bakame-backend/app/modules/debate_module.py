@@ -3,6 +3,9 @@ from typing import Dict, Any
 from app.services.openai_service import openai_service
 from app.services.llama_service import llama_service
 from app.services.newsapi_service import newsapi_service
+from app.services.emotional_intelligence_service import emotional_intelligence_service
+from app.services.gamification_service import gamification_service
+from app.services.predictive_analytics_service import predictive_analytics
 from app.config import settings
 
 class DebateModule:
@@ -65,6 +68,9 @@ class DebateModule:
     async def _continue_debate(self, user_input: str, current_topic: str, debate_round: int, user_context: Dict[str, Any]) -> str:
         """Continue the debate conversation"""
         
+        emotion_data = await emotional_intelligence_service.detect_emotion(user_input)
+        emotional_intelligence_service.track_emotional_journey(user_context, emotion_data)
+        
         user_stats = user_context.get("user_state", {})
         
         if not user_stats.get("user_position"):
@@ -89,19 +95,36 @@ class DebateModule:
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
         if settings.use_llama:
-            response = await llama_service.generate_response(messages, self.module_name)
+            base_response = await llama_service.generate_response(messages, self.module_name)
         else:
-            response = await openai_service.generate_response(messages, self.module_name)
+            base_response = await openai_service.generate_response(messages, self.module_name)
         
         user_stats["debate_round"] = debate_round + 1
+        
+        points_earned = gamification_service.update_progress(
+            user_context, "debate_response", self.module_name
+        )
         
         if debate_round >= 3:
             user_stats["current_debate_topic"] = None
             user_stats["debate_round"] = 0
             user_stats["debates_completed"] = user_stats.get("debates_completed", 0) + 1
-            response += "\n\nGreat debate! Would you like to try another topic?"
+            
+            gamification_service.update_progress(user_context, "completed_debate", self.module_name)
+            
+            new_achievements = gamification_service.check_achievements(user_context)
+            if new_achievements:
+                achievement_msg = "\n\n" + "\n".join([ach["message"] for ach in new_achievements])
+                base_response += achievement_msg
+            
+            if points_earned > 0:
+                base_response += f"\n\n+{points_earned} points earned! 🌟"
+            
+            base_response += "\n\nGreat debate! Would you like to try another topic?"
         
-        return response
+        return await emotional_intelligence_service.generate_emotionally_aware_response(
+            user_input, base_response, emotion_data, self.module_name
+        )
     
     def get_welcome_message(self) -> str:
         """Get welcome message for Debate module"""

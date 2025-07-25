@@ -1,6 +1,9 @@
 from typing import Dict, Any
 from app.services.openai_service import openai_service
 from app.services.llama_service import llama_service
+from app.services.emotional_intelligence_service import emotional_intelligence_service
+from app.services.gamification_service import gamification_service
+from app.services.predictive_analytics_service import predictive_analytics
 from app.config import settings
 
 class EnglishModule:
@@ -10,20 +13,34 @@ class EnglishModule:
     async def process_input(self, user_input: str, user_context: Dict[str, Any]) -> str:
         """Process English learning input"""
         
+        emotion_data = await emotional_intelligence_service.detect_emotion(user_input)
+        emotional_intelligence_service.track_emotional_journey(user_context, emotion_data)
+        
         user_input_lower = user_input.lower()
         
         if any(word in user_input_lower for word in ["exit", "quit", "stop", "back", "menu", "hello", "hi"]):
             user_context.setdefault("user_state", {})["requested_module"] = "general"
             return "Returning to main menu. How can I help you today?"
         
+        gamification_service.update_progress(user_context, "session_complete", self.module_name)
+        
         if any(word in user_input_lower for word in ["grammar", "correct", "fix"]):
-            return await self._grammar_correction(user_input, user_context)
+            base_response = await self._grammar_correction(user_input, user_context)
         elif any(word in user_input_lower for word in ["repeat", "practice", "pronunciation"]):
-            return await self._repeat_practice(user_input, user_context)
+            base_response = await self._repeat_practice(user_input, user_context)
         elif any(word in user_input_lower for word in ["help", "learn", "teach"]):
-            return await self._english_tutoring(user_input, user_context)
+            base_response = await self._english_tutoring(user_input, user_context)
         else:
-            return await self._english_tutoring(user_input, user_context)
+            base_response = await self._english_tutoring(user_input, user_context)
+        
+        new_achievements = gamification_service.check_achievements(user_context)
+        if new_achievements:
+            achievement_msg = "\n\n" + "\n".join([ach["message"] for ach in new_achievements])
+            base_response += achievement_msg
+        
+        return await emotional_intelligence_service.generate_emotionally_aware_response(
+            user_input, base_response, emotion_data, self.module_name
+        )
     
     async def _grammar_correction(self, user_input: str, user_context: Dict[str, Any]) -> str:
         """Provide grammar correction and feedback"""
