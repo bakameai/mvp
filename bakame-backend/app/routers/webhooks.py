@@ -6,6 +6,8 @@ from app.services.twilio_service import twilio_service
 from app.services.openai_service import openai_service
 from app.services.redis_service import redis_service
 from app.services.logging_service import logging_service
+from app.services.offline_service import offline_service
+from app.services.multimodal_service import multimodal_service
 from app.modules.english_module import english_module
 from app.modules.math_module import math_module
 from app.modules.comprehension_module import comprehension_module
@@ -182,6 +184,8 @@ async def handle_sms(
             user_input=user_input,
             ai_response=ai_response
         )
+        
+        await offline_service.cache_interaction(phone_number, user_input, ai_response, current_module_name)
         
         return Response(
             content=twilio_service.create_sms_response(ai_response),

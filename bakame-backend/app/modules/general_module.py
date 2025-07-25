@@ -3,6 +3,10 @@ from app.services.openai_service import openai_service
 from app.services.llama_service import llama_service
 from app.services.emotional_intelligence_service import emotional_intelligence_service
 from app.services.gamification_service import gamification_service
+from app.services.wellness_service import wellness_service
+from app.services.economic_empowerment_service import economic_empowerment_service
+from app.services.offline_service import offline_service
+from app.services.multimodal_service import multimodal_service
 from app.config import settings
 
 class GeneralModule:
@@ -62,6 +66,28 @@ class GeneralModule:
                 return await llama_service.generate_response(messages, "debate")
             else:
                 return await openai_service.generate_response(messages, "debate")
+        
+        elif any(word in user_input_lower for word in ["wellness", "health", "mood", "nutrition"]):
+            if "mood" in user_input_lower:
+                result = await wellness_service.conduct_mood_check(user_context.get("phone_number", ""), user_input)
+                return result.get("message", "How are you feeling today? Reply with 1-5 (1=very sad, 5=very happy).")
+            elif "nutrition" in user_input_lower:
+                result = await wellness_service.provide_nutrition_guidance(user_context.get("phone_number", ""), user_input)
+                return result.get("message", "What Rwandan food would you like to know about? Try 'ubwoba', 'igikoma', or 'amaru'.")
+            else:
+                result = await wellness_service.suggest_wellness_activity(user_context.get("phone_number", ""))
+                return result.get("message", "Here's a wellness activity for you!")
+        
+        elif any(word in user_input_lower for word in ["money", "business", "savings", "entrepreneur", "financial"]):
+            if "business" in user_input_lower:
+                result = await economic_empowerment_service.suggest_business_idea(user_context.get("phone_number", ""))
+                return result.get("message", "Here's a business idea for you!")
+            elif "savings" in user_input_lower:
+                result = await economic_empowerment_service.provide_savings_tip(user_context.get("phone_number", ""))
+                return result.get("message", "Here's a savings tip!")
+            else:
+                result = await economic_empowerment_service.provide_financial_education(user_context.get("phone_number", ""), user_input)
+                return result.get("message", "Let me help you with financial literacy!")
         
         messages = [{"role": "user", "content": user_input}]
         
