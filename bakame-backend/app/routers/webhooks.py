@@ -38,9 +38,10 @@ async def handle_voice_call(
     
     try:
         user_context = redis_service.get_user_context(phone_number)
+        user_context["phone_number"] = phone_number
         
         if not SpeechResult and not RecordingUrl:
-            welcome_msg = general_module.get_welcome_message()
+            welcome_msg = await general_module.get_welcome_message()
             redis_service.set_current_module(phone_number, "general")
             
             await logging_service.log_interaction(
@@ -79,6 +80,8 @@ async def handle_voice_call(
         else:
             user_context = redis_service.get_user_context(phone_number)
         
+        user_context["phone_number"] = phone_number
+        
         current_module_name = redis_service.get_current_module(phone_number) or "general"
         
         requested_module = user_context.get("user_state", {}).get("requested_module")
@@ -116,10 +119,20 @@ async def handle_voice_call(
         
     except Exception as e:
         print(f"Error in voice call handler: {e}")
-        return Response(
-            content=await twilio_service.create_voice_response("I'm sorry, I'm having technical difficulties. Please try again later."),
-            media_type="application/xml"
-        )
+        await logging_service.log_error(f"Voice call error for {phone_number}: {str(e)}")
+        
+        try:
+            fallback_response = "Welcome to BAKAME! I'm your AI learning assistant. Say MATH for math practice, ENGLISH for language learning, or HELP for more options."
+            return Response(
+                content=await twilio_service.create_voice_response(fallback_response),
+                media_type="application/xml"
+            )
+        except Exception as fallback_error:
+            print(f"Fallback error: {fallback_error}")
+            return Response(
+                content='<?xml version="1.0" encoding="UTF-8"?><Response><Say>Welcome to BAKAME learning assistant. Please try again.</Say></Response>',
+                media_type="application/xml"
+            )
 
 @router.post("/sms")
 async def handle_sms(
@@ -143,6 +156,8 @@ async def handle_sms(
             redis_service.set_current_module(phone_number, current_module_name)
         else:
             user_context = redis_service.get_user_context(phone_number)
+        
+        user_context["phone_number"] = phone_number
         
         current_module_name = redis_service.get_current_module(phone_number) or "general"
         
@@ -175,10 +190,20 @@ async def handle_sms(
         
     except Exception as e:
         print(f"Error in SMS handler: {e}")
-        return Response(
-            content=twilio_service.create_sms_response("I'm sorry, I'm having technical difficulties. Please try again later."),
-            media_type="application/xml"
-        )
+        await logging_service.log_error(f"SMS error for {phone_number}: {str(e)}")
+        
+        try:
+            fallback_response = "Welcome to BAKAME! I'm your AI learning assistant. Reply MATH for math practice, ENGLISH for language learning, or HELP for more options."
+            return Response(
+                content=twilio_service.create_sms_response(fallback_response),
+                media_type="application/xml"
+            )
+        except Exception as fallback_error:
+            print(f"SMS fallback error: {fallback_error}")
+            return Response(
+                content='<?xml version="1.0" encoding="UTF-8"?><Response><Message>Welcome to BAKAME learning assistant. Please try again.</Message></Response>',
+                media_type="application/xml"
+            )
 
 @router.post("/voice/process")
 async def handle_voice_process(
