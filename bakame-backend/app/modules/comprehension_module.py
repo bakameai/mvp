@@ -1,11 +1,41 @@
 import random
 from typing import Dict, Any
 from app.services.openai_service import openai_service
+from app.services.llama_service import llama_service
+from app.config import settings
 
 class ComprehensionModule:
     def __init__(self):
         self.module_name = "comprehension"
         self.sample_stories = [
+            {
+                "title": "The Community Garden in Kigali",
+                "content": "Uwimana lived in a neighborhood in Kigali where many families struggled to afford fresh vegetables. She noticed an empty plot of land near her home and had an idea. She spoke to her neighbors about starting a community garden where everyone could grow vegetables together. At first, only a few families joined, but as the garden flourished with tomatoes, beans, and cabbage, more neighbors wanted to participate. They shared the harvest equally, and no family went without fresh food. The garden became a place where children learned about farming and neighbors strengthened their bonds through Ubuntu - the spirit of togetherness.",
+                "questions": [
+                    "What problem did Uwimana notice in her neighborhood?",
+                    "What solution did she propose?",
+                    "How did the community garden help beyond just providing food?"
+                ],
+                "answers": [
+                    "Many families struggled to afford fresh vegetables",
+                    "Starting a community garden where everyone could grow vegetables together",
+                    "It became a place where children learned farming and neighbors strengthened bonds through Ubuntu"
+                ]
+            },
+            {
+                "title": "The Mobile Money Innovation",
+                "content": "Jean-Baptiste was a young entrepreneur in Butare who noticed that many people in rural areas had difficulty accessing banking services. He developed a mobile money system that allowed people to send and receive money using their basic phones. His innovation helped farmers sell their crops to buyers in Kigali without traveling long distances, and families could support each other across the country. The system became so successful that it was adopted throughout Rwanda and even in neighboring countries. Jean-Baptiste's solution showed how technology could bridge gaps and connect communities.",
+                "questions": [
+                    "What challenge did Jean-Baptiste identify?",
+                    "How did his mobile money system help farmers?",
+                    "What does this story show about technology's role?"
+                ],
+                "answers": [
+                    "People in rural areas had difficulty accessing banking services",
+                    "It allowed farmers to sell crops to buyers in Kigali without traveling long distances",
+                    "Technology can bridge gaps and connect communities"
+                ]
+            },
             {
                 "title": "The Helpful Neighbor",
                 "content": "Maria lived next to an elderly man named Mr. Johnson. Every morning, she noticed he struggled to carry his groceries up the stairs. One day, Maria decided to help him. She carried his bags and even helped him organize his kitchen. Mr. Johnson was so grateful that he baked her favorite cookies as a thank you gift.",
@@ -18,20 +48,6 @@ class ComprehensionModule:
                     "Mr. Johnson (or the elderly man)",
                     "Carrying groceries and organizing his kitchen",
                     "He baked her favorite cookies"
-                ]
-            },
-            {
-                "title": "The Lost Wallet",
-                "content": "Tom found a wallet on the street with $200 and an ID card inside. He could have kept the money, but instead he looked up the owner's address and returned it. The owner, Mrs. Chen, was so happy because the wallet contained her late husband's photo. She offered Tom a reward, but he politely declined.",
-                "questions": [
-                    "How much money was in the wallet?",
-                    "Why was the wallet especially important to Mrs. Chen?",
-                    "Did Tom accept a reward?"
-                ],
-                "answers": [
-                    "$200",
-                    "It contained her late husband's photo",
-                    "No, he politely declined"
                 ]
             }
         ]
@@ -78,7 +94,10 @@ class ComprehensionModule:
             {"role": "user", "content": f"Question: {question}\nCorrect answer: {correct_answer}\nUser's answer: {user_input}\n\nIs the user's answer correct? Consider variations in wording. Respond with 'CORRECT' or 'INCORRECT' followed by brief feedback."}
         ]
         
-        evaluation = await openai_service.generate_response(messages, self.module_name)
+        if settings.use_llama:
+            evaluation = await llama_service.generate_response(messages, self.module_name)
+        else:
+            evaluation = await openai_service.generate_response(messages, self.module_name)
         is_correct = "CORRECT" in evaluation.upper()
         
         user_stats = user_context.get("user_state", {})
@@ -109,6 +128,6 @@ class ComprehensionModule:
     
     def get_welcome_message(self) -> str:
         """Get welcome message for Comprehension module"""
-        return "Hello, fellow story lover! 📚✨ I'm so excited to share some wonderful tales with you and explore them together! Stories are like little windows into different worlds, and I love discovering what catches your attention and how you interpret things. Ready to dive into a good story? Just say 'new story' and we'll begin our literary adventure!"
+        return "Muraho, fellow story lover! 📚✨ I'm excited to share wonderful tales that reflect our beautiful Rwandan culture and values like Ubuntu, unity, and community support. Stories teach us about life, wisdom, and our rich heritage from the hills of Rwanda to our modern cities. Ready to explore some tales together? Just say 'new story' and we'll begin our literary adventure!"
 
 comprehension_module = ComprehensionModule()

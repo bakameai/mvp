@@ -1,6 +1,8 @@
 import random
 from typing import Dict, Any
 from app.services.openai_service import openai_service
+from app.services.llama_service import llama_service
+from app.config import settings
 
 class MathModule:
     def __init__(self):
@@ -116,7 +118,10 @@ class MathModule:
                     {"role": "user", "content": f"The user answered {user_answer} for the problem {current_problem['question']}, but the correct answer is {correct_answer}. Give them a helpful hint to solve it correctly."}
                 ]
                 
-                hint = await openai_service.generate_response(messages, self.module_name)
+                if settings.use_llama:
+                    hint = await llama_service.generate_response(messages, self.module_name)
+                else:
+                    hint = await openai_service.generate_response(messages, self.module_name)
                 return f"Not quite right. {hint} Try again: What is {current_problem['question']}?"
         
         except ValueError:
@@ -124,6 +129,6 @@ class MathModule:
     
     def get_welcome_message(self) -> str:
         """Get welcome message for Math module"""
-        return "Hey math explorer! 🧮✨ I'm thrilled to dive into some abacus mental math with you! We'll start nice and easy and work our way up to more challenging calculations as you get stronger. Math is like a puzzle - once you see the patterns, it becomes so satisfying! Ready to flex those mental muscles? Just say you're ready or ask for a problem!"
+        return "Muraho! 🧮✨ I'm excited to explore math together using Rwandan contexts! We'll work with Rwandan francs, calculate distances between our beautiful cities like Kigali and Butare, and solve problems that connect to daily life in Rwanda. Math helps build our nation's future in technology and development. Ready to strengthen those mental muscles? Byiza, let's start!"
 
 math_module = MathModule()

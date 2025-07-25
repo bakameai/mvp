@@ -1,7 +1,9 @@
 import random
 from typing import Dict, Any
 from app.services.openai_service import openai_service
+from app.services.llama_service import llama_service
 from app.services.newsapi_service import newsapi_service
+from app.config import settings
 
 class DebateModule:
     def __init__(self):
@@ -86,7 +88,10 @@ class DebateModule:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
-        response = await openai_service.generate_response(messages, self.module_name)
+        if settings.use_llama:
+            response = await llama_service.generate_response(messages, self.module_name)
+        else:
+            response = await openai_service.generate_response(messages, self.module_name)
         
         user_stats["debate_round"] = debate_round + 1
         
@@ -100,6 +105,6 @@ class DebateModule:
     
     def get_welcome_message(self) -> str:
         """Get welcome message for Debate module"""
-        return "Hey! Ready for some friendly intellectual sparring? 🤔 I love exploring different perspectives and challenging ideas together. Debates help us think deeper and see things from new angles. I've got some fascinating topics that'll get our minds racing - want to dive into a good discussion?"
+        return "Muraho! Ready for some thoughtful discussion? 🤔 In Rwanda, we value respectful dialogue, Ubuntu, and learning from different perspectives. I love exploring ideas that matter to our community and nation-building. Debates help us think deeper and see things from new angles while respecting our values of unity and understanding. Want to dive into a good discussion?"
 
 debate_module = DebateModule()

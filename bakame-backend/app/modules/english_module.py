@@ -1,5 +1,7 @@
 from typing import Dict, Any
 from app.services.openai_service import openai_service
+from app.services.llama_service import llama_service
+from app.config import settings
 
 class EnglishModule:
     def __init__(self):
@@ -33,7 +35,10 @@ class EnglishModule:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
-        response = await openai_service.generate_response(messages, self.module_name)
+        if settings.use_llama:
+            response = await llama_service.generate_response(messages, self.module_name)
+        else:
+            response = await openai_service.generate_response(messages, self.module_name)
         return response
     
     async def _repeat_practice(self, user_input: str, user_context: Dict[str, Any]) -> str:
@@ -42,7 +47,10 @@ class EnglishModule:
             {"role": "user", "content": f"Help me practice pronunciation. Give me feedback on how I said: '{user_input}' and provide a similar sentence to practice."}
         ]
         
-        response = await openai_service.generate_response(messages, self.module_name)
+        if settings.use_llama:
+            response = await llama_service.generate_response(messages, self.module_name)
+        else:
+            response = await openai_service.generate_response(messages, self.module_name)
         return response
     
     async def _english_tutoring(self, user_input: str, user_context: Dict[str, Any]) -> str:
@@ -55,11 +63,14 @@ class EnglishModule:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
-        response = await openai_service.generate_response(messages, self.module_name)
+        if settings.use_llama:
+            response = await llama_service.generate_response(messages, self.module_name)
+        else:
+            response = await openai_service.generate_response(messages, self.module_name)
         return response
     
     def get_welcome_message(self) -> str:
         """Get welcome message for English module"""
-        return "Hi there! 🌟 I'm so excited to practice English with you! Whether you want to polish your grammar, work on pronunciation, or just have a good chat to build confidence - I'm here for it all. English is such a beautiful language, and I love helping people feel more comfortable expressing themselves. What aspect of English would you like to explore together?"
+        return "Muraho! 🌟 I'm so excited to practice English with you! English opens many doors in Rwanda and connects us to the global community while we maintain our beautiful Kinyarwanda heritage. Whether you want to improve grammar, pronunciation, or just have great conversations - I'm here to help. What aspect of English would you like to explore together?"
 
 english_module = EnglishModule()
