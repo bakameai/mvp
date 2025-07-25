@@ -99,15 +99,16 @@ function App() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('handleLogin called!')
-    console.log('Form data:', loginForm)
+    console.log('🔥 handleLogin called!')
+    console.log('🔥 Form data:', loginForm)
+    console.log('🔥 Event:', e)
     
     if (loginForm.username.trim() && loginForm.password.trim()) {
-      console.log('Setting isLoggedIn to true...')
+      console.log('🔥 Setting isLoggedIn to true...')
       setIsLoggedIn(true)
-      console.log('Login successful, localStorage will be updated')
+      console.log('🔥 Login successful, localStorage will be updated')
     } else {
-      console.log('Login failed - empty credentials')
+      console.log('🔥 Login failed - empty credentials')
       alert('Please enter both username and password')
     }
   }
@@ -170,6 +171,11 @@ function App() {
             <div>
               <button
                 type="submit"
+                onClick={(e) => {
+                  e.preventDefault()
+                  console.log('🔥 Button onClick triggered!')
+                  handleLogin(e)
+                }}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 Sign in
