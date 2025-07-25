@@ -32,14 +32,14 @@ class LlamaService:
             
             full_messages = [{"role": "system", "content": system_prompt}] + messages
             
-            response = await self._call_llama_api(full_messages)
+            response = await self._call_llama_api(full_messages, module_name)
             return response.strip()
             
         except Exception as e:
             print(f"Error in Llama generation: {e}")
             return "Ndabwira ko nfite ikibazo gito. (I'm having a small issue.) Please try again, and I'll do my best to help you learn!"
     
-    async def _call_llama_api(self, messages: List[Dict[str, str]]) -> str:
+    async def _call_llama_api(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:
         """Call Llama API with multiple endpoint fallback, then OpenAI with Rwanda context"""
         
         if self.working_url:
