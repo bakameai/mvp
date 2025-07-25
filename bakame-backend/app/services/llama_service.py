@@ -40,7 +40,7 @@ class LlamaService:
             return "Ndabwira ko nfite ikibazo gito. (I'm having a small issue.) Please try again, and I'll do my best to help you learn!"
     
     async def _call_llama_api(self, messages: List[Dict[str, str]]) -> str:
-        """Call Llama API with multiple endpoint fallback"""
+        """Call Llama API with multiple endpoint fallback, then OpenAI with Rwanda context"""
         
         if self.working_url:
             urls_to_try = [self.working_url] + [url for url in self.base_urls if url != self.working_url]
@@ -76,7 +76,13 @@ class LlamaService:
                     print(f"Llama API error with {url}: {e}")
                     continue
         
-        return "Ndabwira ko nfite ikibazo. (I have an issue.) Let me try to help you another way."
+        print("Llama API failed, falling back to OpenAI with Rwanda context")
+        try:
+            from app.services.openai_service import openai_service
+            return await openai_service.generate_response(messages, "general")
+        except Exception as e:
+            print(f"OpenAI fallback error: {e}")
+            return "Ndabwira ko nfite ikibazo. (I have an issue.) Let me try to help you another way."
     
     async def transcribe_audio(self, audio_data: bytes, audio_format: str = "wav") -> str:
         """Keep using OpenAI Whisper for transcription"""
