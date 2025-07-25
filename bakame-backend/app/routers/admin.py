@@ -355,3 +355,168 @@ async def get_peer_learning_sessions(db: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving peer learning sessions: {str(e)}")
+
+@router.post("/populate-sample-data")
+async def populate_sample_data():
+    """Populate database with sample data for demonstration"""
+    try:
+        import json
+        from datetime import datetime, timedelta
+        from app.models.database import (
+            User, PeerConnection, LearningGroup, GroupMembership, 
+            PeerLearningSession, UserSession, ModuleUsage
+        )
+        
+        db = next(get_db())
+        
+        sample_users = [
+            {"phone": "+250781234567", "type": "student", "name": "Uwimana Jean", "region": "Kigali", "school": "Kigali Primary School", "grade": "Primary 4-6"},
+            {"phone": "+250782345678", "type": "student", "name": "Mukamana Alice", "region": "Northern", "school": "Musanze Secondary", "grade": "Secondary 1-3"},
+            {"phone": "+250783456789", "type": "student", "name": "Niyonzima David", "region": "Southern", "school": "Huye High School", "grade": "Secondary 4-6"},
+            {"phone": "+250784567890", "type": "student", "name": "Uwase Grace", "region": "Eastern", "school": "Rwamagana Primary", "grade": "Primary 1-3"},
+            {"phone": "+250785678901", "type": "student", "name": "Habimana Eric", "region": "Western", "school": "Rubavu Secondary", "grade": "Secondary 1-3"},
+            {"phone": "+250786789012", "type": "student", "name": "Mutesi Sarah", "region": "Kigali", "school": "Nyarugenge Primary", "grade": "Primary 4-6"},
+            {"phone": "+250787890123", "type": "student", "name": "Bizimana Paul", "region": "Northern", "school": "Gicumbi Primary", "grade": "Primary 1-3"},
+            {"phone": "+250788901234", "type": "student", "name": "Nyirahabimana Marie", "region": "Southern", "school": "Nyanza Secondary", "grade": "Secondary 4-6"},
+            {"phone": "+250789012345", "type": "student", "name": "Uwimana Patrick", "region": "Eastern", "school": "Kayonza High School", "grade": "Secondary 1-3"},
+            {"phone": "+250780123456", "type": "student", "name": "Mukandayisenga Claire", "region": "Western", "school": "Karongi Primary", "grade": "Primary 4-6"},
+            
+            {"phone": "+250791234567", "type": "teacher", "name": "Nsengimana Joseph", "region": "Kigali", "school": "Kigali Primary School", "grade": None},
+            {"phone": "+250792345678", "type": "teacher", "name": "Uwimana Beatrice", "region": "Northern", "school": "Musanze Secondary", "grade": None},
+            {"phone": "+250793456789", "type": "teacher", "name": "Hakizimana Emmanuel", "region": "Southern", "school": "Huye High School", "grade": None},
+            {"phone": "+250794567890", "type": "teacher", "name": "Mukamana Esperance", "region": "Eastern", "school": "Rwamagana Primary", "grade": None},
+            {"phone": "+250795678901", "type": "teacher", "name": "Nzeyimana Claude", "region": "Western", "school": "Rubavu Secondary", "grade": None},
+        ]
+        
+        db.query(User).filter(User.phone_number.like("+2507%")).delete()
+        db.query(UserSession).filter(UserSession.phone_number.like("+2507%")).delete()
+        db.query(ModuleUsage).filter(ModuleUsage.phone_number.like("+2507%")).delete()
+        db.commit()
+        
+        for user_data in sample_users:
+            existing_user = db.query(User).filter(User.phone_number == user_data["phone"]).first()
+            if not existing_user:
+                new_user = User(
+                    phone_number=user_data["phone"],
+                    user_type=user_data["type"],
+                    name=user_data["name"],
+                    region=user_data["region"],
+                    school=user_data["school"],
+                    grade_level=user_data["grade"],
+                    total_points=(50 + (hash(user_data["phone"]) % 200)),
+                    current_level=["beginner", "learner", "achiever", "expert"][hash(user_data["phone"]) % 4],
+                    last_active=datetime.utcnow() - timedelta(hours=hash(user_data["phone"]) % 48)
+                )
+                db.add(new_user)
+        
+        regions = ["Kigali", "Northern", "Southern", "Eastern", "Western"]
+        for region in regions:
+            existing_group = db.query(LearningGroup).filter(
+                LearningGroup.region == region,
+                LearningGroup.group_type == "regional"
+            ).first()
+            if not existing_group:
+                regional_group = LearningGroup(
+                    name=f"{region} Regional Learning Community",
+                    description=f"Learning community for students in {region} region of Rwanda",
+                    group_type="regional",
+                    region=region,
+                    max_members=200
+                )
+                db.add(regional_group)
+        
+        db.commit()
+        
+        peer_pairs = [
+            ("+250781234567", "+250786789012"),  # Both Kigali Primary 4-6
+            ("+250782345678", "+250785678901"),  # Both Secondary 1-3
+            ("+250783456789", "+250788901234"),  # Both Secondary 4-6
+            ("+250784567890", "+250787890123"),  # Different regions but same grade level
+            ("+250789012345", "+250785678901"),  # Study buddies
+        ]
+        
+        for user1_phone, user2_phone in peer_pairs:
+            existing_connection = db.query(PeerConnection).filter(
+                ((PeerConnection.user1_phone == user1_phone) & (PeerConnection.user2_phone == user2_phone)) |
+                ((PeerConnection.user1_phone == user2_phone) & (PeerConnection.user2_phone == user1_phone))
+            ).first()
+            if not existing_connection:
+                new_connection = PeerConnection(
+                    user1_phone=user1_phone,
+                    user2_phone=user2_phone,
+                    connection_type="study_buddy"
+                )
+                db.add(new_connection)
+        
+        sessions = [
+            (["+ 250781234567", "+250786789012"], "math", "Fractions and Decimals"),
+            (["+250782345678", "+250785678901"], "english", "Grammar Practice"),
+            (["+250783456789", "+250788901234"], "comprehension", "Reading Strategies"),
+            (["+250784567890", "+250787890123", "+250780123456"], "debate", "Environmental Conservation"),
+        ]
+        
+        for i, (participants, module, topic) in enumerate(sessions):
+            session_id = f"peer_{datetime.utcnow().strftime('%Y%m%d')}_{i:03d}"
+            existing_session = db.query(PeerLearningSession).filter(
+                PeerLearningSession.session_id == session_id
+            ).first()
+            if not existing_session:
+                new_session = PeerLearningSession(
+                    session_id=session_id,
+                    module_name=module,
+                    topic=topic,
+                    participants=json.dumps(participants),
+                    started_at=datetime.utcnow() - timedelta(hours=i*2)
+                )
+                db.add(new_session)
+        
+        # Add historical user sessions for analytics
+        modules = ["math", "english", "comprehension", "debate", "general"]
+        
+        for i in range(100):  # 100 sample sessions
+            user_phone = sample_users[i % len(sample_users)]["phone"]
+            module = modules[i % len(modules)]
+            timestamp = datetime.utcnow() - timedelta(days=i % 14, hours=i % 24)
+            
+            session = UserSession(
+                phone_number=user_phone,
+                session_id=f"session_{i:04d}",
+                module_name=module,
+                interaction_type="sms" if i % 3 == 0 else "voice",
+                user_input=f"Sample user input {i} - {module} practice",
+                ai_response=f"Sample AI response with Rwanda context for {module} - Muraho! {i}",
+                timestamp=timestamp,
+                session_duration=float(10 + (i % 35))  # 10-45 minutes
+            )
+            db.add(session)
+        
+        for user_data in sample_users:
+            for module in modules:
+                usage_count = (hash(user_data["phone"] + module) % 8) + 1
+                usage = ModuleUsage(
+                    phone_number=user_data["phone"],
+                    module_name=module,
+                    usage_count=usage_count,
+                    last_used=datetime.utcnow() - timedelta(days=hash(user_data["phone"]) % 7),
+                    total_duration=float(usage_count * 18)
+                )
+                db.add(usage)
+        
+        db.commit()
+        db.close()
+        
+        return {
+            "status": "success",
+            "message": "Sample data populated successfully",
+            "data": {
+                "users_created": len(sample_users),
+                "regions_covered": len(regions),
+                "peer_connections": len(peer_pairs),
+                "learning_sessions": len(sessions),
+                "historical_sessions": 100,
+                "module_usage_records": len(sample_users) * len(modules)
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error populating sample data: {str(e)}")
