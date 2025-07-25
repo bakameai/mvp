@@ -79,7 +79,7 @@ class LlamaService:
         print("Llama API failed, falling back to OpenAI with Rwanda context")
         try:
             from app.services.openai_service import openai_service
-            return await openai_service.generate_response(messages, "general")
+            return await openai_service.generate_response(messages, module_name)
         except Exception as e:
             print(f"OpenAI fallback error: {e}")
             return "Ndabwira ko nfite ikibazo. (I have an issue.) Let me try to help you another way."
