@@ -145,7 +145,7 @@ function App() {
               Sign in to access the admin panel
             </p>
           </div>
-          <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+          <div className="mt-8 space-y-6">
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
                 <input
@@ -155,6 +155,12 @@ function App() {
                   placeholder="Username"
                   value={loginForm.username}
                   onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      console.log('🔥 Enter key pressed in username field!')
+                      handleLogin(e)
+                    }
+                  }}
                 />
               </div>
               <div>
@@ -165,15 +171,21 @@ function App() {
                   placeholder="Password"
                   value={loginForm.password}
                   onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      console.log('🔥 Enter key pressed in password field!')
+                      handleLogin(e)
+                    }
+                  }}
                 />
               </div>
             </div>
             <div>
               <button
-                type="submit"
+                type="button"
                 onClick={(e) => {
-                  e.preventDefault()
                   console.log('🔥 Button onClick triggered!')
+                  console.log('Form data:', loginForm)
                   handleLogin(e)
                 }}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -181,7 +193,7 @@ function App() {
                 Sign in
               </button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     )
