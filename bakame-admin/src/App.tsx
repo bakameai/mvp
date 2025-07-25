@@ -49,16 +49,21 @@ function App() {
   const [sessions, setSessions] = useState<UserSession[]>([])
   const [curriculum, setCurriculum] = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('bakame_admin_logged_in') === 'true'
+  })
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
 
   const API_BASE = 'https://app-pyzfduqr.fly.dev'
 
   useEffect(() => {
     if (isLoggedIn) {
+      localStorage.setItem('bakame_admin_logged_in', 'true')
       fetchStats()
       fetchSessions()
       fetchCurriculum()
+    } else {
+      localStorage.removeItem('bakame_admin_logged_in')
     }
   }, [isLoggedIn])
 
@@ -95,9 +100,16 @@ function App() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
     console.log('handleLogin called!')
-    console.log('Setting isLoggedIn to true...')
-    setIsLoggedIn(true)
-    console.log('isLoggedIn state should be updated')
+    console.log('Form data:', loginForm)
+    
+    if (loginForm.username.trim() && loginForm.password.trim()) {
+      console.log('Setting isLoggedIn to true...')
+      setIsLoggedIn(true)
+      console.log('Login successful, localStorage will be updated')
+    } else {
+      console.log('Login failed - empty credentials')
+      alert('Please enter both username and password')
+    }
   }
 
   const handleExportCSV = async () => {
@@ -209,7 +221,7 @@ function App() {
                 </button>
               </div>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
               <button
                 onClick={handleExportCSV}
                 disabled={loading}
@@ -217,6 +229,12 @@ function App() {
               >
                 <Download className="h-4 w-4" />
                 <span>{loading ? 'Exporting...' : 'Export CSV'}</span>
+              </button>
+              <button
+                onClick={() => setIsLoggedIn(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Logout
               </button>
             </div>
           </div>
