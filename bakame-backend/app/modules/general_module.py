@@ -13,23 +13,39 @@ class GeneralModule:
         user_input_lower = user_input.lower()
         
         if any(word in user_input_lower for word in ["help", "what can you do", "modules", "options", "menu"]):
-            return self._get_help_message()
+            return await self._get_help_message(user_context)
         
         if "english" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "english"
-            return "Muraho! 🌟 Let's dive into English together! I'm excited to help you with grammar, pronunciation, or just have a great conversation. English opens many doors in Rwanda and beyond - what aspect would you like to explore?"
+            messages = [{"role": "user", "content": "I want to practice English. Welcome me to the English learning module with enthusiasm, using Kinyarwanda phrases and referencing how English connects Rwanda to the global community."}]
+            if settings.use_llama:
+                return await llama_service.generate_response(messages, "english")
+            else:
+                return await openai_service.generate_response(messages, "english")
         
         elif "math" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "math"
-            return "Yego! 🧮✨ Time for some fun with numbers! Math is everywhere in Rwanda - from calculating Rwandan francs to measuring land. We'll start easy and work our way up. Ready to strengthen those mental muscles?"
+            messages = [{"role": "user", "content": "I want to practice math. Welcome me to the math module with excitement, using Kinyarwanda phrases and mentioning Rwandan contexts like RWF currency and distances between cities."}]
+            if settings.use_llama:
+                return await llama_service.generate_response(messages, "math")
+            else:
+                return await openai_service.generate_response(messages, "math")
         
         elif "comprehension" in user_input_lower or "reading" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "comprehension"
-            return "Byiza cyane! 📚✨ I love sharing stories that reflect our beautiful Rwandan culture and beyond! Stories teach us about life, values, and wisdom. Ready to explore some tales together?"
+            messages = [{"role": "user", "content": "I want to practice reading comprehension. Welcome me to the comprehension module with enthusiasm, using Kinyarwanda phrases and mentioning Rwandan stories and cultural values like Ubuntu."}]
+            if settings.use_llama:
+                return await llama_service.generate_response(messages, "comprehension")
+            else:
+                return await openai_service.generate_response(messages, "comprehension")
         
         elif "debate" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "debate"
-            return "Ni byiza! 🤔💭 Ready for some thoughtful discussion? In Rwanda, we value respectful dialogue and Ubuntu - let's explore different perspectives together and strengthen our critical thinking!"
+            messages = [{"role": "user", "content": "I want to practice debate and discussion. Welcome me to the debate module with enthusiasm, using Kinyarwanda phrases and mentioning Rwanda's values of respectful dialogue and Ubuntu philosophy."}]
+            if settings.use_llama:
+                return await llama_service.generate_response(messages, "debate")
+            else:
+                return await openai_service.generate_response(messages, "debate")
         
         messages = [{"role": "user", "content": user_input}]
         
@@ -47,20 +63,30 @@ class GeneralModule:
         
         return response
     
-    def _get_help_message(self) -> str:
-        """Get help message explaining available modules"""
-        return """Muraho! I'm BAKAME, your AI learning companion for Rwanda! Here's what I can help you with:
-
-📚 ENGLISH - Grammar, pronunciation, and conversation practice
-🔢 MATH - Mental arithmetic with Rwandan contexts and examples
-📖 COMPREHENSION - Stories reflecting Rwandan culture and values
-🗣️ DEBATE - Thoughtful discussions on topics relevant to Rwanda
-❓ GENERAL - Ask me anything! I'm here to support your learning journey
-
-Just say what you'd like to try, like "English" or "Math". Ni iki gikureba uyu munsi? (What interests you today?)"""
+    async def _get_help_message(self, user_context: Dict[str, Any]) -> str:
+        """Get help message explaining available modules using Llama/OpenAI with Rwanda context"""
+        messages = [
+            {"role": "user", "content": "Please explain what learning modules you offer and how you can help me learn, using Kinyarwanda phrases naturally and referencing Rwanda culture."}
+        ]
+        
+        if settings.use_llama:
+            response = await llama_service.generate_response(messages, self.module_name)
+        else:
+            response = await openai_service.generate_response(messages, self.module_name)
+        
+        return response + "\n\nJust say what you'd like to try, like 'English' or 'Math'. Ni iki gikureba uyu munsi? (What interests you today?)"
     
-    def get_welcome_message(self) -> str:
-        """Get welcome message for General module"""
-        return "Muraho! I'm BAKAME, your friendly AI learning companion for Rwanda! 😊 I'm here to chat and help you learn in whatever way feels right for you. Whether you want to practice English, tackle some math with Rwandan examples, explore stories, or have thoughtful debates - I'm excited to learn together! Ni iki gikureba uyu munsi? (What interests you today?)"
+    async def get_welcome_message(self, user_context: Dict[str, Any] = None) -> str:
+        """Get welcome message for General module using Llama/OpenAI with Rwanda context"""
+        messages = [
+            {"role": "user", "content": "Give me a warm welcome message as BAKAME, an AI learning companion for Rwanda. Use Kinyarwanda phrases naturally and mention the learning modules available. Be enthusiastic and culturally appropriate."}
+        ]
+        
+        if settings.use_llama:
+            response = await llama_service.generate_response(messages, self.module_name)
+        else:
+            response = await openai_service.generate_response(messages, self.module_name)
+        
+        return response
 
 general_module = GeneralModule()
