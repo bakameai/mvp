@@ -31,7 +31,7 @@ class GeneralModule:
         
         if "english" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "english"
-            messages = [{"role": "user", "content": "I want to practice English. Welcome me to the English learning module with enthusiasm, using Kinyarwanda phrases and referencing how English connects Rwanda to the global community."}]
+            messages = [{"role": "user", "content": "Welcome me to English practice briefly. Say 'Muraho' and ask what I'd like to work on."}]
             if settings.use_llama:
                 base_response = await llama_service.generate_response(messages, "english")
             else:
@@ -42,7 +42,7 @@ class GeneralModule:
         
         elif "math" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "math"
-            messages = [{"role": "user", "content": "I want to practice math. Welcome me to the math module with excitement, using Kinyarwanda phrases and mentioning Rwandan contexts like RWF currency and distances between cities."}]
+            messages = [{"role": "user", "content": "Welcome me to math practice briefly. Say 'Muraho' and mention RWF examples."}]
             if settings.use_llama:
                 base_response = await llama_service.generate_response(messages, "math")
             else:
@@ -53,7 +53,7 @@ class GeneralModule:
         
         elif "comprehension" in user_input_lower or "reading" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "comprehension"
-            messages = [{"role": "user", "content": "I want to practice reading comprehension. Welcome me to the comprehension module with enthusiasm, using Kinyarwanda phrases and mentioning Rwandan stories and cultural values like Ubuntu."}]
+            messages = [{"role": "user", "content": "Welcome me to reading practice briefly. Say 'Muraho' and mention Rwandan stories."}]
             if settings.use_llama:
                 return await llama_service.generate_response(messages, "comprehension")
             else:
@@ -61,7 +61,7 @@ class GeneralModule:
         
         elif "debate" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "debate"
-            messages = [{"role": "user", "content": "I want to practice debate and discussion. Welcome me to the debate module with enthusiasm, using Kinyarwanda phrases and mentioning Rwanda's values of respectful dialogue and Ubuntu philosophy."}]
+            messages = [{"role": "user", "content": "Welcome me to debate practice briefly. Say 'Muraho' and mention respectful dialogue."}]
             if settings.use_llama:
                 return await llama_service.generate_response(messages, "debate")
             else:
@@ -121,7 +121,7 @@ class GeneralModule:
     async def get_welcome_message(self, user_context: Dict[str, Any] = None) -> str:
         """Get welcome message for General module using Llama/OpenAI with Rwanda context"""
         messages = [
-            {"role": "user", "content": "Give me a warm welcome message as BAKAME, an AI learning companion for Rwanda. Use Kinyarwanda phrases naturally and mention the learning modules available. Be enthusiastic and culturally appropriate."}
+            {"role": "user", "content": "Give me a brief welcome as BAKAME in under 10 seconds. Say 'Muraho!' and mention I help with English, Math, Reading, and Debate practice. Ask what they'd like to try today."}
         ]
         
         if settings.use_llama:

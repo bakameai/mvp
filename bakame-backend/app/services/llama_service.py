@@ -7,9 +7,7 @@ class LlamaService:
     def __init__(self):
         self.api_key = settings.llama_api_key
         self.base_urls = [
-            "https://api.llmapi.com/v1/chat/completions",
-            "https://api.llama-api.com/v1/chat/completions",
-            "https://llama-api.com/v1/chat/completions"
+            "https://api.llama.com/v1/chat/completions"
         ]
         self.working_url = None
         
@@ -54,7 +52,7 @@ class LlamaService:
         ]
         
         payload = {
-            "model": "llama-2-7b-chat",
+            "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
             "messages": messages,
             "max_tokens": 300,
             "temperature": 0.8,
@@ -68,9 +66,9 @@ class LlamaService:
                     
                     if response.status_code == 200:
                         data = response.json()
-                        if 'choices' in data and len(data['choices']) > 0:
+                        if 'completion_message' in data and 'content' in data['completion_message']:
                             self.working_url = url
-                            return data['choices'][0]['message']['content']
+                            return data['completion_message']['content']['text']
                     
                 except Exception as e:
                     print(f"Llama API error with {url}: {e}")
