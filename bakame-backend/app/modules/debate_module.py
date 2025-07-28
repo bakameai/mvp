@@ -2,10 +2,8 @@ import random
 from typing import Dict, Any
 from app.services.openai_service import openai_service
 from app.services.llama_service import llama_service
-from app.services.newsapi_service import newsapi_service
 from app.services.emotional_intelligence_service import emotional_intelligence_service
 from app.services.gamification_service import gamification_service
-from app.services.predictive_analytics_service import predictive_analytics
 from app.config import settings
 
 class DebateModule:
@@ -34,6 +32,9 @@ class DebateModule:
             user_context["user_state"]["requested_module"] = "general"
             return "Returning to main menu. How can I help you today?"
         
+        if any(word in user_input_lower for word in ["bye", "goodbye", "done"]):
+            return f"Want to keep learning or stop for now? You did great today, {user_context.get('user_name', 'friend')}. I'll be here next time you call."
+        
         current_topic = user_context.get("user_state", {}).get("current_debate_topic")
         debate_round = user_context.get("user_state", {}).get("debate_round", 0)
         
@@ -46,24 +47,15 @@ class DebateModule:
         return await self._start_new_debate(user_context)
     
     async def _start_new_debate(self, user_context: Dict[str, Any]) -> str:
-        """Start a new debate topic using trending news"""
+        """Start a new debate topic"""
         
-        print("DEBUG: Starting new debate, fetching trending topics...")
-        trending_topics = await newsapi_service.get_trending_debate_topics(count=1)
-        print(f"DEBUG: Got trending topics: {trending_topics}")
-        
-        if trending_topics:
-            topic = trending_topics[0]
-            print(f"DEBUG: Using trending topic: {topic}")
-        else:
-            topic = random.choice(self.debate_topics)
-            print(f"DEBUG: Using fallback topic: {topic}")
+        topic = random.choice(self.debate_topics)
         
         user_context.setdefault("user_state", {})["current_debate_topic"] = topic
         user_context["user_state"]["debate_round"] = 1
         user_context["user_state"]["user_position"] = None
         
-        return f"Let's debate a trending topic! Here's what's making headlines: {topic}\n\nWhat's your opinion? Do you agree or disagree? Please share your thoughts and reasoning."
+        return f"Let's debate this interesting topic: {topic}\n\nWhat's your opinion? Do you agree or disagree? Please share your thoughts and reasoning."
     
     async def _continue_debate(self, user_input: str, current_topic: str, debate_round: int, user_context: Dict[str, Any]) -> str:
         """Continue the debate conversation"""

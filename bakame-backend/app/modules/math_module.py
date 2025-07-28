@@ -24,6 +24,9 @@ class MathModule:
             user_context["user_state"]["requested_module"] = "general"
             return "Returning to main menu. How can I help you today?"
         
+        if any(word in user_input_lower for word in ["bye", "goodbye", "done"]):
+            return f"Want to keep learning or stop for now? You did great today, {user_context.get('user_name', 'friend')}. I'll be here next time you call."
+        
         if any(word in user_input_lower for word in ["new", "another", "next", "problem", "question"]):
             return await self._generate_math_problem(user_context)
         

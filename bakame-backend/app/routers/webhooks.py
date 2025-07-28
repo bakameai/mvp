@@ -43,7 +43,7 @@ async def handle_voice_call(
         user_context["phone_number"] = phone_number
         
         if not SpeechResult and not RecordingUrl:
-            welcome_msg = await general_module.get_welcome_message()
+            welcome_msg = await general_module.get_welcome_message(user_context)
             redis_service.set_current_module(phone_number, "general")
             
             await logging_service.log_interaction(

@@ -9,7 +9,7 @@ class DeepgramService:
         self.api_key = settings.deepgram_api_key
         self.base_url = "https://api.deepgram.com/v1/speak"
     
-    async def text_to_speech(self, text: str, voice: str = "aura-asteria-en") -> Optional[str]:
+    async def text_to_speech(self, text: str, voice: str = "aura-2-neptune-en") -> Optional[str]:
         """Convert text to speech using Deepgram and return temporary file path"""
         try:
             print(f"DEBUG: Deepgram - API key: {self.api_key[:10]}...")

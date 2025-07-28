@@ -4,7 +4,6 @@ from app.services.openai_service import openai_service
 from app.services.llama_service import llama_service
 from app.services.emotional_intelligence_service import emotional_intelligence_service
 from app.services.gamification_service import gamification_service
-from app.services.predictive_analytics_service import predictive_analytics
 from app.config import settings
 
 class ComprehensionModule:
@@ -65,6 +64,10 @@ class ComprehensionModule:
             user_context["user_state"]["current_question_index"] = 0
             user_context["user_state"]["requested_module"] = "general"
             return "Returning to main menu. How can I help you today?"
+        
+        if any(word in user_input_lower for word in ["bye", "goodbye", "done"]):
+            return f"Want to keep learning or stop for now? You did great today, {user_context.get('user_name', 'friend')}. I'll be here next time you call."
+        
         current_story = user_context.get("user_state", {}).get("current_story")
         current_question_index = user_context.get("user_state", {}).get("current_question_index", 0)
         

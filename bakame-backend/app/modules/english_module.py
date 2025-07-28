@@ -3,7 +3,7 @@ from app.services.openai_service import openai_service
 from app.services.llama_service import llama_service
 from app.services.emotional_intelligence_service import emotional_intelligence_service
 from app.services.gamification_service import gamification_service
-from app.services.predictive_analytics_service import predictive_analytics
+from app.services.multimodal_service import multimodal_service
 from app.config import settings
 
 class EnglishModule:
@@ -21,6 +21,9 @@ class EnglishModule:
         if any(word in user_input_lower for word in ["exit", "quit", "stop", "back", "menu", "hello", "hi"]):
             user_context.setdefault("user_state", {})["requested_module"] = "general"
             return "Returning to main menu. How can I help you today?"
+        
+        if any(word in user_input_lower for word in ["bye", "goodbye", "done"]):
+            return f"Want to keep learning or stop for now? You did great today, {user_context.get('user_name', 'friend')}. I'll be here next time you call."
         
         gamification_service.update_progress(user_context, "session_complete", self.module_name)
         

@@ -23,6 +23,15 @@ class GeneralModule:
         
         user_input_lower = user_input.lower()
         
+        if not user_context.get("user_name"):
+            user_context["user_name"] = user_input.strip()
+            from app.services.redis_service import redis_service
+            redis_service.set_user_context(user_context.get("phone_number", ""), user_context)
+            return f"Nice to meet you, {user_input.strip()}! I can help with English, Math, Reading, and Debate. What would you like to try?"
+        
+        if any(word in user_input_lower for word in ["bye", "goodbye", "stop", "quit", "done"]):
+            return f"Want to keep learning or stop for now? You did great today, {user_context.get('user_name', 'friend')}. I'll be here next time you call."
+        
         if any(word in user_input_lower for word in ["help", "what can you do", "modules", "options", "menu"]):
             base_response = await self._get_help_message(user_context)
             return await emotional_intelligence_service.generate_emotionally_aware_response(
@@ -119,16 +128,12 @@ class GeneralModule:
         return response + "\n\nJust say what you'd like to try, like 'English' or 'Math'. Ni iki gikureba uyu munsi? (What interests you today?)"
     
     async def get_welcome_message(self, user_context: Dict[str, Any] = None) -> str:
-        """Get welcome message for General module using Llama/OpenAI with Rwanda context"""
-        messages = [
-            {"role": "user", "content": "Give me a brief welcome as BAKAME in under 10 seconds. Say 'Muraho!' and mention I help with English, Math, Reading, and Debate practice. Ask what they'd like to try today."}
-        ]
+        """Get welcome message for General module - ask for name first"""
+        user_name = user_context.get("user_name") if user_context else None
         
-        if settings.use_llama:
-            response = await llama_service.generate_response(messages, self.module_name)
+        if not user_name:
+            return "Hello! I'm Bakame, your learning helper. What's your name?"
         else:
-            response = await openai_service.generate_response(messages, self.module_name)
-        
-        return response
+            return f"Hello {user_name}! I can help with English, Math, Reading, and Debate. What would you like to try?"
 
 general_module = GeneralModule()
