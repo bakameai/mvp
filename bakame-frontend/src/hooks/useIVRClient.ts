@@ -68,7 +68,7 @@ export const useIVRClient = () => {
   };
 
   const startWebSocketSession = async (sessionId: string) => {
-    const wsUrl = `ws://localhost:8000/ws/realtime-chat`;
+    const wsUrl = `${import.meta.env.VITE_API_URL?.replace('http', 'ws') || 'ws://localhost:8000'}/ws/realtime-chat`;
     const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
