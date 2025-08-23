@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
-import { authAPI } from "@/services/api";
+import { adminAPI } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { UserProfile } from "@/pages/AdminDashboard";
 
@@ -49,7 +49,7 @@ export const OrganizationManagement = ({ userProfile }: OrganizationManagementPr
 
   const fetchOrganizations = async () => {
     try {
-      const data = await authAPI.getOrganizations();
+      const data = await adminAPI.getOrganizations();
       setOrganizations(data || []);
     } catch (error: any) {
       toast({
@@ -64,7 +64,7 @@ export const OrganizationManagement = ({ userProfile }: OrganizationManagementPr
 
   const createOrganization = async () => {
     try {
-      const data = await authAPI.createOrganization({
+      const data = await adminAPI.createOrganization({
         ...newOrg,
         created_by: userProfile.id,
       });
@@ -88,7 +88,7 @@ export const OrganizationManagement = ({ userProfile }: OrganizationManagementPr
 
   const deleteOrganization = async (id: string) => {
     try {
-      await authAPI.deleteOrganization(id);
+      await adminAPI.deleteOrganization(id);
 
       setOrganizations(organizations.filter(org => org.id !== id));
 

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Search, Edit, Trash2, Plus } from "lucide-react";
-import { authAPI } from "@/services/api";
+import { adminAPI } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { UserProfile } from "@/pages/AdminDashboard";
 
@@ -33,7 +33,7 @@ export const UserManagement = ({ userProfile }: UserManagementProps) => {
         return;
       }
 
-      const users = await authAPI.getUsers();
+      const users = await adminAPI.getUsers();
       setUsers(users || []);
     } catch (error: any) {
       toast({
@@ -48,7 +48,7 @@ export const UserManagement = ({ userProfile }: UserManagementProps) => {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      await authAPI.updateUserRole(userId, newRole);
+      await adminAPI.updateUserRole(userId, newRole);
 
       setUsers(users.map(user => 
         user.id === userId ? { ...user, role: newRole as UserProfile['role'] } : user

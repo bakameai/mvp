@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Building2, TrendingUp, Activity } from "lucide-react";
-import { authAPI } from "@/services/api";
+import { adminAPI } from "@/services/api";
 import { UserProfile } from "@/pages/AdminDashboard";
 
 interface DashboardStatsProps {
@@ -23,7 +23,7 @@ export const DashboardStats = ({ userProfile }: DashboardStatsProps) => {
       try {
         // Only admins can see all user stats
         if (userProfile.role === 'admin') {
-          const adminStats = await authAPI.getAdminStats();
+          const adminStats = await adminAPI.getAdminStats();
           
           setStats({
             totalUsers: adminStats.total_users || 0,
