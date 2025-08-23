@@ -8,9 +8,14 @@ const Signup = () => {
   // Check if user is already logged in
   useEffect(() => {
     const checkAuth = async () => {
-      const { session } = authAPI.getSession();
-      if (session) {
-        navigate("/");
+      const { session, user } = authAPI.getSession();
+      if (session && user) {
+        // Redirect admin users to dashboard, regular users to home
+        if (user.role === "admin" || user.role === "super_admin") {
+          navigate("/admin-dashboard");
+        } else {
+          navigate("/");
+        }
       }
     };
     checkAuth();
