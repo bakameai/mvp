@@ -216,6 +216,15 @@ export const adminAPI = {
     return response.data;
   },
 
+  async getUsers(): Promise<any[]> {
+    const response = await api.get('/admin/users');
+    return response.data;
+  },
+
+  async updateUserRole(userId: string, role: string): Promise<void> {
+    await api.put(`/admin/users/${userId}/role`, { role });
+  },
+
   async getOrganizations(): Promise<any[]> {
     const response = await api.get('/admin/organizations');
     return response.data;
@@ -250,6 +259,14 @@ Object.assign(authAPI, {
 
   async getAdminStats(): Promise<any> {
     return await adminAPI.getAdminStats();
+  },
+
+  async getUsers(): Promise<any[]> {
+    return await adminAPI.getUsers();
+  },
+
+  async updateUserRole(userId: string, role: string): Promise<void> {
+    return await adminAPI.updateUserRole(userId, role);
   },
 
   async getOrganizations(): Promise<any[]> {

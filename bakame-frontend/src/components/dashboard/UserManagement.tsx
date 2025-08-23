@@ -33,13 +33,8 @@ export const UserManagement = ({ userProfile }: UserManagementProps) => {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setUsers(data || []);
+      const users = await authAPI.getUsers();
+      setUsers(users || []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -53,12 +48,7 @@ export const UserManagement = ({ userProfile }: UserManagementProps) => {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole as UserProfile['role'] })
-        .eq('id', userId);
-
-      if (error) throw error;
+      await authAPI.updateUserRole(userId, newRole);
 
       setUsers(users.map(user => 
         user.id === userId ? { ...user, role: newRole as UserProfile['role'] } : user

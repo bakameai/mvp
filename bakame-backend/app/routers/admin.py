@@ -9,15 +9,141 @@ from app.services.emotional_intelligence_service import emotional_intelligence_s
 from app.services.community_service import community_service
 from app.services.teacher_service import teacher_service
 from app.models.database import get_db
+from app.models.auth import WebUser
+from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/admin")
 
-@router.get("/stats")
-async def get_usage_statistics() -> Dict[str, Any]:
-    """Get usage statistics for admin dashboard"""
+@router.get("/users")
+async def get_users(
+    current_user: WebUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> List[Dict[str, Any]]:
+    """Get all users for admin dashboard"""
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
     try:
-        stats = logging_service.get_usage_statistics()
-        return stats
+        users = db.query(WebUser).all()
+        return [
+            {
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role,
+                "organization": user.organization,
+                "is_active": user.is_active,
+                "created_at": user.created_at.isoformat() if user.created_at else None
+            }
+            for user in users
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving users: {str(e)}")
+
+@router.put("/users/{user_id}/role")
+async def update_user_role(
+    user_id: str,
+    role_data: Dict[str, str],
+    current_user: WebUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update user role"""
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        user = db.query(WebUser).filter(WebUser.id == int(user_id)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user.role = role_data.get("role", user.role)
+        db.commit()
+        return {"message": "User role updated successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating user role: {str(e)}")
+
+@router.get("/organizations")
+async def get_organizations(
+    current_user: WebUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> List[Dict[str, Any]]:
+    """Get all organizations for admin dashboard"""
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        organizations = db.query(WebUser.organization).distinct().filter(WebUser.organization.isnot(None)).all()
+        return [
+            {
+                "id": str(hash(org[0])),  # Generate a simple ID from organization name
+                "name": org[0],
+                "type": "organization",
+                "created_at": "2024-01-01T00:00:00Z"  # Placeholder date
+            }
+            for org in organizations if org[0]
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving organizations: {str(e)}")
+
+@router.post("/organizations")
+async def create_organization(
+    org_data: Dict[str, Any],
+    current_user: WebUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new organization (placeholder implementation)"""
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        return {
+            "id": str(hash(org_data.get("name", ""))),
+            "name": org_data.get("name"),
+            "type": org_data.get("type", "organization"),
+            "created_at": "2024-01-01T00:00:00Z"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating organization: {str(e)}")
+
+@router.delete("/organizations/{org_id}")
+async def delete_organization(
+    org_id: str,
+    current_user: WebUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete an organization (placeholder implementation)"""
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        return {"message": "Organization deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting organization: {str(e)}")
+
+@router.get("/stats")
+async def get_usage_statistics(
+    current_user: WebUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get usage statistics for admin dashboard"""
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        total_users = db.query(WebUser).count()
+        active_users = db.query(WebUser).filter(WebUser.is_active == True).count()
+        total_organizations = db.query(WebUser.organization).distinct().filter(WebUser.organization.isnot(None)).count()
+        
+        telephony_stats = logging_service.get_usage_statistics()
+        
+        return {
+            "total_users": total_users,
+            "active_users": active_users,
+            "organizations": total_organizations,
+            "new_users_this_month": 0,  # Placeholder
+            **telephony_stats
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving statistics: {str(e)}")
 
