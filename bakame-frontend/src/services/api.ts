@@ -241,6 +241,221 @@ export const adminAPI = {
 
   async updatePassword(oldPassword: string, newPassword: string): Promise<void> {
     await api.put('/auth/password', { old_password: oldPassword, new_password: newPassword });
+  },
+
+  async getNewsletterSubscriptions(): Promise<any[]> {
+    const response = await api.get('/admin/newsletter/subscriptions');
+    return response.data;
+  },
+
+  async getNewsletterCampaigns(): Promise<any[]> {
+    const response = await api.get('/admin/newsletter/campaigns');
+    return response.data;
+  },
+
+  async createNewsletterCampaign(campaignData: any): Promise<any> {
+    const response = await api.post('/admin/newsletter/campaigns', campaignData);
+    return response.data;
+  },
+
+  async sendNewsletterCampaign(campaignId: string): Promise<any> {
+    const response = await api.post(`/admin/newsletter/campaigns/${campaignId}/send`);
+    return response.data;
+  },
+
+  async createUser(userData: any): Promise<any> {
+    const response = await api.post('/admin/users', userData);
+    return response.data;
+  },
+
+  async updateUser(userId: string, userData: any): Promise<any> {
+    const response = await api.put(`/admin/users/${userId}`, userData);
+    return response.data;
+  },
+
+  async deleteUser(userId: string): Promise<void> {
+    await api.delete(`/admin/users/${userId}`);
+  },
+
+  async getAnalytics(): Promise<any> {
+    const response = await api.get('/admin/analytics');
+    return response.data;
+  },
+
+  async getContentPages(): Promise<any[]> {
+    const response = await api.get('/admin/content/pages');
+    return response.data;
+  },
+
+  async updateContent(pageName: string, content: string): Promise<any> {
+    const response = await api.put(`/admin/content/${pageName}`, { content });
+    return response.data;
+  },
+
+  async getAuditLogs(): Promise<any[]> {
+    const response = await api.get('/admin/audit-logs');
+    return response.data;
+  },
+
+  async getBackups(): Promise<any[]> {
+    const response = await api.get('/admin/backups');
+    return response.data;
+  },
+
+  async createBackup(type: string): Promise<any> {
+    const response = await api.post('/admin/backups', { type });
+    return response.data;
+  },
+
+  async downloadBackup(backupId: string): Promise<Blob> {
+    const response = await api.get(`/admin/backups/${backupId}/download`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  async restoreBackup(backupId: string): Promise<any> {
+    const response = await api.post(`/admin/backups/${backupId}/restore`);
+    return response.data;
+  },
+
+  async getSystemNotifications(): Promise<any[]> {
+    const response = await api.get('/admin/notifications');
+    return response.data;
+  },
+
+  async markNotificationRead(notificationId: string): Promise<any> {
+    const response = await api.put(`/admin/notifications/${notificationId}/read`);
+    return response.data;
+  },
+
+  async dismissNotification(notificationId: string): Promise<void> {
+    await api.delete(`/admin/notifications/${notificationId}`);
+  },
+
+  async getNotificationSettings(): Promise<any> {
+    const response = await api.get('/admin/notification-settings');
+    return response.data;
+  },
+
+  async updateNotificationSettings(settings: any): Promise<any> {
+    const response = await api.put('/admin/notification-settings', settings);
+    return response.data;
+  },
+
+  async getMediaFiles(): Promise<any[]> {
+    const response = await api.get('/admin/media');
+    return response.data;
+  },
+
+  async uploadMediaFile(formData: FormData): Promise<any> {
+    const response = await api.post('/admin/media', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  async deleteMediaFile(fileId: string): Promise<void> {
+    await api.delete(`/admin/media/${fileId}`);
+  },
+
+  async getAPIKeys(): Promise<any[]> {
+    const response = await api.get('/admin/api-keys');
+    return response.data;
+  },
+
+  async createAPIKey(keyData: any): Promise<any> {
+    const response = await api.post('/admin/api-keys', keyData);
+    return response.data;
+  },
+
+  async toggleAPIKey(keyId: string, isActive: boolean): Promise<any> {
+    const response = await api.put(`/admin/api-keys/${keyId}/toggle`, { is_active: isActive });
+    return response.data;
+  },
+
+  async deleteAPIKey(keyId: string): Promise<void> {
+    await api.delete(`/admin/api-keys/${keyId}`);
+  },
+
+  async getWebhooks(): Promise<any[]> {
+    const response = await api.get('/admin/webhooks');
+    return response.data;
+  },
+
+  async createWebhook(webhookData: any): Promise<any> {
+    const response = await api.post('/admin/webhooks', webhookData);
+    return response.data;
+  },
+
+  async getSystemMetrics(): Promise<any> {
+    const response = await api.get('/admin/system/metrics');
+    return response.data;
+  },
+
+  async getHealthChecks(): Promise<any[]> {
+    const response = await api.get('/admin/system/health');
+    return response.data;
+  },
+
+  async updateProfile(profileData: any): Promise<any> {
+    const response = await api.put('/admin/profile', profileData);
+    return response.data;
+  },
+
+  async createDepartment(orgId: string, data: any): Promise<any> {
+    const response = await api.post(`/admin/organizations/${orgId}/departments`, data);
+    return response.data;
+  },
+
+  async updateDepartment(orgId: string, deptId: string, data: any): Promise<any> {
+    const response = await api.put(`/admin/organizations/${orgId}/departments/${deptId}`, data);
+    return response.data;
+  },
+
+  async deleteDepartment(orgId: string, deptId: string): Promise<void> {
+    await api.delete(`/admin/organizations/${orgId}/departments/${deptId}`);
+  },
+
+  async updateOrganizationPermissions(orgId: string, permissions: any): Promise<any> {
+    const response = await api.put(`/admin/organizations/${orgId}/permissions`, { permissions });
+    return response.data;
+  },
+
+  async getTeamMembers(): Promise<any[]> {
+    const response = await api.get('/admin/team/members');
+    return response.data;
+  },
+
+  async getTeamInvitations(): Promise<any[]> {
+    const response = await api.get('/admin/team/invitations');
+    return response.data;
+  },
+
+  async sendTeamInvitation(data: any): Promise<any> {
+    const response = await api.post('/admin/team/invitations', data);
+    return response.data;
+  },
+
+  async resendTeamInvitation(invitationId: string): Promise<any> {
+    const response = await api.post(`/admin/team/invitations/${invitationId}/resend`);
+    return response.data;
+  },
+
+  async revokeTeamInvitation(invitationId: string): Promise<void> {
+    await api.delete(`/admin/team/invitations/${invitationId}`);
+  },
+
+  async updateTeamMemberRole(memberId: string, role: string): Promise<any> {
+    const response = await api.put(`/admin/team/members/${memberId}/role`, { role });
+    return response.data;
+  },
+
+  async deactivateTeamMember(memberId: string): Promise<any> {
+    const response = await api.put(`/admin/team/members/${memberId}/deactivate`);
+    return response.data;
   }
 };
 

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { authAPI } from '@/services/api';
+import { adminAPI } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserProfile } from '@/pages/AdminDashboard';
 
@@ -27,72 +27,16 @@ export const AnalyticsDashboard = ({ userProfile }: AnalyticsDashboardProps) => 
 
   const fetchAnalytics = async () => {
     try {
-      // Get page views
-      const { data: pageViews, error: pageViewsError } = await supabase
-        .from('analytics')
-        .select('*')
-        .eq('event_type', 'page_view');
-
-      // Get all sessions
-      const { data: sessions = [], error: sessionsError } = await supabase
-        .from('user_sessions')
-        .select('*');
-
-      if (sessionsError) {
-        console.warn('Error fetching user sessions:', sessionsError);
-      }
-
-      // Get recent events
-      const { data: events, error: eventsError } = await supabase
-        .from('analytics')
-        .select('event_type')
-        .neq('event_type', 'page_view')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (pageViewsError || eventsError) {
-        console.error('Error fetching analytics:', { pageViewsError, eventsError });
-      } else {
-        // Process page views data
-        const uniqueVisitors = new Set(pageViews?.map(pv => pv.session_id)).size;
-        const pageViewCounts = pageViews?.reduce((acc: Record<string, number>, pv) => {
-          acc[pv.page_path] = (acc[pv.page_path] || 0) + 1;
-          return acc;
-        }, {}) || {};
-
-        const topPages = Object.entries(pageViewCounts)
-          .sort(([,a], [,b]) => b - a)
-          .slice(0, 5)
-          .map(([page, views]) => ({ page, views }));
-
-        // Process events data
-        const eventCounts = events?.reduce((acc: Record<string, number>, event) => {
-          acc[event.event_type] = (acc[event.event_type] || 0) + 1;
-          return acc;
-        }, {}) || {};
-
-        const recentEvents = Object.entries(eventCounts)
-          .sort(([,a], [,b]) => b - a)
-          .slice(0, 5)
-          .map(([event_type, count]) => ({ event_type, count }));
-
-        // Calculate average pages per session with fallback
-        const totalPagesViewed = sessions.length > 0 
-          ? sessions.reduce((acc: number, session: any) => acc + (session.pages_visited || 1), 0)
-          : pageViews?.length || 0;
-        const avgPagesPerSession = sessions.length 
-          ? Math.round(totalPagesViewed / sessions.length * 10) / 10 
-          : 1;
-
-        setAnalytics({
-          totalPageViews: pageViews?.length || 0,
-          uniqueVisitors,
-          totalSessions: sessions.length || uniqueVisitors,
-          avgPagesPerSession,
-          topPages,
-          recentEvents
-        });
-      }
+      const data = await adminAPI.getAnalytics();
+      
+      setAnalytics({
+        totalPageViews: data.total_page_views || 0,
+        uniqueVisitors: data.unique_visitors || 0,
+        totalSessions: data.total_sessions || 0,
+        avgPagesPerSession: data.avg_pages_per_session || 0,
+        topPages: data.top_pages || [],
+        recentEvents: data.recent_events || []
+      });
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
