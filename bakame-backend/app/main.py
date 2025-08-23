@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import webhooks, admin
+from app.routers import webhooks, admin, auth, content
 from app.models.database import create_tables
 from app.config import settings
 import os
@@ -26,6 +26,8 @@ app.add_middleware(
 
 app.include_router(webhooks.router, prefix="/webhook", tags=["webhooks"])
 app.include_router(admin.router, tags=["admin"])
+app.include_router(auth.router, prefix="/auth", tags=["authentication"])
+app.include_router(content.router, prefix="/api", tags=["content"])
 
 @app.get("/audio/{filename}")
 async def serve_audio(filename: str):

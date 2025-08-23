@@ -101,6 +101,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def create_tables():
     Base.metadata.create_all(bind=engine)
+    from app.models.auth import Base as AuthBase
+    AuthBase.metadata.create_all(bind=engine)
 
 def get_db():
     db = SessionLocal()
