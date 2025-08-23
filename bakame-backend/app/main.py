@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import webhooks, admin, auth, content
+from app.routers.auth import create_admin_user_if_not_exists
 from app.models.database import create_tables
 from app.config import settings
 import os
@@ -61,6 +62,12 @@ async def cleanup_old_audio_files():
 async def startup_event():
     """Initialize database tables on startup"""
     create_tables()
+    from app.models.database import SessionLocal
+    db = SessionLocal()
+    try:
+        create_admin_user_if_not_exists(db)
+    finally:
+        db.close()
     asyncio.create_task(cleanup_old_audio_files())
 
 @app.get("/")

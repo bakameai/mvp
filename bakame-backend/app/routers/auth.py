@@ -141,3 +141,26 @@ async def logout(credentials: HTTPAuthorizationCredentials = Depends(security), 
         return {"message": "Successfully logged out"}
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+def create_admin_user_if_not_exists(db: Session):
+    """Create default admin user if it doesn't exist"""
+    try:
+        admin_user = db.query(WebUser).filter(WebUser.email == "happy@bakame.org").first()
+        if not admin_user:
+            hashed_password = hash_password("Bakame@AI123")
+            admin_user = WebUser(
+                email="happy@bakame.org",
+                full_name="Super Admin",
+                hashed_password=hashed_password,
+                role="admin",
+                organization="BAKAME",
+                is_active=True
+            )
+            db.add(admin_user)
+            db.commit()
+            print("✅ Admin user happy@bakame.org created successfully")
+        else:
+            print("ℹ️ Admin user happy@bakame.org already exists")
+    except Exception as e:
+        print(f"❌ Error creating admin user: {e}")
+        db.rollback()
