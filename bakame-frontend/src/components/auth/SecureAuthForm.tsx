@@ -188,7 +188,7 @@ export const SecureAuthForm = ({ onSuccess }: SecureAuthFormProps) => {
             title: "Welcome Back",
             description: "Successfully signed in",
           });
-          onSuccess?.(isAdmin);
+          onSuccess?.(user.role === 'admin');
         } catch (error: any) {
           setLoginAttempts(prev => prev + 1);
           
