@@ -16,21 +16,6 @@ class ContentUpdate(BaseModel):
     page_name: str
     content_data: Dict[str, Any]
 
-class EarlyAccessRequest(BaseModel):
-    email: str
-    name: str
-    company: str
-    solution_interest: str
-
-class ContactFormSubmission(BaseModel):
-    name: str
-    email: str
-    phone: Optional[str] = None
-    company: Optional[str] = None
-    subject: Optional[str] = None
-    message: str
-    solution_type: Optional[str] = None
-    status: str = "new"
 
 class IVRMessageRequest(BaseModel):
     message: str
@@ -103,35 +88,6 @@ async def list_all_content(
         for page in content_pages
     ]
 
-@router.post("/early-access")
-async def submit_early_access(request: EarlyAccessRequest, db: Session = Depends(get_db)):
-    """Handle early access form submissions"""
-    try:
-        print(f"Early access request: {request.email} from {request.company}")
-        
-        
-        return {
-            "success": True,
-            "message": "Early access request submitted successfully"
-        }
-    except Exception as e:
-        print(f"Error processing early access request: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process request")
-
-@router.post("/contact")
-async def submit_contact_form(request: ContactFormSubmission, db: Session = Depends(get_db)):
-    """Handle contact form submissions"""
-    try:
-        print(f"Contact form submission: {request.email} - {request.subject}")
-        
-        
-        return {
-            "success": True,
-            "message": "Contact form submitted successfully"
-        }
-    except Exception as e:
-        print(f"Error processing contact form: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process contact form")
 
 @router.post("/sessions/create")
 async def create_session(db: Session = Depends(get_db)):

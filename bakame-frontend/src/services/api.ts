@@ -138,23 +138,6 @@ export const authAPI = {
     };
   },
 
-  async submitEarlyAccess(data: any): Promise<any> {
-    try {
-      const response = await api.post('/api/early-access', data);
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      return { success: false, error: error.response?.data?.detail || error.message };
-    }
-  },
-
-  async submitContactForm(data: any): Promise<any> {
-    try {
-      const response = await api.post('/api/contact', data);
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      return { success: false, error: error.response?.data?.detail || error.message };
-    }
-  },
 
   async sendIVRMessage(messageData: any): Promise<any> {
     const response = await api.post('/api/ivr/message', messageData);
