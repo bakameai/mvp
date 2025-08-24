@@ -34,23 +34,14 @@ const EarlyAccessModal = ({ isOpen, onClose }: EarlyAccessModalProps) => {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from('waitlist')
-        .insert([{
-          email: formData.email,
-          name: formData.name,
-          company: formData.company,
-          solution_interest: `${formData.productUse} | ${formData.additionalInfo}`
-        }]);
+      const response = await authAPI.submitEarlyAccess({
+        email: formData.email,
+        name: formData.name,
+        company: formData.company,
+        solution_interest: `${formData.productUse} | ${formData.additionalInfo}`
+      });
 
-      if (error) {
-        console.error('Error submitting early access request:', error);
-        toast({
-          title: "Error",
-          description: "Failed to submit your request. Please try again.",
-          variant: "destructive",
-        });
-      } else {
+      if (response.success) {
         trackEvent('early_access_request', { 
           product_use: formData.productUse,
           company: formData.company
@@ -70,6 +61,13 @@ const EarlyAccessModal = ({ isOpen, onClose }: EarlyAccessModalProps) => {
           setStep(1);
           onClose();
         }, 3000);
+      } else {
+        console.error('Error submitting early access request:', response.error);
+        toast({
+          title: "Error",
+          description: response.error || "Failed to submit your request. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error submitting form:', error);

@@ -456,23 +456,12 @@ What specific area would you like to focus on today?`;
         content: msg.content
       }));
 
-      const response = await fetch('/api/llama/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify({
-          messages: conversationHistory,
-          subject: currentSubject
-        })
+      const response = await authAPI.sendIVRMessage({
+        message: messageToSend,
+        sessionId: `session_${Date.now()}`
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = response;
 
       if (!data || !data.response) {
         throw new Error('No response received from AI');

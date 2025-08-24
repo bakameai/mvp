@@ -2,6 +2,8 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+console.log('API Base URL:', API_BASE_URL, 'Environment:', import.meta.env.VITE_API_URL);
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -94,6 +96,14 @@ export const authAPI = {
     
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
+      
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < currentTime) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        return { user: null, session: null };
+      }
+      
       const user: User = {
         id: payload.user_id,
         email: payload.email,
@@ -105,6 +115,8 @@ export const authAPI = {
       };
       return { user, session: { access_token: token } };
     } catch {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       return { user: null, session: null };
     }
   },
@@ -124,6 +136,29 @@ export const authAPI = {
         }
       }
     };
+  },
+
+  async submitEarlyAccess(data: any): Promise<any> {
+    try {
+      const response = await api.post('/api/early-access', data);
+      return { success: true, data: response.data };
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+
+  async submitContactForm(data: any): Promise<any> {
+    try {
+      const response = await api.post('/api/contact', data);
+      return { success: true, data: response.data };
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+
+  async sendIVRMessage(messageData: any): Promise<any> {
+    const response = await api.post('/api/ivr/message', messageData);
+    return response.data;
   }
 };
 
@@ -498,11 +533,6 @@ Object.assign(authAPI, {
 
   async updateProfile(profileData: any): Promise<any> {
     const response = await api.put('/auth/profile', profileData);
-    return response.data;
-  },
-
-  async sendIVRMessage(messageData: any): Promise<any> {
-    const response = await api.post('/api/ivr/message', messageData);
     return response.data;
   }
 });

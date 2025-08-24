@@ -114,28 +114,12 @@ export const ContactForm = ({ className = "" }: ContactFormProps) => {
         solution_type: formData.solution_type,
       };
 
-      const { error } = await supabase
-        .from('contact_submissions')
-        .insert([{
-          ...sanitizedData,
-          status: 'new'
-        }]);
+      const response = await authAPI.submitContactForm({
+        ...sanitizedData,
+        status: 'new'
+      });
 
-      if (error) {
-        console.error('Error submitting contact form:', error);
-        
-        await logSecurityEvent({
-          event_type: 'form_submission_error',
-          details: { form: 'contact', error: error.message },
-          severity: 'medium'
-        });
-
-        toast({
-          title: "Error",
-          description: "Failed to send your message. Please try again.",
-          variant: "destructive",
-        });
-      } else {
+      if (response.success) {
         trackEvent('contact_form_submitted', { solution_type: sanitizedData.solution_type });
         
         await logSecurityEvent({
@@ -158,6 +142,20 @@ export const ContactForm = ({ className = "" }: ContactFormProps) => {
           subject: '',
           message: '',
           solution_type: '',
+        });
+      } else {
+        console.error('Error submitting contact form:', response.error);
+        
+        await logSecurityEvent({
+          event_type: 'form_submission_error',
+          details: { form: 'contact', error: response.error },
+          severity: 'medium'
+        });
+
+        toast({
+          title: "Error",
+          description: response.error || "Failed to send your message. Please try again.",
+          variant: "destructive",
         });
       }
     } catch (error) {
