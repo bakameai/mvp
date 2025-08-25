@@ -4,12 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Building2, TrendingUp, Activity } from "lucide-react";
 import { adminAPI } from "@/services/api";
 import { UserProfile } from "@/pages/AdminDashboard";
+import { StatCard } from "./StatCard";
+import { ActivityFeed } from "./ActivityFeed";
+import { QuickActions } from "./QuickActions";
 
 interface DashboardStatsProps {
   userProfile: UserProfile;
+  onActionClick?: (action: string) => void;
 }
 
-export const DashboardStats = ({ userProfile }: DashboardStatsProps) => {
+export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsProps) => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalOrganizations: 0,
@@ -55,29 +59,25 @@ export const DashboardStats = ({ userProfile }: DashboardStatsProps) => {
       title: "Total Users",
       value: stats.totalUsers,
       icon: Users,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
+      iconColor: "blue" as const,
     },
     {
       title: "Organizations",
       value: stats.totalOrganizations,
       icon: Building2,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
+      iconColor: "green" as const,
     },
     {
       title: "Active Users",
       value: stats.activeUsers,
       icon: Activity,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50",
+      iconColor: "purple" as const,
     },
     {
       title: "New This Month",
       value: stats.newUsersThisMonth,
       icon: TrendingUp,
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
+      iconColor: "orange" as const,
     },
   ];
 
@@ -99,77 +99,74 @@ export const DashboardStats = ({ userProfile }: DashboardStatsProps) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.title}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  </div>
-                  <div className={`${stat.bgColor} p-3 rounded-full`}>
-                    <Icon className={`h-6 w-6 ${stat.color}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {statCards.map((stat, index) => (
+          <div key={stat.title} style={{ animationDelay: `${index * 0.1}s` }}>
+            <StatCard
+              title={stat.title}
+              value={stat.value}
+              icon={stat.icon}
+              iconColor={stat.iconColor}
+            />
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome to Bakame AI Dashboard</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 mb-4">
-              Manage your AI-powered applications and user base from this central dashboard.
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                Monitor user activity and engagement
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Welcome to Bakame AI Dashboard</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground leading-relaxed">
+                Manage your AI-powered applications and user base from this central dashboard.
+              </p>
+              <ul className="mt-4 space-y-2 text-sm">
+                <li className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-2 h-2 bg-stat-blue rounded-full"></div>
+                  Monitor user activity and engagement
+                </li>
+                <li className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-2 h-2 bg-stat-green rounded-full"></div>
+                  Manage organizations and partnerships
+                </li>
+                <li className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-2 h-2 bg-stat-purple rounded-full"></div>
+                  Configure system settings and preferences
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+          <ActivityFeed />
+        </div>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Profile</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm text-muted-foreground">Name</label>
+                  <p className="font-medium">{userProfile.full_name || 'Not set'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">Email</label>
+                  <p className="font-medium">{userProfile.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">Role</label>
+                  <p className="font-medium capitalize">{userProfile.role}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">Organization</label>
+                  <p className="font-medium">{userProfile.organization || 'Not set'}</p>
+                </div>
               </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                Manage organizations and partnerships
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
-                Configure system settings and preferences
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Profile</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-gray-500">Name</label>
-                <p className="font-medium">{userProfile.full_name || 'Not set'}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Email</label>
-                <p className="font-medium">{userProfile.email}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Role</label>
-                <p className="font-medium capitalize">{userProfile.role}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Organization</label>
-                <p className="font-medium">{userProfile.organization || 'Not set'}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          <QuickActions onActionClick={onActionClick || (() => {})} />
+        </div>
       </div>
     </div>
   );

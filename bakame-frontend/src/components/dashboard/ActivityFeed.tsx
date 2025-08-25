@@ -1,0 +1,107 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+
+interface Activity {
+  id: number;
+  user: string;
+  action: string;
+  target: string;
+  timestamp: Date;
+  type: "create" | "update" | "delete" | "login" | "logout";
+}
+
+const activities: Activity[] = [
+  {
+    id: 1,
+    user: "Super Admin",
+    action: "created",
+    target: "new user account",
+    timestamp: new Date(Date.now() - 5 * 60 * 1000),
+    type: "create"
+  },
+  {
+    id: 2,
+    user: "System",
+    action: "completed",
+    target: "daily backup",
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    type: "update"
+  },
+  {
+    id: 3,
+    user: "Admin",
+    action: "updated",
+    target: "user permissions",
+    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+    type: "update"
+  },
+  {
+    id: 4,
+    user: "System",
+    action: "logged in",
+    target: "admin dashboard",
+    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
+    type: "login"
+  }
+];
+
+const getTypeColor = (type: Activity["type"]) => {
+  switch (type) {
+    case "create": return "bg-stat-green/10 text-stat-green";
+    case "update": return "bg-stat-blue/10 text-stat-blue";
+    case "delete": return "bg-destructive/10 text-destructive";
+    case "login": return "bg-stat-purple/10 text-stat-purple";
+    default: return "bg-muted/50 text-muted-foreground";
+  }
+};
+
+const getUserInitials = (name: string) => {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase();
+};
+
+export function ActivityFeed() {
+  return (
+    <Card className="animate-fade-in">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          Recent Activity
+          <Badge variant="secondary" className="animate-pulse-glow">
+            Live
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {activities.map((activity, index) => (
+            <div 
+              key={activity.id} 
+              className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors animate-fade-in"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                  {getUserInitials(activity.user)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-foreground">
+                  <span className="font-medium">{activity.user}</span>
+                  {' '}
+                  <span className={`px-1.5 py-0.5 text-xs rounded-full ${getTypeColor(activity.type)}`}>
+                    {activity.action}
+                  </span>
+                  {' '}
+                  <span className="text-muted-foreground">{activity.target}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {activity.timestamp.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
