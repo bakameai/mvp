@@ -1,4 +1,4 @@
-import requests
+import aiohttp
 import json
 from typing import List, Dict, Any, Optional
 from app.config import settings
@@ -38,7 +38,18 @@ class LlamaService:
             return "Ndabwira ko nfite ikibazo gito. (I'm having a small issue.) Please try again, and I'll do my best to help you learn!"
     
     async def _call_llama_api(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:
-        """Call Llama API with multiple endpoint fallback, then OpenAI with Rwanda context"""
+        """Call Llama API with circuit breaker protection"""
+        from app.utils.circuit_breaker import llm_circuit_breaker
+        
+        try:
+            return await llm_circuit_breaker.call(self._make_llama_request, messages, module_name)
+        except Exception as e:
+            print(f"Circuit breaker triggered, falling back to OpenAI: {e}")
+            from app.services.openai_service import openai_service
+            return await openai_service.generate_response(messages, module_name)
+    
+    async def _make_llama_request(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:
+        """Make the actual Llama API request"""
         
         if self.working_url:
             urls_to_try = [self.working_url] + [url for url in self.base_urls if url != self.working_url]
@@ -59,28 +70,22 @@ class LlamaService:
             "top_p": 0.9
         }
         
-        for url in urls_to_try:
-            for headers in headers_variants:
-                try:
-                    response = requests.post(url, headers=headers, json=payload, timeout=30)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        if 'completion_message' in data and 'content' in data['completion_message']:
-                            self.working_url = url
-                            return data['completion_message']['content']['text']
-                    
-                except Exception as e:
-                    print(f"Llama API error with {url}: {e}")
-                    continue
+        async with aiohttp.ClientSession() as session:
+            for url in urls_to_try:
+                for headers in headers_variants:
+                    try:
+                        async with session.post(url, headers=headers, json=payload, timeout=30) as response:
+                            if response.status == 200:
+                                data = await response.json()
+                                if 'completion_message' in data and 'content' in data['completion_message']:
+                                    self.working_url = url
+                                    return data['completion_message']['content']['text']
+                        
+                    except Exception as e:
+                        print(f"Llama API error with {url}: {e}")
+                        continue
         
-        print("Llama API failed, falling back to OpenAI with Rwanda context")
-        try:
-            from app.services.openai_service import openai_service
-            return await openai_service.generate_response(messages, module_name)
-        except Exception as e:
-            print(f"OpenAI fallback error: {e}")
-            return "Ndabwira ko nfite ikibazo. (I have an issue.) Let me try to help you another way."
+        raise Exception("All Llama API endpoints failed")
     
     async def transcribe_audio(self, audio_data: bytes, audio_format: str = "wav") -> str:
         """Keep using OpenAI Whisper for transcription"""

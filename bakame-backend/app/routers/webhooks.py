@@ -69,10 +69,33 @@ async def handle_voice_call(
                 user_input = await openai_service.transcribe_audio(audio_data)
         
         if not user_input:
+            silence_count = redis_service.get_session_data(phone_number, "silence_count") or 0
+            silence_count = int(silence_count) + 1
+            redis_service.set_session_data(phone_number, "silence_count", str(silence_count), ttl=300)
+            
+            if silence_count == 1:
+                response_msg = "I didn't catch that. Could you please repeat what you'd like to learn about?"
+            elif silence_count == 2:
+                response_msg = "Let me make this easier. Just say ENGLISH, MATH, or HELP to get started."
+            else:
+                response_msg = "I'll send you a text message with some tips. Thank you for calling BAKAME!"
+                
+                sms_tip = "BAKAME Tip: Call back and say 'ENGLISH' for language practice, 'MATH' for numbers, or 'HELP' for options. Muraho!"
+                twilio_service.send_sms(phone_number, sms_tip)
+                
+                redis_service.delete_session_data(phone_number, "silence_count")
+                
+                return Response(
+                    content=await twilio_service.create_voice_response(response_msg, gather_input=False),
+                    media_type="application/xml"
+                )
+            
             return Response(
-                content=await twilio_service.create_voice_response("I didn't catch that. Could you please repeat?"),
+                content=await twilio_service.create_voice_response(response_msg),
                 media_type="application/xml"
             )
+        
+        redis_service.delete_session_data(phone_number, "silence_count")
         
         if user_input and (user_input.lower().strip() == "reset" or any(word in user_input.lower() for word in ["hello", "hi", "hey", "start", "new", "help", "menu", "general"])):
             redis_service.clear_user_context(phone_number)

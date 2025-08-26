@@ -13,11 +13,17 @@ class TwilioService:
         self.client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
         self.phone_number = settings.twilio_phone_number
     
-    async def create_voice_response(self, message: str, gather_input: bool = True) -> str:
-        """Create TwiML voice response using Twilio Say verb"""
+    async def create_voice_response(self, message: str, gather_input: bool = True, call_sid: str = None) -> str:
+        """Create TwiML voice response with barge-in support"""
         response = VoiceResponse()
         
         try:
+            if call_sid and gather_input:
+                connect = response.connect()
+                stream = connect.stream(url=f'wss://your-domain.com/webhook/media-stream')
+                
+            sentences = self._split_into_sentences(message)
+            
             if gather_input:
                 gather = response.gather(
                     input='speech',
@@ -26,7 +32,27 @@ class TwilioService:
                     action='/webhook/voice/process',
                     method='POST'
                 )
-                gather.say(message, voice='man', language='en-US')
+                
+                if call_sid:
+                    from app.services.redis_service import redis_service
+                    redis_service.set_session_data(call_sid, "tts_playing", "1", ttl=30)
+                
+                for i, sentence in enumerate(sentences):
+                    if call_sid:
+                        barge_in = redis_service.get_session_data(call_sid, "barge_in")
+                        if barge_in:
+                            redis_service.delete_session_data(call_sid, "barge_in")
+                            redis_service.delete_session_data(call_sid, "tts_playing")
+                            break
+                    
+                    gather.say(sentence, voice='man', language='en-US')
+                    
+                    if i < len(sentences) - 1:
+                        gather.pause(length=1)
+                
+                if call_sid:
+                    redis_service.delete_session_data(call_sid, "tts_playing")
+                
                 response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
                 response.redirect('/webhook/voice/process')
             else:
@@ -51,6 +77,12 @@ class TwilioService:
                 response.hangup()
         
         return str(response)
+    
+    def _split_into_sentences(self, text: str) -> list[str]:
+        """Split text into sentences for chunked playback"""
+        import re
+        sentences = re.split(r'[.!?]+', text)
+        return [s.strip() for s in sentences if s.strip()]
     
     def create_sms_response(self, message: str) -> str:
         """Create TwiML SMS response"""

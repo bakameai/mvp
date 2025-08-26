@@ -74,8 +74,15 @@ class EnglishModule:
         return response
     
     async def _english_tutoring(self, user_input: str, user_context: Dict[str, Any]) -> str:
-        """General English tutoring and conversation"""
+        """General English tutoring with level-aware curriculum"""
+        
+        user_level = user_context.get("english_level", "A1")
+        recent_errors = user_context.get("recent_errors", [])
+        
+        exercise_guidance = self._get_next_exercise(user_level, recent_errors)
+        
         messages = [
+            {"role": "system", "content": exercise_guidance},
             {"role": "user", "content": user_input}
         ]
         
@@ -87,7 +94,69 @@ class EnglishModule:
             response = await llama_service.generate_response(messages, self.module_name)
         else:
             response = await openai_service.generate_response(messages, self.module_name)
+        
+        self._track_learning_progress(user_input, response, user_context)
+        
         return response
+    
+    def _get_next_exercise(self, level: str, recent_errors: list) -> str:
+        """Get level-appropriate exercise with targeted correction"""
+        
+        level_prompts = {
+            "A1": "Focus on basic vocabulary and simple present tense. Use very simple words. Give short, encouraging responses (≤2 sentences). End with a direct question about daily life.",
+            
+            "A2": "Practice past tense and basic conversations. Use simple past and present. Keep responses short (≤2 sentences). Ask about experiences or preferences.",
+            
+            "B1": "Work on future tense and expressing opinions. Use varied tenses but keep language clear. Responses should be ≤2 sentences. Ask for opinions or plans.",
+            
+            "B2": "Practice complex sentences and nuanced expression. Use more sophisticated vocabulary. Keep responses ≤2 sentences. Ask thought-provoking questions."
+        }
+        
+        base_prompt = level_prompts.get(level, level_prompts["A1"])
+        
+        if recent_errors:
+            error_types = [error.get("type") for error in recent_errors[-2:]]
+            if "grammar" in error_types:
+                base_prompt += " Pay special attention to grammar corrections."
+            if "pronunciation" in error_types:
+                base_prompt += " Give pronunciation tips when needed."
+            if "vocabulary" in error_types:
+                base_prompt += " Suggest simpler word choices."
+        
+        return base_prompt
+    
+    def _track_learning_progress(self, user_input: str, ai_response: str, user_context: Dict[str, Any]):
+        """Track learning progress and identify error patterns"""
+        
+        errors = []
+        response_lower = ai_response.lower()
+        
+        if any(word in response_lower for word in ["correct", "should be", "try saying"]):
+            if "grammar" in response_lower or "tense" in response_lower:
+                errors.append({"type": "grammar", "input": user_input[:50]})
+            elif "pronunciation" in response_lower or "sound" in response_lower:
+                errors.append({"type": "pronunciation", "input": user_input[:50]})
+            elif "word" in response_lower or "vocabulary" in response_lower:
+                errors.append({"type": "vocabulary", "input": user_input[:50]})
+        
+        if errors:
+            recent_errors = user_context.get("recent_errors", [])
+            recent_errors.extend(errors)
+            user_context["recent_errors"] = recent_errors[-5:]  # Keep last 5 errors
+            
+            self._update_user_level(user_context)
+    
+    def _update_user_level(self, user_context: Dict[str, Any]):
+        """Update user level based on error patterns and progress"""
+        recent_errors = user_context.get("recent_errors", [])
+        current_level = user_context.get("english_level", "A1")
+        
+        if len(recent_errors) < 2:
+            level_progression = {"A1": "A2", "A2": "B1", "B1": "B2", "B2": "B2"}
+            user_context["english_level"] = level_progression.get(current_level, current_level)
+        elif len(recent_errors) > 4:
+            level_regression = {"B2": "B1", "B1": "A2", "A2": "A1", "A1": "A1"}
+            user_context["english_level"] = level_regression.get(current_level, current_level)
     
     def get_welcome_message(self) -> str:
         """Get welcome message for English module"""
