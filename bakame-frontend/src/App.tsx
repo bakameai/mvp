@@ -9,6 +9,9 @@ import { AnalyticsProvider } from "./components/analytics/AnalyticsProvider";
 import IVR from "./pages/IVR";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
+import Analytics from "./pages/Analytics";
+import Users from "./pages/Users";
+import Settings from "./pages/Settings";
 import TelephonyAdminDashboard from "./pages/TelephonyAdminDashboard";
 import LearningModules from "./pages/LearningModules";
 import IVRInterface from "./pages/IVRInterface";
@@ -27,6 +30,9 @@ const App = () => (
               <Route path="/" element={<AdminDashboard />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin-dashboard" element={<AdminDashboard />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/users" element={<Users />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/telephony-admin" element={<TelephonyAdminDashboard />} />
               <Route path="/learning-modules" element={<LearningModules />} />
               <Route path="/ivr" element={<IVR />} />
