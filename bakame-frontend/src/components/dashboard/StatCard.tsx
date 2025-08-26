@@ -17,12 +17,12 @@ export function StatCard({ title, value, icon: Icon, iconColor }: StatCardProps)
   };
 
   return (
-    <Card className="p-6 hover:shadow-xl transition-all duration-300 hover:scale-105 animate-fade-in border-l-4 border-l-transparent hover:border-l-primary">
+    <Card className="p-6 hover:shadow-lg transition-all duration-300 hover:scale-105 animate-fade-in">
       <CardContent className="p-0">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-muted-foreground mb-1">{title}</p>
-            <p className="text-4xl font-bold text-foreground animate-scale-in bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">{value}</p>
+            <p className="text-3xl font-bold text-foreground animate-scale-in">{value}</p>
           </div>
           <div className={`p-3 rounded-lg transition-all duration-300 hover:scale-110 ${colorClasses[iconColor]}`}>
             <Icon className="h-6 w-6" />
