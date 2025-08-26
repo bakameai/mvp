@@ -10,37 +10,37 @@ interface QuickActionsProps {
 const quickActions = [
   { 
     icon: Plus, 
-    label: "Add User", 
-    action: "users",
+    label: "Add School", 
+    action: "organizations",
     color: "text-stat-blue bg-stat-blue/10 hover:bg-stat-blue/20"
   },
   { 
-    icon: Phone, 
-    label: "IVR Test", 
-    action: "ivr",
+    icon: Users, 
+    label: "Manage Students", 
+    action: "users",
     color: "text-stat-green bg-stat-green/10 hover:bg-stat-green/20"
   },
   { 
-    icon: BarChart3, 
-    label: "Analytics", 
-    action: "analytics",
+    icon: FileText, 
+    label: "Lesson Content", 
+    action: "content-cms",
     color: "text-stat-purple bg-stat-purple/10 hover:bg-stat-purple/20"
   },
   { 
     icon: Download, 
-    label: "Backup", 
+    label: "Sync Offline Data", 
     action: "backup",
     color: "text-stat-orange bg-stat-orange/10 hover:bg-stat-orange/20"
   },
   { 
-    icon: FileText, 
-    label: "Content", 
-    action: "content",
+    icon: Mail, 
+    label: "Teacher Updates", 
+    action: "newsletter",
     color: "text-primary bg-primary/10 hover:bg-primary/20"
   },
   { 
     icon: Settings, 
-    label: "Settings", 
+    label: "IVR Config", 
     action: "settings",
     color: "text-muted-foreground bg-muted/50 hover:bg-muted"
   }
@@ -50,19 +50,18 @@ export function QuickActions({ onActionClick }: QuickActionsProps) {
   const { toast } = useToast();
 
   const handleAction = (action: typeof quickActions[0]) => {
-    if (action.action === "ivr") {
-      window.open("/ivr", "_blank");
+    if (action.action === "settings") {
       toast({
-        title: "IVR Interface",
-        description: "Opening IVR test interface in new tab",
+        title: "Coming Soon",
+        description: "Settings page is under development.",
       });
-    } else {
-      onActionClick(action.action);
-      toast({
-        title: "Navigation",
-        description: `Switched to ${action.label}`,
-      });
+      return;
     }
+    onActionClick(action.action);
+    toast({
+      title: "Navigation",
+      description: `Switched to ${action.label}`,
+    });
   };
 
   return (
