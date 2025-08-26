@@ -321,15 +321,13 @@ const AdminDashboard = () => {
 
   // Admin users get the full dashboard with navigation
   return (
-    <DashboardLayout
-      userProfile={userProfile}
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      onSignOut={handleSignOut}
-      showThemeToggle={showThemeToggle}
-    >
-      {renderActiveTab()}
-    </DashboardLayout>
+    <div className="min-h-screen bg-background">
+      <DashboardLayout>
+        <div className="p-8 space-y-8">
+          {renderActiveTab()}
+        </div>
+      </DashboardLayout>
+    </div>
   );
 };
 

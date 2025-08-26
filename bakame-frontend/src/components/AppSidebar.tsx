@@ -1,5 +1,4 @@
 import * as React from "react";
-import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   BarChart3,
@@ -37,32 +36,25 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-interface AppSidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  onSignOut: () => void;
-  userProfile: any;
-}
-
 const menuItems = [
-  { title: "Dashboard", icon: LayoutDashboard, path: "dashboard" },
-  { title: "Analytics", icon: BarChart3, path: "analytics" },
-  { title: "Gov Demos", icon: GraduationCap, path: "government-demos" },
-  { title: "Users", icon: Users, path: "users" },
-  { title: "Organizations", icon: Building2, path: "organizations" },
-  { title: "Team", icon: UserCheck, path: "team" },
-  { title: "Content CMS", icon: FileText, path: "content" },
-  { title: "Contact Forms", icon: MessageSquare, path: "contact-submissions" },
-  { title: "Newsletter", icon: Mail, path: "newsletter" },
-  { title: "Audit Logs", icon: FileSearch, path: "audit" },
-  { title: "Backup", icon: HardDrive, path: "backup" },
-  { title: "Notifications", icon: Bell, path: "notifications" },
-  { title: "System Health", icon: Activity, path: "performance" },
-  { title: "Security", icon: Shield, path: "settings" },
-  { title: "Database", icon: Database, path: "files" },
+  { title: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { title: "Analytics", icon: BarChart3, path: "/analytics" },
+  { title: "School Demos", icon: GraduationCap, path: "/school-demos" },
+  { title: "Users", icon: Users, path: "/users" },
+  { title: "Organizations", icon: Building2, path: "/organizations" },
+  { title: "Team", icon: UserCheck, path: "/team" },
+  { title: "Content CMS", icon: FileText, path: "/content-cms" },
+  { title: "Contact Forms", icon: MessageSquare, path: "/contact-forms" },
+  { title: "Newsletter", icon: Mail, path: "/newsletter" },
+  { title: "Audit Logs", icon: FileSearch, path: "/audit-logs" },
+  { title: "Backup", icon: HardDrive, path: "/backup" },
+  { title: "Notifications", icon: Bell, path: "/notifications" },
+  { title: "System Health", icon: Activity, path: "/system-health" },
+  { title: "Security", icon: Shield, path: "/security" },
+  { title: "Database", icon: Database, path: "/database" },
 ];
 
-export function AppSidebar({ activeTab, setActiveTab, onSignOut, userProfile }: AppSidebarProps) {
+export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
@@ -94,26 +86,14 @@ export function AppSidebar({ activeTab, setActiveTab, onSignOut, userProfile }: 
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild
-                    isActive={activeTab === item.path}
-                  >
-                    <button
-                      onClick={() => setActiveTab(item.path)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors duration-200 ${
-                        activeTab === item.path
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                          : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
-                      }`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
-                      {item.title === "Security" && !isCollapsed && (
-                        <Badge variant="outline" className="ml-auto text-xs">
-                          3
-                        </Badge>
-                      )}
-                    </button>
+                  <SidebarMenuButton>
+                    <item.icon className="h-4 w-4" />
+                    {!isCollapsed && <span>{item.title}</span>}
+                    {item.title === "Security" && !isCollapsed && (
+                      <Badge variant="outline" className="ml-auto text-xs">
+                        3
+                      </Badge>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -143,8 +123,8 @@ export function AppSidebar({ activeTab, setActiveTab, onSignOut, userProfile }: 
             </div>
             {!isCollapsed && (
               <div className="flex-1">
-                <p className="text-sm font-medium text-sidebar-foreground">{userProfile?.full_name || 'Super Admin'}</p>
-                <p className="text-xs text-sidebar-foreground/70">{userProfile?.email || 'admin@bakame.ai'}</p>
+                <p className="text-sm font-medium text-sidebar-foreground">Super Admin</p>
+                <p className="text-xs text-sidebar-foreground/70">admin@bakame.ai</p>
               </div>
             )}
           </div>
@@ -153,7 +133,6 @@ export function AppSidebar({ activeTab, setActiveTab, onSignOut, userProfile }: 
             variant="ghost" 
             size="sm" 
             className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-            onClick={onSignOut}
           >
             <LogOut className="h-4 w-4" />
             {!isCollapsed && <span className="ml-2">Sign Out</span>}

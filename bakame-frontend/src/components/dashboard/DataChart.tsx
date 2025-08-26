@@ -1,40 +1,42 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, TrendingUp } from "lucide-react";
+import { BarChart3, TrendingUp, Activity } from "lucide-react";
 
-export function DataChart() {
+interface DataChartProps {
+  title?: string;
+  type?: "bar" | "line";
+}
+
+export function DataChart({ title = "Student Progress", type = "bar" }: DataChartProps) {
+  const chartData = type === "bar" ? [
+    { label: "English Lessons", value: 247, color: "stat-blue" },
+    { label: "Math Sessions", value: 189, color: "stat-green" },
+    { label: "Debate Practice", value: 156, color: "stat-purple" },
+    { label: "Comprehension", value: 203, color: "stat-orange" }
+  ] : [
+    { label: "Speaking Confidence", value: "94.2%", color: "stat-blue" },
+    { label: "Lesson Completion", value: "87.5%", color: "stat-green" },
+    { label: "Student Engagement", value: "91.8%", color: "stat-purple" }
+  ];
+
   return (
     <Card className="animate-fade-in">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-stat-blue" />
-          IVR Usage Analytics
+          {type === "bar" ? <BarChart3 className="h-5 w-5 text-primary" /> : <Activity className="h-5 w-5 text-primary" />}
+          {title}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-stat-blue/5 rounded-lg border border-stat-blue/20">
-            <div>
-              <p className="text-sm font-medium text-foreground">Daily Sessions</p>
-              <p className="text-2xl font-bold text-stat-blue">247</p>
+          {chartData.map((item, index) => (
+            <div key={index} className={`flex items-center justify-between p-4 bg-${item.color}/5 rounded-lg border border-${item.color}/20 animate-scale-in`} style={{ animationDelay: `${index * 0.1}s` }}>
+              <div>
+                <p className="text-sm font-medium text-foreground">{item.label}</p>
+                <p className={`text-2xl font-bold text-${item.color}`}>{item.value}</p>
+              </div>
+              <TrendingUp className={`h-8 w-8 text-${item.color}`} />
             </div>
-            <TrendingUp className="h-8 w-8 text-stat-blue" />
-          </div>
-          
-          <div className="flex items-center justify-between p-4 bg-stat-green/5 rounded-lg border border-stat-green/20">
-            <div>
-              <p className="text-sm font-medium text-foreground">Success Rate</p>
-              <p className="text-2xl font-bold text-stat-green">94.2%</p>
-            </div>
-            <TrendingUp className="h-8 w-8 text-stat-green" />
-          </div>
-          
-          <div className="flex items-center justify-between p-4 bg-stat-purple/5 rounded-lg border border-stat-purple/20">
-            <div>
-              <p className="text-sm font-medium text-foreground">Avg Duration</p>
-              <p className="text-2xl font-bold text-stat-purple">4.7m</p>
-            </div>
-            <TrendingUp className="h-8 w-8 text-stat-purple" />
-          </div>
+          ))}
         </div>
       </CardContent>
     </Card>
