@@ -61,15 +61,15 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				},
-				stat: {
-					blue: 'hsl(var(--stat-blue))',
-					green: 'hsl(var(--stat-green))',
-					purple: 'hsl(var(--stat-purple))',
-					orange: 'hsl(var(--stat-orange))'
-				}
 			},
-			borderRadius: {
+			stat: {
+				blue: 'hsl(var(--stat-blue))',
+				green: 'hsl(var(--stat-green))',
+				purple: 'hsl(var(--stat-purple))',
+				orange: 'hsl(var(--stat-orange))'
+			}
+		},
+		borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'

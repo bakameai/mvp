@@ -7,6 +7,8 @@ import { UserProfile } from "@/pages/AdminDashboard";
 import { StatCard } from "./StatCard";
 import { ActivityFeed } from "./ActivityFeed";
 import { QuickActions } from "./QuickActions";
+import { WelcomeSection } from "./WelcomeSection";
+import { ProfileCard } from "./ProfileCard";
 
 interface DashboardStatsProps {
   userProfile: UserProfile;
@@ -113,58 +115,11 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Welcome to Bakame AI Dashboard</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground leading-relaxed">
-                Manage your AI-powered applications and user base from this central dashboard.
-              </p>
-              <ul className="mt-4 space-y-2 text-sm">
-                <li className="flex items-center gap-2 text-muted-foreground">
-                  <div className="w-2 h-2 bg-stat-blue rounded-full"></div>
-                  Monitor user activity and engagement
-                </li>
-                <li className="flex items-center gap-2 text-muted-foreground">
-                  <div className="w-2 h-2 bg-stat-green rounded-full"></div>
-                  Manage organizations and partnerships
-                </li>
-                <li className="flex items-center gap-2 text-muted-foreground">
-                  <div className="w-2 h-2 bg-stat-purple rounded-full"></div>
-                  Configure system settings and preferences
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
+          <WelcomeSection />
           <ActivityFeed />
         </div>
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Profile</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm text-muted-foreground">Name</label>
-                  <p className="font-medium">{userProfile.full_name || 'Not set'}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Email</label>
-                  <p className="font-medium">{userProfile.email}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Role</label>
-                  <p className="font-medium capitalize">{userProfile.role}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Organization</label>
-                  <p className="font-medium">{userProfile.organization || 'Not set'}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ProfileCard userProfile={userProfile} />
           <QuickActions onActionClick={onActionClick || (() => {})} />
         </div>
       </div>

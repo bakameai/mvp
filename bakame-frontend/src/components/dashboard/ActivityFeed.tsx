@@ -32,17 +32,17 @@ const activities: Activity[] = [
     id: 3,
     user: "Admin",
     action: "updated",
-    target: "user permissions",
+    target: "IVR configuration",
     timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
     type: "update"
   },
   {
     id: 4,
     user: "System",
-    action: "logged in",
-    target: "admin dashboard",
+    action: "processed",
+    target: "telephony session",
     timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-    type: "login"
+    type: "create"
   }
 ];
 
