@@ -1,6 +1,7 @@
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { DashboardHeader } from "./DashboardHeader";
 import { UserProfile } from "@/pages/AdminDashboard";
 
 interface DashboardLayoutProps {
@@ -30,15 +31,10 @@ export const DashboardLayout = ({
           userProfile={userProfile}
         />
         <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="h-16 flex items-center border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-            <div className="flex items-center gap-4 px-6">
-              <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-stat-green rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-muted-foreground">Super Admin Dashboard</span>
-              </div>
-            </div>
-          </header>
+          <DashboardHeader 
+            userProfile={userProfile}
+            onSignOut={onSignOut}
+          />
           <div className="flex-1 overflow-auto">
             <div className="p-8">
               {children}

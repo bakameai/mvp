@@ -9,6 +9,7 @@ import { ActivityFeed } from "./ActivityFeed";
 import { QuickActions } from "./QuickActions";
 import { WelcomeSection } from "./WelcomeSection";
 import { ProfileCard } from "./ProfileCard";
+import { DataChart } from "./DataChart";
 
 interface DashboardStatsProps {
   userProfile: UserProfile;
@@ -113,7 +114,7 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="space-y-6">
           <WelcomeSection />
           <ActivityFeed />
@@ -121,6 +122,9 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
         <div className="space-y-6">
           <ProfileCard userProfile={userProfile} />
           <QuickActions onActionClick={onActionClick || (() => {})} />
+        </div>
+        <div className="space-y-6">
+          <DataChart />
         </div>
       </div>
     </div>
