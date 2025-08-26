@@ -5,6 +5,13 @@ import { authAPI } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { WelcomeSection } from "@/components/dashboard/WelcomeSection";
+import { ProfileCard } from "@/components/dashboard/ProfileCard";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import { DataChart } from "@/components/dashboard/DataChart";
+import { Users, Building2, Activity, TrendingUp } from "lucide-react";
 import { UserManagement } from "@/components/dashboard/UserManagement";
 import { OrganizationManagement } from "@/components/dashboard/OrganizationManagement";
 import { Settings } from "@/components/dashboard/Settings";
@@ -323,9 +330,52 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <DashboardLayout>
-        <div className="p-8 space-y-8">
-          {renderActiveTab()}
-        </div>
+        {activeTab === "dashboard" ? (
+          <>
+            <div className="p-8 space-y-8">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                  { title: "Active Students", value: "1,247", icon: Users, iconColor: "blue" as const },
+                  { title: "Partner Schools", value: "23", icon: Building2, iconColor: "green" as const },
+                  { title: "Lessons Today", value: "89", icon: Activity, iconColor: "purple" as const },
+                  { title: "Speaking Hours", value: "156", icon: TrendingUp, iconColor: "orange" as const },
+                ].map((stat, index) => (
+                  <div key={index} style={{ animationDelay: `${index * 0.1}s` }}>
+                    <StatCard
+                      title={stat.title}
+                      value={stat.value}
+                      icon={stat.icon}
+                      iconColor={stat.iconColor}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Charts Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <DataChart title="Student Progress" type="bar" />
+                <DataChart title="Speaking Confidence Trends" type="line" />
+              </div>
+
+              {/* Main Content Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-6">
+                  <WelcomeSection />
+                  <ActivityFeed />
+                </div>
+                <div className="space-y-6">
+                  <ProfileCard userProfile={userProfile} />
+                  <QuickActions onActionClick={setActiveTab} />
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="p-8 space-y-8">
+            {renderActiveTab()}
+          </div>
+        )}
       </DashboardLayout>
     </div>
   );
