@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Building2, TrendingUp, Activity } from "lucide-react";
+import { Users, Building2, TrendingUp, Activity, Phone, BookOpen, Clock, Target } from "lucide-react";
 import { adminAPI } from "@/services/api";
 import { UserProfile } from "@/pages/AdminDashboard";
 import { StatCard } from "./StatCard";
@@ -22,6 +22,10 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
     totalOrganizations: 0,
     activeUsers: 0,
     newUsersThisMonth: 0,
+    totalIVRSessions: 0,
+    activeIVRSessions: 0,
+    completedLessons: 0,
+    averageSessionDuration: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -32,11 +36,23 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
         if (userProfile.role === 'admin') {
           const adminStats = await adminAPI.getAdminStats();
           
+          const ivrResponse = await fetch('/api/admin/peer-learning-sessions', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+          });
+          const ivrData = await ivrResponse.json();
+          const sessions = ivrData.data?.sessions || [];
+          
           setStats({
             totalUsers: adminStats.total_users || 0,
             totalOrganizations: adminStats.total_organizations || 0,
             activeUsers: adminStats.active_users || 0,
             newUsersThisMonth: adminStats.new_users_this_month || 0,
+            totalIVRSessions: sessions.length || 0,
+            activeIVRSessions: sessions.filter((s: any) => s.status === 'active').length || 0,
+            completedLessons: sessions.filter((s: any) => s.status === 'completed').length || 0,
+            averageSessionDuration: sessions.length > 0 ? Math.round(sessions.reduce((acc: number, s: any) => acc + (s.duration || 15), 0) / sessions.length) : 0,
           });
         } else {
           // For non-admin users, show limited stats
@@ -45,6 +61,10 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
             totalOrganizations: 1, // Their organization
             activeUsers: 1,
             newUsersThisMonth: 0,
+            totalIVRSessions: 0,
+            activeIVRSessions: 0,
+            completedLessons: 0,
+            averageSessionDuration: 0,
           });
         }
       } catch (error) {
@@ -59,21 +79,45 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
 
   const statCards = [
     {
-      title: "Total Users",
+      title: "Total IVR Sessions",
+      value: stats.totalIVRSessions,
+      icon: Phone,
+      iconColor: "blue" as const,
+    },
+    {
+      title: "Active Sessions",
+      value: stats.activeIVRSessions,
+      icon: Activity,
+      iconColor: "green" as const,
+    },
+    {
+      title: "Completed Lessons",
+      value: stats.completedLessons,
+      icon: BookOpen,
+      iconColor: "purple" as const,
+    },
+    {
+      title: "Avg Session (min)",
+      value: stats.averageSessionDuration,
+      icon: Clock,
+      iconColor: "orange" as const,
+    },
+    {
+      title: "Total Students",
       value: stats.totalUsers,
       icon: Users,
       iconColor: "blue" as const,
     },
     {
-      title: "Organizations",
+      title: "Partner Schools",
       value: stats.totalOrganizations,
       icon: Building2,
       iconColor: "green" as const,
     },
     {
-      title: "Active Users",
+      title: "Active Learners",
       value: stats.activeUsers,
-      icon: Activity,
+      icon: Target,
       iconColor: "purple" as const,
     },
     {
@@ -101,18 +145,44 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
 
   return (
     <>
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, index) => (
-          <div key={index} style={{ animationDelay: `${index * 0.1}s` }}>
-            <StatCard
-              title={stat.title}
-              value={stat.value}
-              icon={stat.icon}
-              iconColor={stat.iconColor}
-            />
-          </div>
-        ))}
+      {/* IVR Stats Grid */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
+          <Phone className="h-8 w-8 text-stat-blue" />
+          IVR Learning System Dashboard
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.slice(0, 4).map((stat, index) => (
+            <div key={index} style={{ animationDelay: `${index * 0.1}s` }}>
+              <StatCard
+                title={stat.title}
+                value={stat.value}
+                icon={stat.icon}
+                iconColor={stat.iconColor}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* User Management Stats */}
+      <div className="mb-8">
+        <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Users className="h-6 w-6 text-stat-green" />
+          User Management Overview
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.slice(4).map((stat, index) => (
+            <div key={index + 4} style={{ animationDelay: `${(index + 4) * 0.1}s` }}>
+              <StatCard
+                title={stat.title}
+                value={stat.value}
+                icon={stat.icon}
+                iconColor={stat.iconColor}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Charts Section */}

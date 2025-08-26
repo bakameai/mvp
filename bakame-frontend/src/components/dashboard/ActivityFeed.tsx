@@ -14,35 +14,51 @@ interface Activity {
 const activities: Activity[] = [
   {
     id: 1,
-    user: "Sarah Chen",
+    user: "Student #247",
     action: "completed",
-    target: "Level 2 Speaking Module",
-    timestamp: new Date(Date.now() - 5 * 60 * 1000),
+    target: "IVR English Conversation Session",
+    timestamp: new Date(Date.now() - 3 * 60 * 1000),
     type: "create"
   },
   {
     id: 2,
-    user: "Teacher Williams",
-    action: "reviewed",
-    target: "student progress reports",
-    timestamp: new Date(Date.now() - 15 * 60 * 1000),
-    type: "update"
-  },
-  {
-    id: 3,
-    user: "Lincoln High School",
-    action: "started",
-    target: "new lesson batch download",
-    timestamp: new Date(Date.now() - 30 * 60 * 1000),
+    user: "Kigali Primary School",
+    action: "initiated",
+    target: "25 new IVR learning sessions",
+    timestamp: new Date(Date.now() - 8 * 60 * 1000),
     type: "login"
   },
   {
+    id: 3,
+    user: "Student #189",
+    action: "achieved",
+    target: "Level 3 Speaking Proficiency",
+    timestamp: new Date(Date.now() - 12 * 60 * 1000),
+    type: "create"
+  },
+  {
     id: 4,
-    user: "System",
-    action: "synchronized",
-    target: "offline lesson content",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    user: "IVR System",
+    action: "processed",
+    target: "147 voice interactions today",
+    timestamp: new Date(Date.now() - 25 * 60 * 1000),
     type: "update"
+  },
+  {
+    id: 5,
+    user: "Teacher Uwimana",
+    action: "reviewed",
+    target: "student IVR progress reports",
+    timestamp: new Date(Date.now() - 45 * 60 * 1000),
+    type: "update"
+  },
+  {
+    id: 6,
+    user: "Musanze Secondary",
+    action: "downloaded",
+    target: "offline lesson content package",
+    timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
+    type: "login"
   }
 ];
 
@@ -79,8 +95,9 @@ export function ActivityFeed() {
     <Card className="animate-fade-in">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          Recent Activity
-          <Badge variant="secondary" className="animate-pulse-glow">
+          <Activity className="h-5 w-5 text-stat-purple" />
+          IVR Learning Activity Feed
+          <Badge variant="secondary" className="animate-pulse-glow bg-stat-green/20 text-stat-green border-stat-green/30">
             Live
           </Badge>
         </CardTitle>
