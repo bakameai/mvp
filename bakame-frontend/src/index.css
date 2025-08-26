@@ -57,11 +57,6 @@
     --stat-green: 142 76% 36%;
     --stat-purple: 271 91% 65%;
     --stat-orange: 38 92% 50%;
-    
-    /* Animation keyframes */
-    --animate-fade-in: fadeIn 0.6s ease-out forwards;
-    --animate-scale-in: scaleIn 0.4s ease-out forwards;
-    --animate-pulse-glow: pulseGlow 2s ease-in-out infinite;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 9% 46%;
@@ -73,73 +68,49 @@
     --sidebar-ring: 217 91% 60%;
   }
 
-
-/* Animation definitions */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes pulseGlow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.6s ease-out forwards;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.4s ease-out forwards;
-}
-
-.animate-pulse-glow {
-  animation: pulseGlow 2s ease-in-out infinite;
-}
-
   .dark {
-    /* Dark mode: Black background, white text */
-    --background: 0 0% 0%;    /* Black background */
-    --foreground: 0 0% 100%;  /* White text */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
 
-    --card: 214 58% 11%;      /* Dark blue cards (#081a2e) */
-    --card-foreground: 0 0% 100%; /* White text on cards */
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 214 58% 11%;   /* Dark blue popovers */
-    --popover-foreground: 0 0% 100%; /* White text on popovers */
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 0 0% 100%;     /* White primary in dark mode */
-    --primary-foreground: 0 0% 0%; /* Black text on white */
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 27 100% 65%; /* Orange secondary */
-    --secondary-foreground: 0 0% 0%; /* Black text on orange */
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 214 40% 15%;     /* Dark muted */
-    --muted-foreground: 0 0% 65%; /* Light gray text */
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 218 91% 42%;    /* Blue accent */
-    --accent-foreground: 0 0% 100%; /* White text on blue */
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84% 60%; /* Red for destructive actions */
-    --destructive-foreground: 0 0% 100%; /* White text on red */
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 214 40% 20%;    /* Dark borders */
-    --input: 214 40% 15%;     /* Dark input backgrounds */
-    --ring: 218 91% 42%;      /* Blue focus rings */
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
 
-    --sidebar-background: 214 58% 11%; /* Dark blue sidebar */
-    --sidebar-foreground: 0 0% 100%;   /* White sidebar text */
-    --sidebar-primary: 0 0% 100%;      /* White sidebar primary */
-    --sidebar-primary-foreground: 0 0% 0%; /* Black text on white */
-    --sidebar-accent: 27 100% 65%;     /* Orange sidebar accent */
-    --sidebar-accent-foreground: 0 0% 0%; /* Black text on orange */
-    --sidebar-border: 214 40% 20%;     /* Dark sidebar borders */
-    --sidebar-ring: 218 91% 42%;       /* Blue sidebar rings */
+    /* Dashboard tokens for dark mode */
+    --dashboard-sidebar: 240 5.9% 10%;
+    --dashboard-sidebar-foreground: 240 4.8% 95.9%;
+    --dashboard-sidebar-active: 217 91% 60%;
+    --dashboard-sidebar-active-foreground: 0 0% 100%;
+    --dashboard-sidebar-hover: 240 3.7% 15.9%;
   }
 }
 
