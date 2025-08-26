@@ -482,6 +482,54 @@ async def get_peer_learning_sessions(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving peer learning sessions: {str(e)}")
 
+@router.get("/ivr-stats")
+async def get_ivr_statistics(
+    current_user: WebUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get comprehensive IVR statistics for dashboard"""
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        from app.models.database import UserSession, PeerLearningSession
+        from datetime import datetime, timedelta
+        from sqlalchemy import func
+        
+        total_ivr_sessions = db.query(UserSession).count()
+        voice_sessions = db.query(UserSession).filter(UserSession.interaction_type == "voice").count()
+        sms_sessions = db.query(UserSession).filter(UserSession.interaction_type == "sms").count()
+        
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        recent_sessions = db.query(UserSession).filter(UserSession.timestamp >= yesterday).count()
+        
+        avg_duration_result = db.query(func.avg(UserSession.session_duration)).filter(
+            UserSession.session_duration.isnot(None)
+        ).scalar()
+        avg_session_duration = round(avg_duration_result or 0, 1)
+        
+        module_stats = {}
+        sessions_by_module = db.query(UserSession.module_name, func.count(UserSession.id)).group_by(UserSession.module_name).all()
+        for module, count in sessions_by_module:
+            module_stats[module] = count
+        
+        peer_sessions = db.query(PeerLearningSession).count()
+        active_peer_sessions = db.query(PeerLearningSession).filter(PeerLearningSession.ended_at.is_(None)).count()
+        
+        return {
+            "total_ivr_sessions": total_ivr_sessions,
+            "voice_sessions": voice_sessions,
+            "sms_sessions": sms_sessions,
+            "recent_sessions_24h": recent_sessions,
+            "average_session_duration": avg_session_duration,
+            "peer_learning_sessions": peer_sessions,
+            "active_peer_sessions": active_peer_sessions,
+            "module_statistics": module_stats,
+            "last_updated": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving IVR statistics: {str(e)}")
+
 @router.post("/populate-sample-data")
 async def populate_sample_data():
     """Populate database with sample data for demonstration"""

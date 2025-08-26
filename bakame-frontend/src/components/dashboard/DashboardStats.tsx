@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Building2, TrendingUp, Activity, Phone, BookOpen, Clock, Target } from "lucide-react";
+import { Users, Building2, TrendingUp, Activity, Phone, BookOpen, Clock, Target, Mic, MessageSquare, GraduationCap, BarChart3 } from "lucide-react";
 import { adminAPI } from "@/services/api";
 import { UserProfile } from "@/pages/AdminDashboard";
 import { StatCard } from "./StatCard";
@@ -23,48 +23,53 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
     activeUsers: 0,
     newUsersThisMonth: 0,
     totalIVRSessions: 0,
-    activeIVRSessions: 0,
-    completedLessons: 0,
+    voiceSessions: 0,
+    smsSessions: 0,
+    recentSessions24h: 0,
     averageSessionDuration: 0,
+    peerLearningSessions: 0,
+    activePeerSessions: 0,
+    moduleStats: {} as Record<string, number>,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Only admins can see all user stats
         if (userProfile.role === 'admin') {
-          const adminStats = await adminAPI.getAdminStats();
-          
-          const ivrResponse = await fetch('/api/admin/peer-learning-sessions', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            },
-          });
-          const ivrData = await ivrResponse.json();
-          const sessions = ivrData.data?.sessions || [];
+          const [adminStats, ivrStats] = await Promise.all([
+            adminAPI.getAdminStats(),
+            adminAPI.getIVRStats()
+          ]);
           
           setStats({
             totalUsers: adminStats.total_users || 0,
-            totalOrganizations: adminStats.total_organizations || 0,
+            totalOrganizations: adminStats.organizations || 0,
             activeUsers: adminStats.active_users || 0,
             newUsersThisMonth: adminStats.new_users_this_month || 0,
-            totalIVRSessions: sessions.length || 0,
-            activeIVRSessions: sessions.filter((s: any) => s.status === 'active').length || 0,
-            completedLessons: sessions.filter((s: any) => s.status === 'completed').length || 0,
-            averageSessionDuration: sessions.length > 0 ? Math.round(sessions.reduce((acc: number, s: any) => acc + (s.duration || 15), 0) / sessions.length) : 0,
+            totalIVRSessions: ivrStats.total_ivr_sessions || 0,
+            voiceSessions: ivrStats.voice_sessions || 0,
+            smsSessions: ivrStats.sms_sessions || 0,
+            recentSessions24h: ivrStats.recent_sessions_24h || 0,
+            averageSessionDuration: ivrStats.average_session_duration || 0,
+            peerLearningSessions: ivrStats.peer_learning_sessions || 0,
+            activePeerSessions: ivrStats.active_peer_sessions || 0,
+            moduleStats: ivrStats.module_statistics || {},
           });
         } else {
-          // For non-admin users, show limited stats
           setStats({
-            totalUsers: 1, // Just themselves
-            totalOrganizations: 1, // Their organization
+            totalUsers: 1,
+            totalOrganizations: 1,
             activeUsers: 1,
             newUsersThisMonth: 0,
             totalIVRSessions: 0,
-            activeIVRSessions: 0,
-            completedLessons: 0,
+            voiceSessions: 0,
+            smsSessions: 0,
+            recentSessions24h: 0,
             averageSessionDuration: 0,
+            peerLearningSessions: 0,
+            activePeerSessions: 0,
+            moduleStats: {},
           });
         }
       } catch (error) {
@@ -85,45 +90,45 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
       iconColor: "blue" as const,
     },
     {
-      title: "Active Sessions",
-      value: stats.activeIVRSessions,
-      icon: Activity,
+      title: "Voice Interactions",
+      value: stats.voiceSessions,
+      icon: Mic,
       iconColor: "green" as const,
     },
     {
-      title: "Completed Lessons",
-      value: stats.completedLessons,
-      icon: BookOpen,
+      title: "SMS Interactions", 
+      value: stats.smsSessions,
+      icon: MessageSquare,
       iconColor: "purple" as const,
     },
     {
-      title: "Avg Session (min)",
+      title: "Avg Duration (min)",
       value: stats.averageSessionDuration,
       icon: Clock,
       iconColor: "orange" as const,
     },
     {
-      title: "Total Students",
-      value: stats.totalUsers,
-      icon: Users,
+      title: "Recent Sessions (24h)",
+      value: stats.recentSessions24h,
+      icon: TrendingUp,
       iconColor: "blue" as const,
     },
     {
-      title: "Partner Schools",
-      value: stats.totalOrganizations,
-      icon: Building2,
+      title: "Peer Learning Sessions",
+      value: stats.peerLearningSessions,
+      icon: Users,
       iconColor: "green" as const,
     },
     {
-      title: "Active Learners",
-      value: stats.activeUsers,
-      icon: Target,
+      title: "Active Peer Sessions",
+      value: stats.activePeerSessions,
+      icon: Activity,
       iconColor: "purple" as const,
     },
     {
-      title: "New This Month",
-      value: stats.newUsersThisMonth,
-      icon: TrendingUp,
+      title: "Total Students",
+      value: stats.totalUsers,
+      icon: GraduationCap,
       iconColor: "orange" as const,
     },
   ];
@@ -145,7 +150,7 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
 
   return (
     <>
-      {/* IVR Stats Grid */}
+      {/* IVR Learning System Dashboard */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
           <Phone className="h-8 w-8 text-stat-blue" />
@@ -165,11 +170,11 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
         </div>
       </div>
 
-      {/* User Management Stats */}
+      {/* Session Analytics & Peer Learning */}
       <div className="mb-8">
         <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Users className="h-6 w-6 text-stat-green" />
-          User Management Overview
+          <BarChart3 className="h-6 w-6 text-stat-purple" />
+          Session Analytics & Peer Learning
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.slice(4).map((stat, index) => (

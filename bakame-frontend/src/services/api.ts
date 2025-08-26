@@ -234,6 +234,19 @@ export const adminAPI = {
     return response.data;
   },
 
+  async getIVRStats(): Promise<any> {
+    const response = await api.get('/admin/ivr-stats');
+    return response.data;
+  },
+
+  async getUserSessions(phoneNumber?: string, limit: number = 100): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (phoneNumber) params.append('phone_number', phoneNumber);
+    params.append('limit', limit.toString());
+    const response = await api.get(`/admin/sessions?${params.toString()}`);
+    return response.data;
+  },
+
   async getUsers(): Promise<any[]> {
     const response = await api.get('/admin/users');
     return response.data;
