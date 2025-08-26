@@ -14,35 +14,35 @@ interface Activity {
 const activities: Activity[] = [
   {
     id: 1,
-    user: "Super Admin",
-    action: "created",
-    target: "new user account",
+    user: "Sarah Chen",
+    action: "completed",
+    target: "Level 2 Speaking Module",
     timestamp: new Date(Date.now() - 5 * 60 * 1000),
     type: "create"
   },
   {
     id: 2,
-    user: "System",
-    action: "completed",
-    target: "daily backup",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    user: "Teacher Williams",
+    action: "reviewed",
+    target: "student progress reports",
+    timestamp: new Date(Date.now() - 15 * 60 * 1000),
     type: "update"
   },
   {
     id: 3,
-    user: "Admin",
-    action: "updated",
-    target: "IVR configuration",
-    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-    type: "update"
+    user: "Lincoln High School",
+    action: "started",
+    target: "new lesson batch download",
+    timestamp: new Date(Date.now() - 30 * 60 * 1000),
+    type: "login"
   },
   {
     id: 4,
     user: "System",
-    action: "processed",
-    target: "telephony session",
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-    type: "create"
+    action: "synchronized",
+    target: "offline lesson content",
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    type: "update"
   }
 ];
 
