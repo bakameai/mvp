@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Building2, TrendingUp, Activity, Phone, BookOpen, Clock, Target, Mic, MessageSquare, GraduationCap, BarChart3 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { adminAPI } from "@/services/api";
 import { UserProfile } from "@/pages/AdminDashboard";
 import { StatCard } from "./StatCard";
@@ -155,6 +156,9 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
         <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
           <Phone className="h-8 w-8 text-stat-blue" />
           IVR Learning System Dashboard
+          <Badge variant="secondary" className="animate-pulse-glow bg-stat-green/20 text-stat-green border-stat-green/30">
+            Live Data
+          </Badge>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.slice(0, 4).map((stat, index) => (
