@@ -1,4 +1,5 @@
 import * as React from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   BarChart3,
@@ -56,6 +57,13 @@ const menuItems = [
 
 export function AppSidebar() {
   const { state } = useSidebar();
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  const isActive = (path: string) => currentPath === path;
+  const getNavCls = ({ isActive }: { isActive: boolean }) =>
+    isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50";
+
   const isCollapsed = state === "collapsed";
 
   return (
@@ -86,14 +94,16 @@ export function AppSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton>
-                    <item.icon className="h-4 w-4" />
-                    {!isCollapsed && <span>{item.title}</span>}
-                    {item.title === "Security" && !isCollapsed && (
-                      <Badge variant="outline" className="ml-auto text-xs">
-                        3
-                      </Badge>
-                    )}
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.path} end className={getNavCls}>
+                      <item.icon className="h-4 w-4" />
+                      {!isCollapsed && <span>{item.title}</span>}
+                      {item.title === "Security" && !isCollapsed && (
+                        <Badge variant="outline" className="ml-auto text-xs">
+                          3
+                        </Badge>
+                      )}
+                    </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

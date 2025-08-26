@@ -118,11 +118,10 @@ export function ActivityFeed() {
   return (
     <Card className="animate-fade-in">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <Activity className="h-6 w-6 text-stat-purple" />
-          🎓 Student Learning Activity Feed
-          <Badge variant="secondary" className="animate-pulse-glow bg-stat-green/20 text-stat-green border-stat-green/30">
-            🔴 Live Updates
+        <CardTitle className="flex items-center gap-2">
+          Recent Activity
+          <Badge variant="secondary" className="animate-pulse-glow">
+            Live
           </Badge>
         </CardTitle>
       </CardHeader>
