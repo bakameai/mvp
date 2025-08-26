@@ -33,7 +33,7 @@ export const Settings = ({ userProfile, showThemeToggle, onThemeToggleChange }: 
   const updateProfile = async () => {
     setIsLoading(true);
     try {
-      await authAPI.updateProfile(profile);
+      await adminAPI.updateProfile(profile);
 
       toast({
         title: "Success",

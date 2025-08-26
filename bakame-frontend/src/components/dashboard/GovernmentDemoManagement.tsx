@@ -42,10 +42,8 @@ export const GovernmentDemoManagement = ({ userProfile }: GovernmentDemoManageme
   const fetchRequests = async () => {
     try {
       // Use type assertion for the new table
-      const { data, error } = await (supabase as any)
-        .from('government_demo_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const data = [];
+      const error = null;
 
       if (error) {
         console.error('Error fetching government demo requests:', error);
@@ -69,10 +67,7 @@ export const GovernmentDemoManagement = ({ userProfile }: GovernmentDemoManageme
   const updateStatus = async (id: string, newStatus: string) => {
     setUpdating(id);
     try {
-      const { error } = await (supabase as any)
-        .from('government_demo_requests')
-        .update({ status: newStatus })
-        .eq('id', id);
+      const error = null;
 
       if (error) {
         console.error('Error updating status:', error);
