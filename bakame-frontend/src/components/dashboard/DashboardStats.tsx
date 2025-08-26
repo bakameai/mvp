@@ -153,11 +153,11 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
     <>
       {/* IVR Learning System Dashboard */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
-          <Phone className="h-8 w-8 text-stat-blue" />
-          IVR Learning System Dashboard
-          <Badge variant="secondary" className="animate-pulse-glow bg-stat-green/20 text-stat-green border-stat-green/30">
-            Live Data
+        <h2 className="text-3xl font-bold text-foreground mb-6 flex items-center gap-3 animate-fade-in">
+          <Phone className="h-10 w-10 text-stat-blue" />
+          📞 BAKAME IVR Learning System
+          <Badge variant="secondary" className="animate-pulse-glow bg-stat-green/20 text-stat-green border-stat-green/30 text-sm px-3 py-1">
+            🔴 Live Data
           </Badge>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -176,9 +176,12 @@ export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsPro
 
       {/* Session Analytics & Peer Learning */}
       <div className="mb-8">
-        <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
-          <BarChart3 className="h-6 w-6 text-stat-purple" />
-          Session Analytics & Peer Learning
+        <h3 className="text-2xl font-semibold text-foreground mb-4 flex items-center gap-2 animate-fade-in">
+          <BarChart3 className="h-8 w-8 text-stat-purple" />
+          📊 Session Analytics & Peer Learning
+          <Badge variant="outline" className="bg-stat-purple/10 text-stat-purple border-stat-purple/30">
+            Real-time
+          </Badge>
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.slice(4).map((stat, index) => (

@@ -17,7 +17,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-stat-green rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-muted-foreground">Super Admin Dashboard</span>
+                <span className="text-sm font-medium text-muted-foreground">🎓 BAKAME IVR Learning System - Super Admin Dashboard</span>
               </div>
             </div>
           </header>
