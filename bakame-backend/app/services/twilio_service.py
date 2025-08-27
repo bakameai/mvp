@@ -104,7 +104,7 @@ class TwilioService:
         """Generate URL for audio file that Twilio can access"""
         relative_path = audio_file_path.replace('/tmp/', '')
         
-        base_url = "https://app-pyzfduqr.fly.dev"
+        base_url = "https://app-lfzepwvu.fly.dev"
         return f"{base_url}/{relative_path}"
     
     async def _cleanup_after_delay(self, audio_file: str, delay_seconds: int):

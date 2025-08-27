@@ -163,7 +163,8 @@ async def healthz():
     try:
         from app.models.database import get_db
         db = next(get_db())
-        db.execute("SELECT 1")
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
         db.close()
         health_status["checks"]["database"] = {"status": "healthy"}
     except Exception as e:
