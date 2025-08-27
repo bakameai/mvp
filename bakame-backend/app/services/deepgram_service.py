@@ -11,15 +11,15 @@ class DeepgramService:
         self.api_key = settings.deepgram_api_key
         self.base_url = "https://api.deepgram.com/v1/speak"
         
-        self.kid_friendly_voices = {
-            "aura-asteria-en": "Warm, friendly female voice",
-            "aura-luna-en": "Gentle, nurturing female voice", 
-            "aura-stella-en": "Bright, encouraging female voice"
+        self.african_male_voices = {
+            "aura-2-aries-en": "Warm, Energetic, Caring male voice",
+            "aura-2-arcas-en": "Natural, Smooth, Clear male voice", 
+            "aura-2-apollo-en": "Confident, Comfortable male voice"
         }
         
-        self.default_voice = getattr(settings, 'tts_voice', 'aura-asteria-en')
+        self.default_voice = getattr(settings, 'tts_voice', 'aura-2-aries-en')
         self.default_rate = getattr(settings, 'tts_rate', 0.95)
-        self.default_pitch = getattr(settings, 'tts_pitch', '+1st')
+        self.default_pitch = getattr(settings, 'tts_pitch', '-1st')
         self.default_style = getattr(settings, 'tts_style', 'conversational')
     
     async def text_to_speech(self, 
@@ -194,8 +194,8 @@ class DeepgramService:
         return audio_chunks
     
     def get_available_voices(self) -> Dict[str, str]:
-        """Get list of available kid-friendly voices"""
-        return self.kid_friendly_voices.copy()
+        """Get list of available African male voices"""
+        return self.african_male_voices.copy()
     
     def cleanup_temp_file(self, file_path: str):
         """Clean up temporary audio file"""

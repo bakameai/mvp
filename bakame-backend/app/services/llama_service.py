@@ -11,9 +11,17 @@ class LlamaService:
         ]
         self.working_url = None
         
-    async def generate_response(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:
-        """Generate response using Llama API with Rwandan cultural context"""
+    async def generate_response(self, messages: List[Dict[str, str]], module_name: str = "general", conversation_state: str = "normal") -> str:
+        """Generate response using Llama API with dynamic temperature based on conversation state"""
         try:
+            temperature_map = {
+                "welcome": 0.4,
+                "normal": 0.9,
+                "rwanda_fact": 1.6
+            }
+            
+            temperature = temperature_map.get(conversation_state, 0.9)
+            
             system_prompts = {
                 "english": "You are Bakame, a warm and patient voice-based AI tutor. Speak slowly, clearly, and gently. Use short, plain English. Be encouraging, even if the user gets things wrong. Correct grammar simply. Give pronunciation help (e.g., 'The th sound is soft—put your tongue behind your teeth.'). Use repetition when needed. Encourage mistakes: 'Making mistakes is how we learn.' Always end with warmth: 'Thanks for learning with me—you're doing great.'",
                 
@@ -30,25 +38,25 @@ class LlamaService:
             
             full_messages = [{"role": "system", "content": system_prompt}] + messages
             
-            response = await self._call_llama_api(full_messages, module_name)
+            response = await self._call_llama_api(full_messages, module_name, temperature)
             return response.strip()
             
         except Exception as e:
             print(f"Error in Llama generation: {e}")
             return "Ndabwira ko nfite ikibazo gito. (I'm having a small issue.) Please try again, and I'll do my best to help you learn!"
     
-    async def _call_llama_api(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:
+    async def _call_llama_api(self, messages: List[Dict[str, str]], module_name: str = "general", temperature: float = 0.9) -> str:
         """Call Llama API with circuit breaker protection"""
         from app.utils.circuit_breaker import llm_circuit_breaker
         
         try:
-            return await llm_circuit_breaker.call(self._make_llama_request, messages, module_name)
+            return await llm_circuit_breaker.call(self._make_llama_request, messages, module_name, temperature)
         except Exception as e:
             print(f"Circuit breaker triggered, falling back to OpenAI: {e}")
             from app.services.openai_service import openai_service
             return await openai_service.generate_response(messages, module_name)
     
-    async def _make_llama_request(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:
+    async def _make_llama_request(self, messages: List[Dict[str, str]], module_name: str = "general", temperature: float = 0.9) -> str:
         """Make the actual Llama API request"""
         
         if self.working_url:
@@ -66,7 +74,7 @@ class LlamaService:
             "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
             "messages": messages,
             "max_tokens": 100,
-            "temperature": 0.7,
+            "temperature": temperature,
             "top_p": 0.9
         }
         

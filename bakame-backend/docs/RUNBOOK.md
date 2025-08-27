@@ -156,20 +156,60 @@ poetry run uvicorn app.main:app --reload
 ## TTS Configuration
 
 ### Voice Selection
-The system uses Deepgram Aura voices for natural, kid-friendly speech synthesis.
+The system uses Deepgram Aura-2 male voices for warm, kid-friendly speech synthesis.
 
 **Default Configuration:**
-- Voice: `aura-asteria-en` (warm, friendly female voice)
+- Voice: `aura-2-aries-en` (warm, energetic, caring male voice)
 - Rate: `0.95` (slightly slower for clarity)
-- Pitch: `+1st` (positive adjustment for warmth)
+- Pitch: `-1st` (deeper pitch for male voice warmth)
 - Style: `conversational`
+
+**Available Male Voices:**
+- `aura-2-aries-en`: Warm, Energetic, Caring (recommended for kids)
+- `aura-2-arcas-en`: Natural, Smooth, Clear
+- `aura-2-apollo-en`: Confident, Comfortable
+
+### Dynamic Temperature Control
+
+**Temperature Settings by Conversation State:**
+- Welcome Message: `0.4` (consistent, steady greeting)
+- Normal Conversation: `0.9` (less variance, kid-friendly)
+- Rwanda Fun Facts: `1.6` (creative, varied presentation)
+
+### Sentiment Analysis
+
+**Sentiment Detection:**
+- Analyzes user speech for frustration indicators
+- Adjusts TTS rate to 0.85 for frustrated users (slower, more patient)
+- Provides encouraging responses for frustrated learners
+
+**Frustration Indicators:**
+- Negative words (no, can't, don't, won't)
+- Difficulty expressions (hard, confusing, stuck)
+- Low speech confidence scores
+- Quick, short responses
+
+### Accent Recovery
+
+**Missing Word Fill:**
+- Automatically corrects incomplete sentences
+- Provides gentle feedback: "Good try! I filled in the missing word 'to'."
+- Maintains original meaning while improving grammar
+
+### Rwanda Facts Rotation
+
+**Session End Facts:**
+- Rotates through 20+ Rwanda facts
+- Uses high temperature (1.6) for creative presentation
+- Avoids repeating recently used facts
+- Fallback to simple fact if AI generation fails
 
 **Environment Variables:**
 ```bash
 TTS_PROVIDER=deepgram
-TTS_VOICE=aura-asteria-en
+TTS_VOICE=aura-2-aries-en
 TTS_RATE=0.95
-TTS_PITCH=+1st
+TTS_PITCH=-1st
 TTS_STYLE=conversational
 ```
 

@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     debug: bool = True
     
     tts_provider: str = "deepgram"
-    tts_voice: str = "aura-asteria-en"
+    tts_voice: str = "aura-2-aries-en"
     tts_rate: float = 0.95
-    tts_pitch: str = "+1st"
+    tts_pitch: str = "-1st"
     tts_style: str = "conversational"
     
     class Config:

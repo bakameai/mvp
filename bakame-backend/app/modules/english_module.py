@@ -74,7 +74,9 @@ class EnglishModule:
         return response
     
     async def _english_tutoring(self, user_input: str, user_context: Dict[str, Any]) -> str:
-        """General English tutoring with level-aware curriculum"""
+        """General English tutoring with level-aware curriculum and accent recovery"""
+        
+        corrected_input, correction_feedback = await self.recover_and_feedback(user_input)
         
         user_level = user_context.get("english_level", "A1")
         recent_errors = user_context.get("recent_errors", [])
@@ -83,7 +85,7 @@ class EnglishModule:
         
         messages = [
             {"role": "system", "content": exercise_guidance},
-            {"role": "user", "content": user_input}
+            {"role": "user", "content": corrected_input}
         ]
         
         for interaction in user_context.get("conversation_history", [])[-4:]:
@@ -94,6 +96,9 @@ class EnglishModule:
             response = await llama_service.generate_response(messages, self.module_name)
         else:
             response = await openai_service.generate_response(messages, self.module_name)
+        
+        if correction_feedback:
+            response = f"{correction_feedback} {response}"
         
         self._track_learning_progress(user_input, response, user_context)
         
@@ -161,5 +166,45 @@ class EnglishModule:
     def get_welcome_message(self) -> str:
         """Get welcome message for English module"""
         return "Muraho! 🌟 I'm so excited to practice English with you! English opens many doors in Rwanda and connects us to the global community while we maintain our beautiful Kinyarwanda heritage. Whether you want to improve grammar, pronunciation, or just have great conversations - I'm here to help. What aspect of English would you like to explore together?"
+
+    async def recover_and_feedback(self, user_input: str) -> tuple[str, str]:
+        """Fill missing/unclear words and provide gentle feedback"""
+        try:
+            correction_prompt = f"""
+            Please correct this English sentence by filling in missing words and fixing grammar, but keep the original meaning:
+            "{user_input}"
+            
+            Respond in this format:
+            CORRECTED: [corrected sentence]
+            FEEDBACK: [brief, encouraging explanation of what was filled in, or "No changes needed" if perfect]
+            """
+            
+            messages = [{"role": "user", "content": correction_prompt}]
+            
+            if settings.use_llama:
+                response = await llama_service.generate_response(messages, "english")
+            else:
+                response = await openai_service.generate_response(messages, "english")
+            
+            lines = response.split('\n')
+            corrected = user_input
+            feedback = ""
+            
+            for line in lines:
+                if line.startswith("CORRECTED:"):
+                    corrected = line.replace("CORRECTED:", "").strip()
+                elif line.startswith("FEEDBACK:"):
+                    feedback = line.replace("FEEDBACK:", "").strip()
+            
+            if corrected != user_input and feedback != "No changes needed":
+                feedback = f"Good try! I filled in: {feedback}"
+            else:
+                feedback = ""
+                
+            return corrected, feedback
+            
+        except Exception as e:
+            print(f"Error in accent recovery: {e}")
+            return user_input, ""
 
 english_module = EnglishModule()

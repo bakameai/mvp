@@ -14,8 +14,8 @@ class TwilioService:
         self.client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
         self.phone_number = settings.twilio_phone_number
     
-    async def create_voice_response(self, message: str, gather_input: bool = True, call_sid: str = None) -> str:
-        """Create TwiML voice response with kid-friendly Deepgram audio playback"""
+    async def create_voice_response(self, message: str, gather_input: bool = True, call_sid: str = None, **tts_kwargs) -> str:
+        """Create TwiML voice response with Deepgram audio playback and sentiment-aware TTS"""
         response = VoiceResponse()
         
         try:
@@ -23,7 +23,9 @@ class TwilioService:
                 connect = response.connect()
                 stream = connect.stream(url=f'wss://your-domain.com/webhook/media-stream')
             
-            audio_chunks = await deepgram_service.generate_chunked_audio_with_fallback(message, call_sid=call_sid)
+            audio_chunks = await deepgram_service.generate_chunked_audio_with_fallback(
+                message, call_sid=call_sid, **tts_kwargs
+            )
             
             if gather_input:
                 gather = response.gather(

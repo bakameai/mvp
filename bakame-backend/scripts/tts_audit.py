@@ -11,21 +11,27 @@ from app.services.deepgram_service import deepgram_service
 async def create_voice_audition():
     """Create voice audition samples for kid-friendly TTS selection"""
     
-    test_text = "Hello! I'm so excited to help you learn English today. Let's practice together and have fun!"
+    test_text = "Muraho neza! Welcome to BAKAME, my friend. I'm excited to help you learn English today."
     
-    voice_configs = [
-        {"voice": "aura-asteria-en", "rate": 0.9, "pitch": "+1st", "style": "conversational"},
-        {"voice": "aura-asteria-en", "rate": 0.95, "pitch": "+1st", "style": "conversational"},
-        {"voice": "aura-asteria-en", "rate": 1.0, "pitch": "+2st", "style": "conversational"},
-        
-        {"voice": "aura-luna-en", "rate": 0.9, "pitch": "+1st", "style": "conversational"},
-        {"voice": "aura-luna-en", "rate": 0.95, "pitch": "+1st", "style": "conversational"},
-        
-        {"voice": "aura-stella-en", "rate": 0.9, "pitch": "+1st", "style": "conversational"},
-        {"voice": "aura-stella-en", "rate": 0.95, "pitch": "+2st", "style": "conversational"},
-        
-        {"voice": "aura-2-neptune-en", "rate": 0.95, "pitch": "+1st", "style": "conversational"},
+    male_voices = [
+        "aura-2-aries-en",
+        "aura-2-arcas-en", 
+        "aura-2-apollo-en"
     ]
+    
+    rates = [0.9, 0.95, 1.0]
+    pitches = ["-2st", "-1st", "0st"]
+    
+    voice_configs = []
+    for voice in male_voices:
+        for rate in rates:
+            for pitch in pitches:
+                voice_configs.append({
+                    "voice": voice,
+                    "rate": rate,
+                    "pitch": pitch,
+                    "style": "conversational"
+                })
     
     output_dir = Path(__file__).parent / "voice_samples"
     output_dir.mkdir(exist_ok=True)
@@ -134,9 +140,10 @@ async def create_voice_audition():
         print(f"✓ {len(successful_samples)} successful samples generated")
         print(f"📁 Listen to samples in: {output_dir}")
         print(f"📊 Full results in: {csv_file}")
-        print(f"\nRecommended for kids:")
+        print(f"\nRecommended male voices for kids:")
         
-        for result in successful_samples[:3]:  # Top 3
+        aries_samples = [r for r in successful_samples if 'aries' in r['voice']]
+        for result in aries_samples[:2]:
             print(f"  - {result['voice']} (rate={result['rate']}, pitch={result['pitch']}) - {result['file_url']}")
     
     return results
@@ -162,18 +169,18 @@ async def main():
                     f.write(f"| {result['sample_id']} | {result['voice']} | {result['rate']} | {result['pitch']} | {result['duration_ms']:.1f} | {result['file_url']} |\n")
             
             f.write("\n## Recommended Default\n\n")
-            f.write("**Selected Voice**: `aura-asteria-en`\n")
+            f.write("**Selected Voice**: `aura-2-aries-en`\n")
             f.write("**Rate**: `0.95` (slightly slower for clarity)\n")
-            f.write("**Pitch**: `+1st` (warm, friendly tone)\n")
+            f.write("**Pitch**: `-1st` (deeper, warm male tone)\n")
             f.write("**Style**: `conversational`\n\n")
             f.write("### Rationale\n")
-            f.write("- Warm, nurturing female voice suitable for children\n")
+            f.write("- Warm, energetic, caring male voice suitable for children\n")
             f.write("- Slightly slower rate improves comprehension for language learners\n")
-            f.write("- Positive pitch adjustment creates encouraging tone\n")
+            f.write("- Deeper pitch creates trustworthy, paternal tone\n")
             f.write("- Conversational style maintains natural flow\n\n")
             f.write("### Alternative Options\n")
-            f.write("- `aura-luna-en`: More gentle, suitable for younger children\n")
-            f.write("- `aura-stella-en`: Brighter tone for more energetic lessons\n")
+            f.write("- `aura-2-arcas-en`: More natural, smooth for formal lessons\n")
+            f.write("- `aura-2-apollo-en`: Confident tone for advanced learners\n")
         
         print(f"\n📝 Voice choices documentation created: {voice_choices_file}")
         

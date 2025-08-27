@@ -128,12 +128,16 @@ class GeneralModule:
         return response + "\n\nJust say what you'd like to try, like 'English' or 'Math'. Ni iki gikureba uyu munsi? (What interests you today?)"
     
     async def get_welcome_message(self, user_context: Dict[str, Any] = None) -> str:
-        """Get welcome message for General module - ask for name first"""
+        """Get welcome message for General module with consistent temperature"""
         user_name = user_context.get("user_name") if user_context else None
         
         if not user_name:
-            return "Hello! I'm Bakame, your learning helper. What's your name?"
+            messages = [{"role": "user", "content": "Give a warm Rwandan greeting saying 'Muraho neza!' and ask for the caller's name. Be warm and encouraging."}]
+            if settings.use_llama:
+                return await llama_service.generate_response(messages, "general", "welcome")
+            else:
+                return await openai_service.generate_response(messages, "general")
         else:
-            return f"Hello {user_name}! I can help with English, Math, Reading, and Debate. What would you like to try?"
+            return f"Muraho neza, {user_name}! Welcome back, my friend. I'm excited to practice with you today. What would you like to learn?"
 
 general_module = GeneralModule()

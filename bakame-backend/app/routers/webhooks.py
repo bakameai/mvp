@@ -6,6 +6,7 @@ from app.services.twilio_service import twilio_service
 from app.services.openai_service import openai_service
 from app.services.redis_service import redis_service
 from app.services.logging_service import logging_service
+from app.services.sentiment_service import sentiment_service
 from app.services.offline_service import offline_service
 from app.services.multimodal_service import multimodal_service
 from app.modules.english_module import english_module
@@ -118,7 +119,18 @@ async def handle_voice_call(
         
         current_module = MODULES.get(current_module_name, general_module)
         
+        sentiment_result = sentiment_service.analyze_sentiment(user_input)
+        user_context["current_sentiment"] = sentiment_result.sentiment
+        
+        tts_kwargs = {}
+        if sentiment_result.sentiment == "frustrated":
+            tts_kwargs["rate"] = 0.85
+            
         ai_response = await current_module.process_input(user_input, user_context)
+        
+        if sentiment_result.sentiment == "frustrated":
+            encouragement = sentiment_service.get_encouraging_response("frustrated")
+            ai_response = f"{encouragement} {ai_response}"
         
         redis_service.add_to_conversation_history(phone_number, user_input, ai_response)
         
@@ -132,13 +144,23 @@ async def handle_voice_call(
         )
         
         if any(word in user_input.lower() for word in ["goodbye", "bye", "end call", "hang up", "stop"]):
+            from app.services.rwanda_facts_service import rwanda_facts_service
+            from app.services.llama_service import llama_service
+            
+            try:
+                rwanda_fact = await rwanda_facts_service.get_creative_fact(llama_service)
+                goodbye_msg = f"Before you go, here's something cool: {rwanda_fact} Thank you for learning with BAKAME! Keep practicing and have a wonderful day!"
+            except Exception as e:
+                print(f"Error getting Rwanda fact: {e}")
+                goodbye_msg = "Thank you for using BAKAME! Keep learning and have a great day!"
+            
             return Response(
-                content=await twilio_service.create_voice_response("Thank you for using BAKAME! Keep learning and have a great day!", gather_input=False),
+                content=await twilio_service.create_voice_response(goodbye_msg, gather_input=False, call_sid=session_id, **tts_kwargs),
                 media_type="application/xml"
             )
         
         return Response(
-            content=await twilio_service.create_voice_response(ai_response),
+            content=await twilio_service.create_voice_response(ai_response, call_sid=session_id, **tts_kwargs),
             media_type="application/xml"
         )
         
@@ -195,7 +217,18 @@ async def handle_sms(
         
         current_module = MODULES.get(current_module_name, general_module)
         
+        sentiment_result = sentiment_service.analyze_sentiment(user_input)
+        user_context["current_sentiment"] = sentiment_result.sentiment
+        
+        tts_kwargs = {}
+        if sentiment_result.sentiment == "frustrated":
+            tts_kwargs["rate"] = 0.85
+            
         ai_response = await current_module.process_input(user_input, user_context)
+        
+        if sentiment_result.sentiment == "frustrated":
+            encouragement = sentiment_service.get_encouraging_response("frustrated")
+            ai_response = f"{encouragement} {ai_response}"
         
         redis_service.add_to_conversation_history(phone_number, user_input, ai_response)
         
