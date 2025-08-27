@@ -23,7 +23,7 @@ class TwilioService:
                 connect = response.connect()
                 stream = connect.stream(url=f'wss://your-domain.com/webhook/media-stream')
             
-            audio_chunks = await deepgram_service.generate_chunked_audio_with_fallback(message)
+            audio_chunks = await deepgram_service.generate_chunked_audio_with_fallback(message, call_sid=call_sid)
             
             if gather_input:
                 gather = response.gather(
@@ -102,9 +102,10 @@ class TwilioService:
     
     def _get_audio_url(self, audio_file_path: str) -> str:
         """Generate URL for audio file that Twilio can access"""
-        filename = os.path.basename(audio_file_path)
+        relative_path = audio_file_path.replace('/tmp/', '')
         
-        return f"http://localhost:8000/audio/{filename}"
+        base_url = "https://app-pyzfduqr.fly.dev"
+        return f"{base_url}/{relative_path}"
     
     async def _cleanup_after_delay(self, audio_file: str, delay_seconds: int):
         """Clean up audio file after specified delay"""

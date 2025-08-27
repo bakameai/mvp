@@ -28,7 +28,8 @@ class DeepgramService:
                             rate: float = None,
                             pitch: str = None,
                             style: str = None,
-                            lang: str = "en") -> Optional[str]:
+                            lang: str = "en",
+                            **kwargs) -> Optional[str]:
         """Convert text to speech using Deepgram with kid-friendly settings"""
         voice = voice or self.default_voice
         rate = rate or self.default_rate
@@ -50,10 +51,10 @@ class DeepgramService:
             
             params = {
                 "model": voice,
-                "encoding": "linear16",  # Use linear16 for high quality before conversion
-                "sample_rate": 24000,  # Supported sample rate for linear16
+                "encoding": "mulaw",  # Direct μ-law encoding for Twilio compatibility
+                "sample_rate": 8000,  # Telephony standard sample rate
                 "channels": 1,  # Mono
-                "bit_depth": 16
+                "bit_depth": 8  # 8-bit for μ-law
             }
             
             if rate != 1.0:
@@ -73,17 +74,20 @@ class DeepgramService:
                     
                     print(f"DEBUG: Deepgram - Response status: {response.status}")
                     if response.status == 200:
-                        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-                        content = await response.read()
-                        temp_file.write(content)
-                        temp_file.close()
+                        audio_data = await response.read()
                         
-                        telephony_file = await self._convert_to_telephony_format(temp_file.name)
+                        call_sid = kwargs.get('call_sid', 'default')
+                        audio_dir = f"/tmp/audio/tts/{call_sid}"
+                        os.makedirs(audio_dir, exist_ok=True)
                         
-                        self.cleanup_temp_file(temp_file.name)
+                        sequence = kwargs.get('sequence', 1)
+                        audio_file = f"{audio_dir}/{sequence}.wav"
                         
-                        print(f"DEBUG: Deepgram - Telephony audio saved to: {telephony_file}")
-                        return telephony_file
+                        with open(audio_file, 'wb') as f:
+                            f.write(audio_data)
+                        
+                        print(f"DEBUG: Deepgram - μ-law audio saved to: {audio_file}")
+                        return audio_file
                     else:
                         error_text = await response.text()
                         print(f"Deepgram TTS error: {response.status} - {error_text}")
@@ -93,14 +97,14 @@ class DeepgramService:
             print(f"Error in Deepgram TTS: {e}")
             return None
     
-    async def _convert_to_telephony_format(self, input_file: str) -> Optional[str]:
-        """Convert audio to 8kHz mono μ-law for telephony"""
-        try:
-            from app.utils.audio_transcode import convert_to_telephony
-            return await convert_to_telephony(input_file)
-        except ImportError:
-            print("WARNING: Advanced audio transcoding not available, using basic conversion")
-            return input_file
+    def _get_audio_headers(self, file_path: str) -> dict:
+        """Get proper headers for audio file serving"""
+        file_size = os.path.getsize(file_path)
+        return {
+            "Content-Type": "audio/wav",
+            "Content-Length": str(file_size),
+            "Cache-Control": "no-cache"
+        }
     
     def split_into_sentences(self, text: str) -> list[str]:
         """Split text into sentences for chunked playback with prosody"""
@@ -148,38 +152,41 @@ class DeepgramService:
         print("Deepgram TTS failed, trying fallback providers...")
         return await self._fallback_tts(text)
 
-    async def generate_chunked_audio(self, text: str, **kwargs) -> list[Dict[str, Any]]:
+    async def generate_chunked_audio(self, text: str, call_sid: str = None, **kwargs) -> list[Dict[str, Any]]:
         """Generate audio chunks with micro-pauses for natural prosody"""
         sentences = self.split_into_sentences(text)
         audio_chunks = []
         
         for i, sentence in enumerate(sentences):
-            audio_file = await self.text_to_speech(sentence, **kwargs)
-            
+            chunk_kwargs = {**kwargs, 'call_sid': call_sid or 'default', 'sequence': i + 1}
+            audio_file = await self.text_to_speech(sentence, **chunk_kwargs)
             if audio_file:
                 audio_chunks.append({
                     "audio_file": audio_file,
                     "text": sentence,
-                    "sequence": i,
-                    "pause_after": 200 if i < len(sentences) - 1 else 0  # 200ms pause between sentences
+                    "sequence": i + 1,
+                    "pause_after": 200 if i < len(sentences) - 1 else 0,
+                    "headers": self._get_audio_headers(audio_file)
                 })
         
         return audio_chunks
     
-    async def generate_chunked_audio_with_fallback(self, text: str, **kwargs) -> list[Dict[str, Any]]:
+    async def generate_chunked_audio_with_fallback(self, text: str, call_sid: str = None, **kwargs) -> list[Dict[str, Any]]:
         """Generate audio chunks with fallback support"""
         sentences = self.split_into_sentences(text)
         audio_chunks = []
         
         for i, sentence in enumerate(sentences):
-            audio_file = await self.text_to_speech_with_fallback(sentence, **kwargs)
+            chunk_kwargs = {**kwargs, 'call_sid': call_sid or 'default', 'sequence': i + 1}
+            audio_file = await self.text_to_speech_with_fallback(sentence, **chunk_kwargs)
             
             if audio_file:
                 audio_chunks.append({
                     "audio_file": audio_file,
                     "text": sentence,
-                    "sequence": i,
-                    "pause_after": 200 if i < len(sentences) - 1 else 0
+                    "sequence": i + 1,
+                    "pause_after": 200 if i < len(sentences) - 1 else 0,
+                    "headers": self._get_audio_headers(audio_file)
                 })
             else:
                 return []

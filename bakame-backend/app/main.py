@@ -34,9 +34,26 @@ app.include_router(analytics.router, tags=["analytics"])
 app.include_router(admin_extended.router, tags=["admin_extended"])
 app.include_router(media_stream.router, prefix="/webhook", tags=["media_stream"])
 
+@app.get("/audio/tts/{call_sid}/{filename}")
+async def serve_tts_audio(call_sid: str, filename: str):
+    """Serve TTS audio files for Twilio with proper headers"""
+    file_path = f"/tmp/audio/tts/{call_sid}/{filename}"
+    if os.path.exists(file_path):
+        file_size = os.path.getsize(file_path)
+        return FileResponse(
+            file_path,
+            media_type="audio/wav",
+            headers={
+                "Content-Type": "audio/wav",
+                "Content-Length": str(file_size),
+                "Cache-Control": "no-cache"
+            }
+        )
+    return {"error": "Audio file not found"}
+
 @app.get("/audio/{filename}")
-async def serve_audio(filename: str):
-    """Serve temporary audio files for Twilio"""
+async def serve_legacy_audio(filename: str):
+    """Legacy audio serving endpoint for backward compatibility"""
     file_path = f"/tmp/{filename}"
     if os.path.exists(file_path):
         if filename.endswith('.wav'):
@@ -65,6 +82,18 @@ async def cleanup_old_audio_files():
                 for file_path in audio_files:
                     if os.path.getctime(file_path) < cutoff_time.timestamp():
                         os.unlink(file_path)
+            
+            tts_audio_dir = "/tmp/audio/tts"
+            if os.path.exists(tts_audio_dir):
+                for call_dir in os.listdir(tts_audio_dir):
+                    call_path = os.path.join(tts_audio_dir, call_dir)
+                    if os.path.isdir(call_path):
+                        for audio_file in os.listdir(call_path):
+                            file_path = os.path.join(call_path, audio_file)
+                            if os.path.getctime(file_path) < cutoff_time.timestamp():
+                                os.unlink(file_path)
+                        if not os.listdir(call_path):
+                            os.rmdir(call_path)
                         
         except Exception as e:
             print(f"Error cleaning up audio files: {e}")
