@@ -123,3 +123,16 @@ LIMIT 10;
 ### Availability
 - **Service Uptime**: > 99.5%
 - **Health Check Success**: > 99%
+
+### TTS Metrics
+- `tts_provider`: Provider used (deepgram, openai, twilio_say)
+- `tts_voice`: Voice model used (aura-asteria-en, aura-luna-en, etc.)
+- `tts_rate`: Speech rate setting (0.95, 1.0, etc.)
+- `tts_pitch`: Pitch adjustment (+1st, 0st, etc.)
+- `tts_style`: Style setting (conversational, etc.)
+- `audio_encoding`: Output audio format (linear16, mulaw, etc.)
+- `tts_fallback_count`: Number of fallback attempts
+- `audio_transcode_ms`: Time spent on audio format conversion
+- `sentence_chunks`: Number of sentence chunks generated
+- `chunk_pause_ms`: Micro-pause duration between chunks
+- `barge_in_triggered`: Whether user interrupted TTS playback

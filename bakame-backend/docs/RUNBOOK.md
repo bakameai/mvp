@@ -153,6 +153,92 @@ export TTS_PROVIDER=coqui_local
 poetry run uvicorn app.main:app --reload
 ```
 
+## TTS Configuration
+
+### Voice Selection
+The system uses Deepgram Aura voices for natural, kid-friendly speech synthesis.
+
+**Default Configuration:**
+- Voice: `aura-asteria-en` (warm, friendly female voice)
+- Rate: `0.95` (slightly slower for clarity)
+- Pitch: `+1st` (positive adjustment for warmth)
+- Style: `conversational`
+
+**Environment Variables:**
+```bash
+TTS_PROVIDER=deepgram
+TTS_VOICE=aura-asteria-en
+TTS_RATE=0.95
+TTS_PITCH=+1st
+TTS_STYLE=conversational
+```
+
+### Voice Audition
+To test different voices and select the best option:
+
+```bash
+cd bakame-backend
+poetry run python scripts/tts_audit.py
+```
+
+This generates audio samples for comparison and creates a report in `docs/VOICE_CHOICES.md`.
+
+### Audio Format Requirements
+- **Telephony Standard**: 8kHz mono μ-law (PCM u-law)
+- **Source Quality**: 22kHz linear16 from Deepgram
+- **Transcoding**: Automatic conversion via FFmpeg
+
+### Fallback Chain
+1. **Primary**: Deepgram Aura TTS
+2. **Secondary**: OpenAI TTS (if available)
+3. **Last Resort**: Twilio `<Say>` verb
+
+### Barge-in Configuration
+- **Sentence Chunking**: Automatic splitting on sentence boundaries
+- **Micro-pauses**: 200ms between sentences
+- **Interruption**: Redis flags enable mid-sentence barge-in
+- **Response Time**: ≤250ms interruption detection
+
+### Testing TTS Pipeline
+```bash
+# Test Deepgram API with corrected parameters
+poetry run python -c "
+import asyncio
+from app.services.deepgram_service import deepgram_service
+
+async def test_tts():
+    result = await deepgram_service.text_to_speech('Hello, this is a test!')
+    print(f'TTS result: {result}')
+
+asyncio.run(test_tts())
+"
+
+# Test complete TTS pipeline with fallback
+poetry run python -c "
+import asyncio
+from app.services.twilio_service import twilio_service
+
+async def test_pipeline():
+    response = await twilio_service.create_voice_response('Welcome to BAKAME!')
+    print('TwiML Response:')
+    print(response)
+
+asyncio.run(test_pipeline())
+"
+
+# Validate audio format
+poetry run python -c "
+from app.utils.audio_transcode import validate_telephony_audio
+print(validate_telephony_audio('/tmp/test_telephony.wav'))
+"
+```
+
+### Troubleshooting
+- **Deepgram API Errors**: Check encoding parameter (must be 'linear16', not 'wav')
+- **Audio Format Issues**: Verify FFmpeg installation and μ-law codec support
+- **Barge-in Problems**: Check Redis connectivity and session flag management
+- **Fallback Failures**: Verify OpenAI API key and service availability
+
 ## Backup & Recovery
 
 ### Database Backup

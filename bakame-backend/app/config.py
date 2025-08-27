@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     app_env: str = "development"
     debug: bool = True
     
+    tts_provider: str = "deepgram"
+    tts_voice: str = "aura-asteria-en"
+    tts_rate: float = 0.95
+    tts_pitch: str = "+1st"
+    tts_style: str = "conversational"
+    
     class Config:
         env_file = ".env"
 

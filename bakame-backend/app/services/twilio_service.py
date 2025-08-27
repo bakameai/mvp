@@ -4,6 +4,7 @@ from twilio.twiml.voice_response import VoiceResponse
 from twilio.twiml.messaging_response import MessagingResponse
 import requests
 import os
+import asyncio
 from app.config import settings
 from app.services.deepgram_service import deepgram_service
 from app.services.openai_service import openai_service
@@ -14,15 +15,15 @@ class TwilioService:
         self.phone_number = settings.twilio_phone_number
     
     async def create_voice_response(self, message: str, gather_input: bool = True, call_sid: str = None) -> str:
-        """Create TwiML voice response with barge-in support"""
+        """Create TwiML voice response with kid-friendly Deepgram audio playback"""
         response = VoiceResponse()
         
         try:
             if call_sid and gather_input:
                 connect = response.connect()
                 stream = connect.stream(url=f'wss://your-domain.com/webhook/media-stream')
-                
-            sentences = self._split_into_sentences(message)
+            
+            audio_chunks = await deepgram_service.generate_chunked_audio_with_fallback(message)
             
             if gather_input:
                 gather = response.gather(
@@ -37,27 +38,48 @@ class TwilioService:
                     from app.services.redis_service import redis_service
                     redis_service.set_session_data(call_sid, "tts_playing", "1", ttl=30)
                 
-                for i, sentence in enumerate(sentences):
+                for i, chunk in enumerate(audio_chunks):
                     if call_sid:
                         barge_in = redis_service.get_session_data(call_sid, "barge_in")
                         if barge_in:
                             redis_service.delete_session_data(call_sid, "barge_in")
                             redis_service.delete_session_data(call_sid, "tts_playing")
+                            for remaining_chunk in audio_chunks[i:]:
+                                deepgram_service.cleanup_temp_file(remaining_chunk['audio_file'])
                             break
                     
-                    gather.say(sentence, voice='man', language='en-US')
+                    audio_url = self._get_audio_url(chunk['audio_file'])
+                    gather.play(audio_url)
                     
-                    if i < len(sentences) - 1:
-                        gather.pause(length=1)
+                    if chunk['pause_after'] > 0:
+                        gather.pause(length=chunk['pause_after'] / 1000.0)  # Convert ms to seconds
                 
                 if call_sid:
                     redis_service.delete_session_data(call_sid, "tts_playing")
                 
-                response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
+                fallback_audio = await deepgram_service.text_to_speech_with_fallback(
+                    "I didn't hear anything. Please try again."
+                )
+                if fallback_audio:
+                    fallback_url = self._get_audio_url(fallback_audio)
+                    response.play(fallback_url)
+                    asyncio.create_task(self._cleanup_after_delay(fallback_audio, 60))
+                else:
+                    response.say("I didn't hear anything. Please try again.", voice='woman', language='en-US')
+                
                 response.redirect('/webhook/voice/process')
             else:
-                response.say(message, voice='man', language='en-US')
+                audio_file = await deepgram_service.text_to_speech_with_fallback(message)
+                if audio_file:
+                    audio_url = self._get_audio_url(audio_file)
+                    response.play(audio_url)
+                    asyncio.create_task(self._cleanup_after_delay(audio_file, 60))
+                else:
+                    response.say(message, voice='woman', language='en-US')
                 response.hangup()
+            
+            if audio_chunks:
+                asyncio.create_task(self._cleanup_audio_chunks(audio_chunks, 300))  # 5 minutes
                     
         except Exception as e:
             print(f"Error in voice response generation: {e}")
@@ -78,11 +100,26 @@ class TwilioService:
         
         return str(response)
     
+    def _get_audio_url(self, audio_file_path: str) -> str:
+        """Generate URL for audio file that Twilio can access"""
+        filename = os.path.basename(audio_file_path)
+        
+        return f"http://localhost:8000/audio/{filename}"
+    
+    async def _cleanup_after_delay(self, audio_file: str, delay_seconds: int):
+        """Clean up audio file after specified delay"""
+        await asyncio.sleep(delay_seconds)
+        deepgram_service.cleanup_temp_file(audio_file)
+    
+    async def _cleanup_audio_chunks(self, audio_chunks: list, delay_seconds: int):
+        """Clean up all audio chunk files after specified delay"""
+        await asyncio.sleep(delay_seconds)
+        for chunk in audio_chunks:
+            deepgram_service.cleanup_temp_file(chunk['audio_file'])
+    
     def _split_into_sentences(self, text: str) -> list[str]:
-        """Split text into sentences for chunked playback"""
-        import re
-        sentences = re.split(r'[.!?]+', text)
-        return [s.strip() for s in sentences if s.strip()]
+        """Split text into sentences for chunked playback (legacy method)"""
+        return deepgram_service.split_into_sentences(text)
     
     def create_sms_response(self, message: str) -> str:
         """Create TwiML SMS response"""

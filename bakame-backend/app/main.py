@@ -39,9 +39,16 @@ async def serve_audio(filename: str):
     """Serve temporary audio files for Twilio"""
     file_path = f"/tmp/{filename}"
     if os.path.exists(file_path):
+        if filename.endswith('.wav'):
+            media_type = "audio/wav"
+        elif filename.endswith('.mp3'):
+            media_type = "audio/mpeg"
+        else:
+            media_type = "audio/wav"
+            
         return FileResponse(
             file_path,
-            media_type="audio/mpeg",
+            media_type=media_type,
             headers={"Cache-Control": "no-cache"}
         )
     return {"error": "File not found"}
@@ -51,12 +58,14 @@ async def cleanup_old_audio_files():
     while True:
         try:
             cutoff_time = datetime.now() - timedelta(hours=1)
-            audio_files = glob.glob("/tmp/*.mp3")
+            audio_patterns = ["/tmp/*.mp3", "/tmp/*.wav", "/tmp/*_telephony.wav"]
             
-            for file_path in audio_files:
-                if os.path.getctime(file_path) < cutoff_time.timestamp():
-                    os.unlink(file_path)
-                    
+            for pattern in audio_patterns:
+                audio_files = glob.glob(pattern)
+                for file_path in audio_files:
+                    if os.path.getctime(file_path) < cutoff_time.timestamp():
+                        os.unlink(file_path)
+                        
         except Exception as e:
             print(f"Error cleaning up audio files: {e}")
         
