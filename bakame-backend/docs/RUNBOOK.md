@@ -223,6 +223,37 @@ poetry run python scripts/tts_audit.py
 
 This generates audio samples for comparison and creates a report in `docs/VOICE_CHOICES.md`.
 
+### Call Start Flow
+
+**Intro-First Behavior:**
+- Every call starts with warm intro (≤7 seconds)
+- Uses temperature 0.4 for consistent greeting
+- Never opens with "I can't hear you" message
+- Immediately asks for learner's name after intro
+
+**Name Capture Process:**
+1. **Name Extraction**: Uses NER patterns ("My name is X", "I am X", etc.)
+2. **Confirmation**: "I heard Kevin — is that right?"
+3. **Spell Mode**: Fallback for unclear names using NATO alphabet
+4. **Default**: Falls back to "Friend" if all attempts fail
+
+**Conversation States:**
+- `intro`: Initial greeting and name request
+- `name_capture`: Retry name collection
+- `name_confirm`: Confirm extracted name
+- `name_spell`: Letter-by-letter spelling mode
+- `normal`: Regular learning conversation
+
+**Silence Handling:**
+- **During Name Capture**: "Take your time — please tell me your name"
+- **After 2nd Silence**: Default to "Friend" and continue
+- **Normal Conversation**: Standard "I didn't catch that" escalation
+
+**Session Personalization:**
+- Name stored in Redis session with 1-hour TTL
+- Used throughout conversation for personalized responses
+- Logged in analytics with confirmation status
+
 ### Audio Format Requirements
 - **Telephony Standard**: 8kHz mono μ-law (PCM u-law)
 - **Source Quality**: 22kHz linear16 from Deepgram

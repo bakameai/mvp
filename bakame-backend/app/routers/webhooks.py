@@ -7,6 +7,7 @@ from app.services.openai_service import openai_service
 from app.services.redis_service import redis_service
 from app.services.logging_service import logging_service
 from app.services.sentiment_service import sentiment_service
+from app.services.name_extraction_service import name_extraction_service
 from app.services.offline_service import offline_service
 from app.services.multimodal_service import multimodal_service
 from app.modules.english_module import english_module
@@ -44,8 +45,9 @@ async def handle_voice_call(
         user_context["phone_number"] = phone_number
         
         if not SpeechResult and not RecordingUrl:
-            welcome_msg = await general_module.get_welcome_message(user_context)
+            intro_msg = await name_extraction_service.generate_intro_message()
             redis_service.set_current_module(phone_number, "general")
+            redis_service.set_session_data(phone_number, "conversation_state", "intro", ttl=600)
             
             await logging_service.log_interaction(
                 phone_number=phone_number,
@@ -53,11 +55,11 @@ async def handle_voice_call(
                 module_name="general",
                 interaction_type="voice",
                 user_input="[CALL_START]",
-                ai_response=welcome_msg
+                ai_response=intro_msg
             )
             
             return Response(
-                content=await twilio_service.create_voice_response(welcome_msg),
+                content=await twilio_service.create_voice_response(intro_msg, call_sid=session_id, rate=0.95),
                 media_type="application/xml"
             )
         
@@ -70,33 +72,163 @@ async def handle_voice_call(
                 user_input = await openai_service.transcribe_audio(audio_data)
         
         if not user_input:
-            silence_count = redis_service.get_session_data(phone_number, "silence_count") or 0
-            silence_count = int(silence_count) + 1
-            redis_service.set_session_data(phone_number, "silence_count", str(silence_count), ttl=300)
+            conversation_state = redis_service.get_session_data(phone_number, "conversation_state") or "normal"
             
-            if silence_count == 1:
-                response_msg = "I didn't catch that. Could you please repeat what you'd like to learn about?"
-            elif silence_count == 2:
-                response_msg = "Let me make this easier. Just say ENGLISH, MATH, or HELP to get started."
-            else:
-                response_msg = "I'll send you a text message with some tips. Thank you for calling BAKAME!"
+            if conversation_state == "intro" or conversation_state == "name_capture":
+                silence_count = redis_service.get_session_data(phone_number, "name_silence_count") or 0
+                silence_count = int(silence_count) + 1
+                redis_service.set_session_data(phone_number, "name_silence_count", str(silence_count), ttl=300)
                 
-                sms_tip = "BAKAME Tip: Call back and say 'ENGLISH' for language practice, 'MATH' for numbers, or 'HELP' for options. Muraho!"
-                twilio_service.send_sms(phone_number, sms_tip)
-                
-                redis_service.delete_session_data(phone_number, "silence_count")
+                if silence_count == 1:
+                    response_msg = "Take your time — please tell me your name so I can personalize our practice."
+                else:
+                    response_msg = "No problem — I'll call you friend for now. We can change that anytime."
+                    redis_service.set_session_data(phone_number, "user_name", "Friend", ttl=3600)
+                    redis_service.set_session_data(phone_number, "conversation_state", "normal", ttl=600)
+                    redis_service.delete_session_data(phone_number, "name_silence_count")
                 
                 return Response(
-                    content=await twilio_service.create_voice_response(response_msg, gather_input=False),
+                    content=await twilio_service.create_voice_response(response_msg, call_sid=session_id, rate=0.95),
                     media_type="application/xml"
                 )
-            
-            return Response(
-                content=await twilio_service.create_voice_response(response_msg),
-                media_type="application/xml"
-            )
+            else:
+                silence_count = redis_service.get_session_data(phone_number, "silence_count") or 0
+                silence_count = int(silence_count) + 1
+                redis_service.set_session_data(phone_number, "silence_count", str(silence_count), ttl=300)
+                
+                if silence_count == 1:
+                    response_msg = "I didn't catch that. Could you please repeat what you'd like to learn about?"
+                elif silence_count == 2:
+                    response_msg = "Let me make this easier. Just say ENGLISH, MATH, or HELP to get started."
+                else:
+                    response_msg = "I'll send you a text message with some tips. Thank you for calling BAKAME!"
+                    
+                    sms_tip = "BAKAME Tip: Call back and say 'ENGLISH' for language practice, 'MATH' for numbers, or 'HELP' for options. Muraho!"
+                    twilio_service.send_sms(phone_number, sms_tip)
+                    
+                    redis_service.delete_session_data(phone_number, "silence_count")
+                    
+                    return Response(
+                        content=await twilio_service.create_voice_response(response_msg, gather_input=False),
+                        media_type="application/xml"
+                    )
+                
+                return Response(
+                    content=await twilio_service.create_voice_response(response_msg),
+                    media_type="application/xml"
+                )
         
         redis_service.delete_session_data(phone_number, "silence_count")
+        redis_service.delete_session_data(phone_number, "name_silence_count")
+        
+        conversation_state = redis_service.get_session_data(phone_number, "conversation_state") or "normal"
+        
+        if conversation_state == "intro":
+            name, confidence = name_extraction_service.extract_name(user_input)
+            
+            if name and confidence >= 0.7:
+                confirmation_msg = name_extraction_service.generate_confirmation_message(name)
+                redis_service.set_session_data(phone_number, "pending_name", name, ttl=600)
+                redis_service.set_session_data(phone_number, "conversation_state", "name_confirm", ttl=600)
+                
+                return Response(
+                    content=await twilio_service.create_voice_response(confirmation_msg, call_sid=session_id, rate=0.95),
+                    media_type="application/xml"
+                )
+            else:
+                redis_service.set_session_data(phone_number, "conversation_state", "name_capture", ttl=600)
+                response_msg = "I didn't catch your name clearly. Could you please say it again?"
+                
+                return Response(
+                    content=await twilio_service.create_voice_response(response_msg, call_sid=session_id, rate=0.95),
+                    media_type="application/xml"
+                )
+        
+        elif conversation_state == "name_confirm":
+            if name_extraction_service.is_confirmation(user_input):
+                pending_name = redis_service.get_session_data(phone_number, "pending_name")
+                redis_service.set_session_data(phone_number, "user_name", pending_name, ttl=3600)
+                redis_service.set_session_data(phone_number, "conversation_state", "normal", ttl=600)
+                redis_service.delete_session_data(phone_number, "pending_name")
+                
+                welcome_msg = f"Great to meet you, {pending_name}! I'm excited to learn with you today. What would you like to practice? Say ENGLISH, MATH, STORIES, or DEBATE."
+                
+                await logging_service.log_interaction(
+                    phone_number=phone_number,
+                    session_id=session_id,
+                    module_name="general",
+                    interaction_type="voice",
+                    user_input=f"[NAME_CONFIRMED: {pending_name}]",
+                    ai_response=welcome_msg
+                )
+                
+                return Response(
+                    content=await twilio_service.create_voice_response(welcome_msg, call_sid=session_id),
+                    media_type="application/xml"
+                )
+            else:
+                name, confidence = name_extraction_service.extract_name(user_input)
+                
+                if name and confidence >= 0.6:
+                    confirmation_msg = name_extraction_service.generate_confirmation_message(name)
+                    redis_service.set_session_data(phone_number, "pending_name", name, ttl=600)
+                    
+                    return Response(
+                        content=await twilio_service.create_voice_response(confirmation_msg, call_sid=session_id, rate=0.95),
+                        media_type="application/xml"
+                    )
+                else:
+                    spell_msg = name_extraction_service.generate_spell_request()
+                    redis_service.set_session_data(phone_number, "conversation_state", "name_spell", ttl=600)
+                    
+                    return Response(
+                        content=await twilio_service.create_voice_response(spell_msg, call_sid=session_id, rate=0.85),
+                        media_type="application/xml"
+                    )
+        
+        elif conversation_state == "name_capture":
+            name, confidence = name_extraction_service.extract_name(user_input)
+            
+            if name and confidence >= 0.6:
+                confirmation_msg = name_extraction_service.generate_confirmation_message(name)
+                redis_service.set_session_data(phone_number, "pending_name", name, ttl=600)
+                redis_service.set_session_data(phone_number, "conversation_state", "name_confirm", ttl=600)
+                
+                return Response(
+                    content=await twilio_service.create_voice_response(confirmation_msg, call_sid=session_id, rate=0.95),
+                    media_type="application/xml"
+                )
+            else:
+                spell_msg = name_extraction_service.generate_spell_request()
+                redis_service.set_session_data(phone_number, "conversation_state", "name_spell", ttl=600)
+                
+                return Response(
+                    content=await twilio_service.create_voice_response(spell_msg, call_sid=session_id, rate=0.85),
+                    media_type="application/xml"
+                )
+        
+        elif conversation_state == "name_spell":
+            spelled_name = name_extraction_service.extract_spelling(user_input)
+            
+            if spelled_name and len(spelled_name) >= 2:
+                confirmation_msg = name_extraction_service.generate_confirmation_message(spelled_name)
+                redis_service.set_session_data(phone_number, "pending_name", spelled_name, ttl=600)
+                redis_service.set_session_data(phone_number, "conversation_state", "name_confirm", ttl=600)
+                
+                return Response(
+                    content=await twilio_service.create_voice_response(confirmation_msg, call_sid=session_id, rate=0.95),
+                    media_type="application/xml"
+                )
+            else:
+                redis_service.set_session_data(phone_number, "user_name", "Friend", ttl=3600)
+                redis_service.set_session_data(phone_number, "conversation_state", "normal", ttl=600)
+                
+                fallback_msg = "That's okay! I'll call you Friend for now. Let's start learning! What would you like to practice?"
+                
+                return Response(
+                    content=await twilio_service.create_voice_response(fallback_msg, call_sid=session_id),
+                    media_type="application/xml"
+                )
         
         if user_input and (user_input.lower().strip() == "reset" or any(word in user_input.lower() for word in ["hello", "hi", "hey", "start", "new", "help", "menu", "general"])):
             redis_service.clear_user_context(phone_number)
@@ -107,6 +239,10 @@ async def handle_voice_call(
             user_context = redis_service.get_user_context(phone_number)
         
         user_context["phone_number"] = phone_number
+        
+        user_name = redis_service.get_session_data(phone_number, "user_name")
+        if user_name:
+            user_context["user_name"] = user_name
         
         current_module_name = redis_service.get_current_module(phone_number) or "general"
         
