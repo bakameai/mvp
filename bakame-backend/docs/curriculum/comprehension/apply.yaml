@@ -1,0 +1,48 @@
+stage: apply
+module: comprehension
+goal: "Apply listening strategies to extract information from complex spoken content"
+source: "The Art of Public Speaking, Chapters 5-6"
+
+ivr_prompt: |
+  I'll give you a complex message. Use good listening strategies to understand it:
+  "While technology helps education through online resources and interactive tools, it also creates challenges like distraction and reduced face-to-face interaction, requiring balanced implementation."
+  Apply your comprehension skills. What's the main message and supporting points?
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "identifies main message"
+  - "extracts supporting points"
+  - "shows strategic listening"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "identifies balanced view of technology in education"
+    - "mentions both benefits (resources, tools) and challenges (distraction, isolation)"
+    - "recognizes need for balanced approach"
+    - "demonstrates strategic comprehension"
+  
+keywords:
+  positive: ["balanced", "benefits", "challenges", "both sides", "helps", "problems", "careful use"]
+  negative: ["only good", "only bad", "simple", "don't understand"]
+
+feedback_templates:
+  pass: "Excellent comprehension! You extracted the balanced message about technology's benefits and challenges in education."
+  fail_hint: "Listen for the structure: technology helps BUT it also creates problems, SO we need balance."
+  fail_repeat: "Good effort! The message shows both good and bad sides of technology, suggesting we need careful balance."
+  encouragement: "Extracting complex information shows advanced listening skills!"
+
+emotional_responses:
+  hesitation: "Break it down: What does technology help with? What problems does it create? What's the solution?"
+  confusion: "Think of it as: Good things + Bad things = Need for balance. What are the good and bad things mentioned?"
+  frustration: "Complex messages require careful listening! You're developing sophisticated comprehension skills."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

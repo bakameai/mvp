@@ -252,6 +252,147 @@ async def get_curriculum_alignment():
         }
     }
 
+@router.get("/evaluation-analytics")
+async def get_evaluation_analytics():
+    """Get comprehensive evaluation analytics with Bloom stage heatmaps"""
+    try:
+        from app.services.evaluation_engine import evaluation_engine
+        
+        def _get_stage_distribution(module: str) -> Dict[str, int]:
+            """Get distribution of students across Bloom stages for a module"""
+            stage_counts = {}
+            for stage in evaluation_engine.bloom_stages:
+                stage_counts[stage] = 0
+            
+            all_contexts = redis_service.get_all_user_contexts()
+            for context in all_contexts:
+                curriculum_stages = context.get("curriculum_stages", {})
+                current_stage = curriculum_stages.get(module, "remember")
+                if current_stage in stage_counts:
+                    stage_counts[current_stage] += 1
+            
+            return stage_counts
+        
+        def _get_emotional_trends() -> Dict[str, int]:
+            """Get emotional state distribution across all evaluations"""
+            emotional_counts = {"neutral": 0, "hesitation": 0, "confusion": 0, "frustration": 0}
+            
+            all_contexts = redis_service.get_all_user_contexts()
+            for context in all_contexts:
+                evaluation_history = context.get("evaluation_history", {})
+                for module_history in evaluation_history.values():
+                    for evaluation in module_history:
+                        emotional_state = evaluation.get("emotional_state", "neutral")
+                        if emotional_state in emotional_counts:
+                            emotional_counts[emotional_state] += 1
+            
+            return emotional_counts
+        
+        def _get_component_score_analysis() -> Dict[str, float]:
+            """Get average scores for each assessment component"""
+            component_totals = {"keyword": 0, "structure": 0, "llm": 0}
+            component_counts = {"keyword": 0, "structure": 0, "llm": 0}
+            
+            all_contexts = redis_service.get_all_user_contexts()
+            for context in all_contexts:
+                evaluation_history = context.get("evaluation_history", {})
+                for module_history in evaluation_history.values():
+                    for evaluation in module_history:
+                        component_scores = evaluation.get("component_scores", {})
+                        for component, score in component_scores.items():
+                            if component in component_totals:
+                                component_totals[component] += score
+                                component_counts[component] += 1
+            
+            averages = {}
+            for component in component_totals:
+                if component_counts[component] > 0:
+                    averages[component] = component_totals[component] / component_counts[component]
+                else:
+                    averages[component] = 0.0
+            
+            return averages
+        
+        def _get_advancement_statistics() -> Dict[str, Dict[str, int]]:
+            """Get advancement and demotion statistics by module"""
+            advancement_stats = {}
+            
+            for module in evaluation_engine.modules:
+                advancement_stats[module] = {
+                    "total_students": 0,
+                    "advanced_students": 0,
+                    "demoted_students": 0,
+                    "advancement_rate": 0.0
+                }
+            
+            all_contexts = redis_service.get_all_user_contexts()
+            for context in all_contexts:
+                curriculum_stages = context.get("curriculum_stages", {})
+                evaluation_history = context.get("evaluation_history", {})
+                
+                for module in evaluation_engine.modules:
+                    if module in evaluation_history and evaluation_history[module]:
+                        advancement_stats[module]["total_students"] += 1
+                        current_stage = curriculum_stages.get(module, "remember")
+                        
+                        if current_stage != "remember":
+                            advancement_stats[module]["advanced_students"] += 1
+            
+            for module in advancement_stats:
+                total = advancement_stats[module]["total_students"]
+                advanced = advancement_stats[module]["advanced_students"]
+                if total > 0:
+                    advancement_stats[module]["advancement_rate"] = advanced / total
+            
+            return advancement_stats
+        
+        return {
+            "status": "success",
+            "bloom_stage_distribution": {
+                "grammar": _get_stage_distribution("grammar"),
+                "composition": _get_stage_distribution("composition"), 
+                "math": _get_stage_distribution("math"),
+                "debate": _get_stage_distribution("debate"),
+                "comprehension": _get_stage_distribution("comprehension")
+            },
+            "emotional_state_trends": _get_emotional_trends(),
+            "assessment_component_scores": _get_component_score_analysis(),
+            "advancement_rates": _get_advancement_statistics(),
+            "timestamp": str(datetime.utcnow())
+        }
+    except Exception as e:
+        print(f"Error getting evaluation analytics: {e}")
+        return {
+            "status": "error",
+            "message": "Failed to retrieve evaluation analytics",
+            "timestamp": str(datetime.utcnow())
+        }
+
+@router.get("/student-evaluation-history")
+async def get_student_evaluation_history(phone_number: str):
+    """Get detailed evaluation history for specific student"""
+    try:
+        context = redis_service.get_user_context(phone_number)
+        evaluation_history = context.get("evaluation_history", {})
+        
+        total_evaluations = sum(len(module_history) for module_history in evaluation_history.values())
+        
+        return {
+            "status": "success",
+            "phone_number": phone_number,
+            "evaluation_history": evaluation_history,
+            "current_stages": context.get("curriculum_stages", {}),
+            "total_evaluations": total_evaluations,
+            "timestamp": str(datetime.utcnow())
+        }
+    except Exception as e:
+        print(f"Error getting student evaluation history: {e}")
+        return {
+            "status": "error",
+            "message": "Failed to retrieve student evaluation history",
+            "timestamp": str(datetime.utcnow())
+        }
+
 @router.get("/curriculum/student-progress")
 async def get_student_progress(phone_number: str = None):
     """Get student curriculum progress data"""

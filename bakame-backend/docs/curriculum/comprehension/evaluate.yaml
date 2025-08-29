@@ -1,0 +1,47 @@
+stage: evaluate
+module: comprehension
+goal: "Evaluate the credibility and effectiveness of spoken arguments and presentations"
+source: "The Art of Public Speaking, Chapters 9-10"
+
+ivr_prompt: |
+  Evaluate this presentation: "I believe exercise is important. My friend lost weight by running. Therefore, everyone should run every day to be healthy."
+  Judge this argument. Is it strong or weak? What's your evaluation and why?
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "makes clear evaluation judgment"
+  - "identifies argument weaknesses"
+  - "provides reasoning for judgment"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "evaluates argument as weak or problematic"
+    - "identifies over-generalization from single example"
+    - "recognizes lack of broader evidence"
+    - "demonstrates evaluative thinking about argument quality"
+  
+keywords:
+  positive: ["weak", "one example", "not enough", "over-generalization", "needs more evidence", "limited"]
+  negative: ["strong", "good argument", "convincing", "proves it"]
+
+feedback_templates:
+  pass: "Excellent evaluation! You recognized that one personal example isn't enough evidence for a universal claim."
+  fail_hint: "Think about this: if one person succeeded with running, does that prove everyone should run every day?"
+  fail_repeat: "Good thinking! The argument is weak because it uses just one example to make a claim about everyone."
+  encouragement: "Evaluating argument strength is sophisticated thinking! You're developing critical judgment skills."
+
+emotional_responses:
+  hesitation: "Consider: is one friend's experience enough to prove what's best for millions of different people?"
+  confusion: "Think about it: the speaker jumps from 'my friend lost weight' to 'everyone should run daily.' Is that logical?"
+  frustration: "Evaluating arguments requires careful thinking! You're learning to be a critical consumer of information."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

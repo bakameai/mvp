@@ -30,7 +30,7 @@ class EnglishModule:
         if any(word in user_input_lower for word in ["grammar", "correct", "fix", "tense", "verb"]):
             base_response = await self._grammar_tutoring(user_input, user_context, "grammar")
         elif any(word in user_input_lower for word in ["story", "write", "create", "composition", "essay"]):
-            base_response = await self._composition_tutoring(user_input, user_context, "composition")
+            base_response = await self._composition_tutoring_evaluation(user_input, user_context, "composition")
         elif any(word in user_input_lower for word in ["repeat", "practice", "pronunciation"]):
             base_response = await self._repeat_practice(user_input, user_context)
         elif any(word in user_input_lower for word in ["help", "learn", "teach"]):
@@ -296,6 +296,32 @@ class EnglishModule:
         if stage_change:
             response += f"\n\nYour storytelling is improving! You've advanced to {stage_change} level! ✨"
         
+        return response
+    
+    async def _composition_tutoring_evaluation(self, user_input: str, user_context: Dict[str, Any], module: str) -> str:
+        """Composition-focused tutoring with evaluation engine assessment"""
+        
+        from app.services.evaluation_engine import evaluation_engine
+        phone_number = user_context.get("phone_number", "")
+        current_stage = user_context.get("curriculum_stage", "remember")
+        
+        if not user_context.get("evaluation_prompt_given"):
+            ivr_prompt = evaluation_engine.get_ivr_prompt("composition", current_stage, user_context)
+            user_context["evaluation_prompt_given"] = True
+            return ivr_prompt
+        
+        evaluation = await evaluation_engine.evaluate_response(
+            user_input, "composition", current_stage, user_context
+        )
+        
+        evaluation_engine.log_evaluation(phone_number, "composition", current_stage, evaluation, user_input)
+        advancement = evaluation_engine.check_advancement(phone_number, "composition")
+        
+        response = evaluation["feedback"]
+        if advancement:
+            response += f"\n\nExcellent progress! You've advanced to {advancement} level! 📚"
+        
+        user_context["evaluation_prompt_given"] = False
         return response
 
 english_module = EnglishModule()

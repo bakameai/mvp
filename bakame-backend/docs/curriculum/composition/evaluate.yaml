@@ -1,0 +1,47 @@
+stage: evaluate
+module: composition
+goal: "Evaluate literary techniques and judge the effectiveness of narrative choices"
+source: "Things Fall Apart, Chapters 13-15"
+
+ivr_prompt: |
+  Let's evaluate Achebe's writing choices. He shows us Igbo culture through daily life rather than just explaining it.
+  Do you think this is effective? Judge his approach. Is it good or bad storytelling? Why?
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "makes clear judgment"
+  - "evaluates storytelling technique"
+  - "provides reasoning for judgment"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "makes a clear evaluative judgment about the technique"
+    - "explains why showing vs telling is effective or not"
+    - "demonstrates understanding of literary techniques"
+    - "provides reasoned evaluation of the author's choices"
+  
+keywords:
+  positive: ["effective", "good", "better", "shows", "experience", "understand", "feel", "immersive"]
+  negative: ["bad", "confusing", "unclear", "don't like"]
+
+feedback_templates:
+  pass: "Excellent evaluation! You understand that showing culture through action makes readers feel like they're there."
+  fail_hint: "Think about this: would you rather read 'The Igbo people farm yams' or see Okonkwo actually farming? Which is more interesting?"
+  fail_repeat: "Good thinking! Showing through action is usually more engaging than just telling facts."
+  encouragement: "Evaluating literary techniques is what critics do! You're developing sophisticated judgment."
+
+emotional_responses:
+  hesitation: "Consider which is more engaging: being told about a culture or experiencing it through characters' lives?"
+  confusion: "Think about movies: do they tell you 'this character is brave' or show them being brave? Which works better?"
+  frustration: "Literary evaluation is advanced thinking! You're analyzing like a literature professor."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

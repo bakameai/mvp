@@ -1,0 +1,47 @@
+stage: analyze
+module: composition
+goal: "Analyze narrative techniques and cultural themes in literature"
+source: "Things Fall Apart, Chapters 10-12"
+
+ivr_prompt: |
+  Let's analyze how Achebe shows us Igbo culture. Compare how justice works in Okonkwo's village versus modern courts.
+  What are the differences? What does this tell us about different ways of solving problems?
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "compares traditional vs modern justice"
+  - "identifies cultural differences"
+  - "analyzes deeper meanings"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "compares traditional and modern justice systems"
+    - "identifies community involvement vs individual judgment"
+    - "analyzes cultural values and approaches"
+    - "demonstrates analytical thinking about themes"
+  
+keywords:
+  positive: ["community", "elders", "together", "discuss", "different", "culture", "tradition", "modern"]
+  negative: ["same", "don't see difference", "don't know"]
+
+feedback_templates:
+  pass: "Excellent analysis! You see how traditional justice involves the whole community while modern courts are more individual."
+  fail_hint: "Think about who makes decisions in each system. In the village, who decides? In modern courts, who decides?"
+  fail_repeat: "Good thinking! Traditional justice involves elders and community discussion, while modern courts have individual judges."
+  encouragement: "Analyzing cultural differences is sophisticated thinking! You're reading like a scholar."
+
+emotional_responses:
+  hesitation: "Consider how problems are solved in your community versus in a formal court. What's different?"
+  confusion: "Think about it: village elders discuss together, but a judge decides alone. What does this show about values?"
+  frustration: "Cultural analysis is advanced work! You're thinking deeply about literature and society."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

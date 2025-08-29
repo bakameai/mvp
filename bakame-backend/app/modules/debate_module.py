@@ -44,7 +44,33 @@ class DebateModule:
         if current_topic:
             return await self._continue_debate(user_input, current_topic, debate_round, user_context)
         
-        return await self._start_new_debate(user_context)
+        return await self._evaluation_based_tutoring(user_input, user_context)
+    
+    async def _evaluation_based_tutoring(self, user_input: str, user_context: Dict[str, Any]) -> str:
+        """Debate tutoring using evaluation engine assessment"""
+        
+        from app.services.evaluation_engine import evaluation_engine
+        phone_number = user_context.get("phone_number", "")
+        current_stage = user_context.get("curriculum_stage", "remember")
+        
+        if not user_context.get("evaluation_prompt_given"):
+            ivr_prompt = evaluation_engine.get_ivr_prompt("debate", current_stage, user_context)
+            user_context["evaluation_prompt_given"] = True
+            return ivr_prompt
+        
+        evaluation = await evaluation_engine.evaluate_response(
+            user_input, "debate", current_stage, user_context
+        )
+        
+        evaluation_engine.log_evaluation(phone_number, "debate", current_stage, evaluation, user_input)
+        advancement = evaluation_engine.check_advancement(phone_number, "debate")
+        
+        response = evaluation["feedback"]
+        if advancement:
+            response += f"\n\nExcellent progress! You've advanced to {advancement} level! 🗣️"
+        
+        user_context["evaluation_prompt_given"] = False
+        return response
     
     async def _start_new_debate(self, user_context: Dict[str, Any]) -> str:
         """Start a new debate topic"""

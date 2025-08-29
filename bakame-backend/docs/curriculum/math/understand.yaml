@@ -1,0 +1,48 @@
+stage: understand
+module: math
+goal: "Understand the principles behind mental math techniques and number relationships"
+source: "Secrets of Mental Math, Chapter 1-2"
+
+ivr_prompt: |
+  Let's understand how mental math works. I'll show you a trick: to multiply by 11, you can add the digits.
+  For example, 23 × 11 = 253 because 2 + 3 = 5, and you put it in the middle.
+  Can you explain why this works? What's happening with the numbers?
+
+expected_structure:
+  - "≥2 complete sentences"
+  - "attempts to explain the pattern"
+  - "shows understanding of place value"
+  - "demonstrates comprehension"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "recognizes the addition pattern in multiplication by 11"
+    - "mentions place value or digit positioning"
+    - "shows understanding of why the trick works"
+    - "demonstrates mathematical reasoning"
+  
+keywords:
+  positive: ["add", "digits", "middle", "place", "value", "pattern", "tens", "ones", "hundreds"]
+  negative: ["don't know", "magic", "just works", "no idea"]
+
+feedback_templates:
+  pass: "Excellent understanding! You see that multiplying by 11 creates a pattern with place values."
+  fail_hint: "Think about what 11 really means: 10 + 1. When you multiply, you're adding the number to itself shifted over."
+  fail_repeat: "Good try! The trick works because 11 = 10 + 1, so you're adding the original number in different positions."
+  encouragement: "Understanding why math works is more important than just memorizing tricks!"
+
+emotional_responses:
+  hesitation: "Think about place values: tens, ones, hundreds. What happens when you multiply by 10 + 1?"
+  confusion: "Let me break it down: 23 × 11 = 23 × 10 + 23 × 1 = 230 + 23 = 253."
+  frustration: "Math patterns can be tricky to see at first. You're developing mathematical thinking!"
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

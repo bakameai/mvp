@@ -1,0 +1,47 @@
+stage: remember
+module: debate
+goal: "Recall basic debate structure and fundamental argumentation principles"
+source: "Code of the Debater, Chapters 1-2"
+
+ivr_prompt: |
+  Let's remember the basics of debate. In a good argument, you need three main parts.
+  Can you tell me what they are? What makes a complete argument?
+
+expected_structure:
+  - "≥2 complete sentences"
+  - "mentions argument components"
+  - "recalls debate structure"
+  - "shows basic understanding"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "recalls claim, evidence, and reasoning structure"
+    - "mentions supporting facts or examples"
+    - "shows understanding of argument building"
+    - "demonstrates basic debate knowledge"
+  
+keywords:
+  positive: ["claim", "evidence", "reason", "proof", "support", "because", "example", "fact"]
+  negative: ["don't remember", "forgot", "don't know"]
+
+feedback_templates:
+  pass: "Great memory! You remember that arguments need a claim, evidence to support it, and reasoning that connects them."
+  fail_hint: "Think about this structure: What you believe (claim), proof for it (evidence), and why the proof matters (reasoning)."
+  fail_repeat: "Good try! The three parts are: your position (claim), facts that support it (evidence), and explanation (reasoning)."
+  encouragement: "Remembering argument structure is the foundation of good debate!"
+
+emotional_responses:
+  hesitation: "Think about when you try to convince someone. What do you need to persuade them?"
+  confusion: "Let me help: Claim = your opinion, Evidence = facts that support it, Reasoning = why those facts matter."
+  frustration: "Debate structure takes practice to remember! You're building important thinking skills."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

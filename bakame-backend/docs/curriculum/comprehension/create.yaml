@@ -1,0 +1,49 @@
+stage: create
+module: comprehension
+goal: "Create original interpretations and synthesize complex information"
+source: "Art of Public Speaking, Chapters 8-10"
+
+ivr_prompt: |
+  I'll share a short story with you, then you create your own version. 
+  Listen: "A young farmer shared his last bag of seeds with hungry neighbors during drought." 
+  Now create your own story about someone who helped others. What happened and why was it important?
+
+expected_structure:
+  - "original story with clear narrative"
+  - "character motivations and actions"
+  - "community or helping theme"
+  - "personal reflection on importance"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "creates original story with helping theme"
+    - "includes character development and motivation"
+    - "demonstrates understanding of community values"
+    - "reflects on significance or lesson learned"
+    - "shows creative synthesis of ideas"
+
+keywords:
+  positive: ["helped", "shared", "community", "important", "learned", "story", "person", "because"]
+  negative: ["don't know", "can't think", "no story", "boring"]
+
+feedback_templates:
+  pass: "Beautiful story! You created something meaningful that shows the power of helping others."
+  fail_hint: "Think of someone who helped in your community. What did they do? Why was it special?"
+  fail_repeat: "Good start! Try to add more about why the person helped and how it made others feel."
+  encouragement: "Every great storyteller starts somewhere. You have important stories to share!"
+
+emotional_responses:
+  hesitation: "Take your time. Think of your family, neighbors, or community. Someone who made a difference."
+  confusion: "Stories can be simple. Maybe someone helped during hard times, or showed kindness to a stranger."
+  frustration: "You have wonderful stories inside you! Sometimes the best stories come from everyday kindness."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

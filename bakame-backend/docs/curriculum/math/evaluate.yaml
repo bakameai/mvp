@@ -1,0 +1,47 @@
+stage: evaluate
+module: math
+goal: "Evaluate the accuracy and efficiency of mathematical solutions and methods"
+source: "Secrets of Mental Math, Chapter 6-7"
+
+ivr_prompt: |
+  A student solved 125 × 16 like this: "125 × 16 = 125 × 10 + 125 × 6 = 1250 + 750 = 2000"
+  Evaluate this solution. Is it correct? Is it the best method? What's your judgment and why?
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "evaluates correctness"
+  - "judges efficiency of method"
+  - "suggests improvements if needed"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "correctly identifies the answer as right or wrong"
+    - "evaluates the method's efficiency"
+    - "suggests alternative approaches if applicable"
+    - "provides clear judgment with reasoning"
+  
+keywords:
+  positive: ["correct", "right", "good method", "could be better", "alternative", "efficient", "smart"]
+  negative: ["wrong", "bad", "terrible", "don't know"]
+
+feedback_templates:
+  pass: "Excellent evaluation! The answer is correct, and you recognized this is a solid method using the distributive property."
+  fail_hint: "Check the math: 125 × 10 = 1250, 125 × 6 = 750, so 1250 + 750 = 2000. Is this right?"
+  fail_repeat: "Good try! The solution is correct. 125 × 16 = 2000. The method breaks down 16 into 10 + 6."
+  encouragement: "Evaluating mathematical work requires careful checking. You're developing critical thinking!"
+
+emotional_responses:
+  hesitation: "Work through it step by step. First check if 1250 + 750 = 2000, then see if that equals 125 × 16."
+  confusion: "Let me help you check: 125 × 16. We can verify: 125 × 4 = 500, so 125 × 16 = 500 × 4 = 2000."
+  frustration: "Checking other people's work is challenging! You're learning to be mathematically critical."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

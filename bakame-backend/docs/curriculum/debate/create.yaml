@@ -1,0 +1,47 @@
+stage: create
+module: debate
+goal: "Create original debate topics and construct multi-layered arguments"
+source: "Code of the Debater, Chapters 9-10"
+
+ivr_prompt: |
+  Now you're the debate coach! Create a debate topic about technology that would be interesting for students.
+  Then give me one strong argument for each side of your topic. Show me both perspectives.
+
+expected_structure:
+  - "≥4 complete sentences"
+  - "creates original debate topic"
+  - "provides argument for both sides"
+  - "demonstrates balanced thinking"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "creates a clear, debatable topic about technology"
+    - "provides legitimate arguments for both sides"
+    - "shows understanding of multiple perspectives"
+    - "demonstrates advanced debate thinking"
+  
+keywords:
+  positive: ["should", "topic", "argument", "side", "because", "however", "perspective", "both"]
+  negative: ["don't know", "can't think", "too hard", "one side only"]
+
+feedback_templates:
+  pass: "Fantastic debate creation! You made an interesting topic and showed strong arguments for both sides."
+  fail_hint: "Try a topic like 'Should phones be allowed in schools?' Then give one reason for yes and one for no."
+  fail_repeat: "Good effort! Remember to create a topic, then argue both sides fairly."
+  encouragement: "Creating debates is the highest level of argumentation! You're thinking like a debate coach!"
+
+emotional_responses:
+  hesitation: "Think about technology issues students face: social media, phones in school, online learning, gaming..."
+  confusion: "Here's a structure: 'Should students... [topic]? Yes because... [argument]. No because... [counter-argument].'"
+  frustration: "Creating balanced debates is expert-level thinking! You're developing sophisticated argumentation skills."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

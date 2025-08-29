@@ -1,0 +1,49 @@
+stage: create
+module: composition
+goal: "Create original stories with cultural elements and personal expression"
+source: "Things Fall Apart, Chapters 1-2"
+
+ivr_prompt: |
+  Now let's create a story together! Think of a time when someone in your community showed great courage or kindness. 
+  Tell me a short story about this person. Include what happened, how they felt, and what we can learn from them. 
+  Make it your own story.
+
+expected_structure:
+  - "original narrative with beginning, middle, end"
+  - "character description and emotions"
+  - "cultural or community context"
+  - "moral or lesson identified"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "creates original story with clear narrative structure"
+    - "includes character emotions and motivations"
+    - "incorporates cultural or community elements"
+    - "identifies meaningful lesson or theme"
+    - "demonstrates creative expression"
+  
+keywords:
+  positive: ["story", "person", "community", "brave", "kind", "helped", "learned", "felt", "family", "village"]
+  negative: ["don't know", "can't think", "no story", "boring"]
+
+feedback_templates:
+  pass: "Beautiful story! You created something meaningful with heart and wisdom. Your storytelling is growing!"
+  fail_hint: "Think of someone who helped others in your community. What did they do? How did it make people feel?"
+  fail_repeat: "Good beginning! Try to add more details about the person's feelings and what happened next."
+  encouragement: "Every great storyteller starts somewhere. You have important stories to tell!"
+
+emotional_responses:
+  hesitation: "Take your time. Think of your family, neighbors, or community. Someone who made a difference."
+  confusion: "Stories can be simple. Maybe someone helped during difficult times, or showed kindness to a stranger."
+  frustration: "You have wonderful stories inside you! Sometimes the best stories come from everyday acts of kindness."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

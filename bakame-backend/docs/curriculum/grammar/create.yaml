@@ -1,0 +1,48 @@
+stage: create
+module: grammar
+goal: "Create original sentences demonstrating mastery of English grammar structures"
+source: "Speak English: 30 Days to Better English, Chapters 13-15"
+
+ivr_prompt: |
+  Now it's time to create! I want you to make up three sentences about your family.
+  Use different tenses: one about the past, one about the present, and one about the future.
+  Make sure your grammar is perfect!
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "demonstrates past, present, future tenses"
+  - "correct grammar throughout"
+  - "creative and personal content"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "creates three distinct sentences"
+    - "uses past, present, and future tenses correctly"
+    - "maintains proper subject-verb agreement"
+    - "shows creativity and personal expression"
+  
+keywords:
+  positive: ["yesterday", "today", "tomorrow", "was", "is", "will", "family", "brother", "sister", "mother", "father"]
+  negative: ["don't know", "can't", "too hard"]
+
+feedback_templates:
+  pass: "Wonderful creation! You used all three tenses correctly and told us about your family."
+  fail_hint: "Remember: past (yesterday I...), present (today I...), future (tomorrow I will...)."
+  fail_repeat: "Good effort! Try again with three sentences: one about yesterday, one about now, one about tomorrow."
+  encouragement: "Creating original sentences is the highest level of grammar! You're almost there!"
+
+emotional_responses:
+  hesitation: "Think about your family. What did you do with them yesterday? What will you do tomorrow?"
+  confusion: "Let me give you a start: 'Yesterday my family...' Now you continue with past tense."
+  frustration: "You've learned so much grammar! Now you're putting it all together. You can do this!"
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

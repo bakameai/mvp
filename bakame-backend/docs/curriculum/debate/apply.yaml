@@ -1,0 +1,47 @@
+stage: apply
+module: debate
+goal: "Apply debate principles to construct arguments on real-world topics"
+source: "Code of the Debater, Chapters 5-6"
+
+ivr_prompt: |
+  Let's apply debate skills to a real issue. Should students wear uniforms to school?
+  Pick a side and give me one complete argument with your claim, evidence, and reasoning.
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "clear position statement"
+  - "supporting evidence"
+  - "logical reasoning connecting them"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "states clear position for or against uniforms"
+    - "provides relevant evidence or examples"
+    - "explains reasoning that connects claim to evidence"
+    - "demonstrates application of argument structure"
+  
+keywords:
+  positive: ["because", "evidence", "shows", "proves", "therefore", "since", "example", "reason"]
+  negative: ["just because", "everyone knows", "obvious", "don't need reasons"]
+
+feedback_templates:
+  pass: "Excellent argument! You gave a clear position, supporting evidence, and explained how they connect."
+  fail_hint: "Remember the structure: 'I believe... (claim) because studies show... (evidence) which means... (reasoning).'"
+  fail_repeat: "Good start! Try adding evidence and explaining why that evidence supports your position."
+  encouragement: "Building complete arguments takes practice! You're applying debate skills to real issues."
+
+emotional_responses:
+  hesitation: "Pick whichever side feels right to you. Then think: what evidence supports that view?"
+  confusion: "Here's a structure: 'Students should/shouldn't wear uniforms because [evidence] which shows that [reasoning].'"
+  frustration: "Constructing arguments is challenging work! You're learning to think like a debater."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

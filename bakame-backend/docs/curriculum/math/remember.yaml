@@ -1,0 +1,45 @@
+stage: remember
+module: math
+goal: "Recall basic mental math techniques and number facts"
+source: "Secrets of Mental Math, Chapter 1"
+
+ivr_prompt: |
+  Let's practice basic mental math. I'll ask you some quick questions. 
+  What is 7 times 8? Just tell me the number you think it is.
+
+expected_structure:
+  - "clear numerical answer"
+  - "confidence in response"
+  - "basic calculation recall"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "provides correct answer: 56"
+    - "shows number recognition and recall"
+    - "demonstrates basic multiplication knowledge"
+
+keywords:
+  positive: ["56", "fifty-six", "fifty six"]
+  negative: ["don't know", "can't", "too hard", "forget"]
+
+feedback_templates:
+  pass: "Excellent! 7 × 8 = 56. Your number facts are strong!"
+  fail_hint: "Think of it as 7 × 8. You can count by 7s: 7, 14, 21, 28, 35, 42, 49, 56!"
+  fail_repeat: "Good try! 7 × 8 = 56. Let's practice this one more time."
+  encouragement: "Math facts take practice. You're building your number sense!"
+
+emotional_responses:
+  hesitation: "Take your time. Think about counting by 7s or breaking it into smaller parts."
+  confusion: "Let me help: 7 × 8 is the same as 7 + 7 + 7 + 7 + 7 + 7 + 7 + 7. That equals 56."
+  frustration: "Don't worry! Even adults sometimes forget math facts. Practice makes it easier."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.5
+  sentence_structure: 0.2
+  llm_evaluation: 0.3
