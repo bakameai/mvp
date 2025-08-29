@@ -87,7 +87,9 @@ class DebateModule:
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
         if settings.use_llama:
-            base_response = await llama_service.generate_response(messages, self.module_name)
+            base_response = await llama_service.generate_response(
+                messages, self.module_name, "normal", user_context
+            )
         else:
             base_response = await openai_service.generate_response(messages, self.module_name)
         

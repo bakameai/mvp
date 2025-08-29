@@ -244,6 +244,11 @@ async def handle_voice_call(
         if user_name:
             user_context["user_name"] = user_name
         
+        if current_module_name != "general":
+            from app.services.curriculum_service import curriculum_service
+            current_stage = curriculum_service.get_user_stage(phone_number, current_module_name)
+            user_context["curriculum_stage"] = current_stage
+        
         current_module_name = redis_service.get_current_module(phone_number) or "general"
         
         requested_module = user_context.get("user_state", {}).get("requested_module")

@@ -116,7 +116,9 @@ class ComprehensionModule:
         ]
         
         if settings.use_llama:
-            evaluation = await llama_service.generate_response(messages, self.module_name)
+            evaluation = await llama_service.generate_response(
+                messages, self.module_name, "normal", user_context
+            )
         else:
             evaluation = await openai_service.generate_response(messages, self.module_name)
         is_correct = "CORRECT" in evaluation.upper()
@@ -208,7 +210,9 @@ class ComprehensionModule:
             ]
             
             if settings.use_llama:
-                response = await llama_service.generate_response(messages, self.module_name)
+                response = await llama_service.generate_response(
+                    messages, self.module_name, "normal", user_context
+                )
             else:
                 response = await openai_service.generate_response(messages, self.module_name)
             

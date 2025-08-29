@@ -56,7 +56,9 @@ class EnglishModule:
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
         if settings.use_llama:
-            response = await llama_service.generate_response(messages, self.module_name)
+            response = await llama_service.generate_response(
+                messages, self.module_name, "normal", user_context
+            )
         else:
             response = await openai_service.generate_response(messages, self.module_name)
         return response
@@ -68,15 +70,30 @@ class EnglishModule:
         ]
         
         if settings.use_llama:
-            response = await llama_service.generate_response(messages, self.module_name)
+            response = await llama_service.generate_response(
+                messages, self.module_name, "normal", user_context
+            )
         else:
             response = await openai_service.generate_response(messages, self.module_name)
         return response
     
     async def _english_tutoring(self, user_input: str, user_context: Dict[str, Any]) -> str:
-        """General English tutoring with level-aware curriculum and accent recovery"""
+        """General English tutoring with curriculum-aware assessment"""
         
-        corrected_input, correction_feedback = await self.recover_and_feedback(user_input)
+        from app.services.language_scaffolding_service import language_scaffolding_service
+        corrected_input, correction_feedback, needs_correction = await language_scaffolding_service.process_with_scaffolding(user_input)
+        
+        from app.services.curriculum_service import curriculum_service
+        phone_number = user_context.get("phone_number", "")
+        current_stage = curriculum_service.get_user_stage(phone_number, "english")
+        
+        assessment = await curriculum_service.assess_student_response(
+            corrected_input, "english", current_stage, "tutoring"
+        )
+        
+        curriculum_service.log_assessment(phone_number, "english", current_stage, assessment)
+        
+        stage_change = curriculum_service.check_stage_advancement(phone_number, "english")
         
         user_level = user_context.get("english_level", "A1")
         recent_errors = user_context.get("recent_errors", [])
@@ -93,12 +110,20 @@ class EnglishModule:
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
         if settings.use_llama:
-            response = await llama_service.generate_response(messages, self.module_name)
+            response = await llama_service.generate_response(
+                messages, self.module_name, "normal", user_context
+            )
         else:
             response = await openai_service.generate_response(messages, self.module_name)
         
         if correction_feedback:
             response = f"{correction_feedback} {response}"
+        
+        if stage_change:
+            if stage_change in ["understand", "apply", "analyze", "evaluate", "create"]:
+                response += f"\n\nExcellent progress! You've advanced to {stage_change} level! 🌟"
+            else:
+                response += f"\n\nLet's practice more at {stage_change} level together. 💪"
         
         self._track_learning_progress(user_input, response, user_context)
         

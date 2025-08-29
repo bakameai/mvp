@@ -310,6 +310,36 @@ print(validate_telephony_audio('/tmp/test_telephony.wav'))
 - **Barge-in Problems**: Check Redis connectivity and session flag management
 - **Fallback Failures**: Verify OpenAI API key and service availability
 
+### Curriculum System
+
+**Bloom's Taxonomy Integration:**
+- 6 stages per module: Remember → Understand → Apply → Analyze → Evaluate → Create
+- 24 total curriculum files in `/docs/curriculum/{module}_{stage}.md`
+- Each stage includes learning goals, skills, prompts, and assessment criteria
+
+**Assessment System:**
+- Multi-factor scoring: keyword matching (40%) + sentence structure (30%) + LLM evaluation (30%)
+- Pass threshold: 60% overall score
+- Advancement: 3 passes out of last 5 attempts
+- Demotion: 3 consecutive failures
+
+**Student Progression Tracking:**
+- Current stages stored in Redis: `curriculum_stages.{module}`
+- Assessment history: `assessment_history.{module}[]`
+- Session TTL: 1 hour for active sessions, 24 hours for assessment history
+
+**Language Scaffolding:**
+- Accent-tolerant input processing
+- Gentle grammar correction with meaning preservation
+- Focus on communication success over perfect grammar
+- Cultural context integration for Rwandan learners
+
+**OER Resource Integration:**
+- Organized by module in `/docs/resources/{module}/`
+- CC-licensed educational content
+- Mapped to Bloom's taxonomy stages
+- Rwandan context adaptations
+
 ## Backup & Recovery
 
 ### Database Backup

@@ -56,7 +56,38 @@ This document outlines the changes made during the IVR stabilization and pilot r
 - Redacts phone numbers and emails from logs
 - Preserves minimal trace IDs for record joining
 
-### 7. Curriculum Scaffolding
+### 7. Curriculum System Implementation
+
+**OER Sources Added:**
+- English: Wikijunior (CC BY-SA), UGA English Textbooks (CC BY), ASCCC OERI (CC BY)
+- Math: Fundamentals of Mathematics (CC BY), Discrete Mathematics (CC BY-SA), OpenStax Precalculus (CC BY)
+- Debate: Debatabase Book (Open Access), Policy Debate Textbook (Educational Use), Code of the Debater (Open Access)
+- Comprehension: Reading Resources (Educational Use), Reading Power (Open Library)
+
+**Bloom's Taxonomy Mapping:**
+- Remember/Understand: Basic vocabulary, recognition, simple comprehension
+- Apply/Analyze: Sentence construction, pattern application, text analysis
+- Evaluate/Create: Quality judgment, original content generation
+
+**Assessment Logic:**
+- Keyword matching against expected responses
+- Sentence structure evaluation (word count, completeness, grammar indicators)
+- LLM-assisted evaluation for meaning and appropriateness
+- Weighted scoring with 60% pass threshold
+
+**Language/Knowledge Split:**
+- Language scaffolding preserves meaning while gently correcting grammar
+- Assessment focuses on communication success over perfect pronunciation
+- Cultural context integration for Rwandan learners
+- Accent-tolerant evaluation patterns
+
+**Emotion-Aware Enhancements:**
+- Dynamic temperature adjustment based on conversation state
+- Sentiment-aware response generation
+- Encouraging feedback for struggling learners
+- Cultural motivational messages with Ubuntu philosophy
+
+### 8. Curriculum Scaffolding
 - Added level-aware prompts (A1 → A2 → B1 → B2)
 - Implemented error tracking and adaptive learning
 - Targeted correction based on recent mistakes

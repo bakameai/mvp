@@ -160,7 +160,9 @@ class MathModule:
                 ]
                 
                 if settings.use_llama:
-                    hint = await llama_service.generate_response(messages, self.module_name)
+                    hint = await llama_service.generate_response(
+                        messages, self.module_name, "normal", user_context
+                    )
                 else:
                     hint = await openai_service.generate_response(messages, self.module_name)
                 
@@ -216,7 +218,9 @@ class MathModule:
             ]
             
             if settings.use_llama:
-                response = await llama_service.generate_response(messages, self.module_name)
+                response = await llama_service.generate_response(
+                    messages, self.module_name, "normal", user_context
+                )
             else:
                 response = await openai_service.generate_response(messages, self.module_name)
             

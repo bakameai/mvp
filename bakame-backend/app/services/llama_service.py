@@ -11,13 +11,25 @@ class LlamaService:
         ]
         self.working_url = None
         
-    async def generate_response(self, messages: List[Dict[str, str]], module_name: str = "general", conversation_state: str = "normal") -> str:
-        """Generate response using Llama API with dynamic temperature based on conversation state"""
+    async def generate_response(self, messages: List[Dict[str, str]], module_name: str = "general", 
+                              conversation_state: str = "normal", user_context: Dict[str, Any] = None) -> str:
+        """Generate response with curriculum-aware prompt injection"""
         try:
+            curriculum_prompt = ""
+            if user_context and module_name != "general":
+                from app.services.curriculum_service import curriculum_service
+                phone_number = user_context.get("phone_number", "")
+                if phone_number:
+                    current_stage = curriculum_service.get_user_stage(phone_number, module_name)
+                    curriculum_prompt = curriculum_service.get_curriculum_prompt(module_name, current_stage, user_context)
+            
             temperature_map = {
                 "welcome": 0.4,
                 "normal": 0.9,
-                "rwanda_fact": 1.6
+                "rwanda_fact": 1.6,
+                "intro": 0.4,
+                "assessment": 0.2,
+                "facts": 1.6
             }
             
             temperature = temperature_map.get(conversation_state, 0.9)
@@ -35,6 +47,9 @@ class LlamaService:
             }
             
             system_prompt = system_prompts.get(module_name, system_prompts["general"])
+            
+            if curriculum_prompt:
+                system_prompt = f"{curriculum_prompt}\n\n{system_prompt}"
             
             full_messages = [{"role": "system", "content": system_prompt}] + messages
             

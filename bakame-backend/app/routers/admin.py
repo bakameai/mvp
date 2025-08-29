@@ -171,15 +171,18 @@ async def export_csv():
 
 @router.get("/curriculum")
 async def get_curriculum_alignment():
-    """Get curriculum alignment data (placeholder for now)"""
+    """Get comprehensive curriculum alignment data"""
+    from app.services.curriculum_service import curriculum_service
+    
     return {
         "curriculum_standards": [
             {
                 "subject": "English Language Arts",
-                "grade_level": "Elementary",
+                "grade_level": "Elementary to Advanced",
+                "bloom_stages": curriculum_service.bloom_stages,
                 "standards": [
                     "Grammar and Usage",
-                    "Vocabulary Development",
+                    "Vocabulary Development", 
                     "Reading Comprehension",
                     "Oral Communication"
                 ],
@@ -187,7 +190,8 @@ async def get_curriculum_alignment():
             },
             {
                 "subject": "Mathematics",
-                "grade_level": "Elementary",
+                "grade_level": "Elementary to Advanced",
+                "bloom_stages": curriculum_service.bloom_stages,
                 "standards": [
                     "Number Operations",
                     "Mental Math",
@@ -195,21 +199,45 @@ async def get_curriculum_alignment():
                     "Mathematical Reasoning"
                 ],
                 "bakame_modules": ["math"]
-            },
-            {
-                "subject": "Critical Thinking",
-                "grade_level": "All Levels",
-                "standards": [
-                    "Argumentation",
-                    "Analysis and Evaluation",
-                    "Perspective Taking",
-                    "Evidence-Based Reasoning"
-                ],
-                "bakame_modules": ["debate", "general"]
             }
         ],
-        "alignment_notes": "BAKAME modules are designed to support core educational standards through interactive voice and SMS learning experiences."
+        "oer_sources": {
+            "english": ["Wikijunior", "University System of Georgia", "ASCCC OERI"],
+            "math": ["Fundamentals of Mathematics", "Discrete Mathematics", "OpenStax Precalculus"],
+            "debate": ["Debatabase Book", "Policy Debate Textbook", "Code of the Debater"],
+            "comprehension": ["Reading Resources", "Reading Power"]
+        },
+        "assessment_system": {
+            "scoring_method": "Multi-factor (keyword + structure + LLM)",
+            "pass_threshold": 0.6,
+            "advancement_rule": "3 passes out of 5 attempts",
+            "demotion_rule": "3 consecutive failures"
+        }
     }
+
+@router.get("/curriculum/student-progress")
+async def get_student_progress(phone_number: str = None):
+    """Get student curriculum progress data"""
+    from app.services.curriculum_service import curriculum_service
+    from app.services.redis_service import redis_service
+    
+    if phone_number:
+        context = redis_service.get_user_context(phone_number)
+        curriculum_stages = context.get("curriculum_stages", {})
+        assessment_history = context.get("assessment_history", {})
+        
+        return {
+            "phone_number": phone_number,
+            "current_stages": curriculum_stages,
+            "assessment_history": assessment_history,
+            "user_name": context.get("user_name", "Unknown")
+        }
+    else:
+        return {
+            "total_students": "Available via session analytics",
+            "stage_distribution": "Requires Redis scan implementation",
+            "average_progression": "Calculated from assessment history"
+        }
 
 @router.post("/curriculum/upload")
 async def upload_curriculum_data(curriculum_data: Dict[str, Any]):
