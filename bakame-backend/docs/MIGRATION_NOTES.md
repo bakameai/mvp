@@ -56,24 +56,45 @@ This document outlines the changes made during the IVR stabilization and pilot r
 - Redacts phone numbers and emails from logs
 - Preserves minimal trace IDs for record joining
 
-### 7. Curriculum System Implementation
+### 7. Curriculum System Restructuring (Pedagogical Integration)
 
-**OER Sources Added:**
-- English: Wikijunior (CC BY-SA), UGA English Textbooks (CC BY), ASCCC OERI (CC BY)
-- Math: Fundamentals of Mathematics (CC BY), Discrete Mathematics (CC BY-SA), OpenStax Precalculus (CC BY)
-- Debate: Debatabase Book (Open Access), Policy Debate Textbook (Educational Use), Code of the Debater (Open Access)
-- Comprehension: Reading Resources (Educational Use), Reading Power (Open Library)
+**Module Structure Changes:**
+- **Old**: Flat files (`english_remember.md`, `math_apply.md`)
+- **New**: Nested folders (`grammar/remember.md`, `composition/apply.md`)
 
-**Bloom's Taxonomy Mapping:**
-- Remember/Understand: Basic vocabulary, recognition, simple comprehension
-- Apply/Analyze: Sentence construction, pattern application, text analysis
-- Evaluate/Create: Quality judgment, original content generation
+**English Module Split:**
+- **Grammar Module**: Focus on sentence structure, verb tenses, grammar rules
+  - Source: Speak English: 30 Days to Better English
+  - Emphasis: Technical grammar instruction and error correction
+- **Composition Module**: Focus on creative writing, storytelling, expression
+  - Source: Things Fall Apart (Chinua Achebe)
+  - Emphasis: Cultural storytelling and creative expression
 
-**Assessment Logic:**
-- Keyword matching against expected responses
-- Sentence structure evaluation (word count, completeness, grammar indicators)
-- LLM-assisted evaluation for meaning and appropriateness
-- Weighted scoring with 60% pass threshold
+**New Module List:**
+- `grammar` (split from english)
+- `composition` (split from english) 
+- `math` (unchanged content, new structure)
+- `debate` (unchanged content, new structure)
+- `comprehension` (unchanged content, new structure)
+
+**OER Source Integration:**
+- Grammar: Speak English: 30 Days to Better English (Educational Use)
+- Composition: Things Fall Apart (Public Domain)
+- Math: Secrets of Mental Math (Educational Use)
+- Debate: Code of the Debater (Open Access)
+- Comprehension: Art of Public Speaking (Public Domain)
+
+**RAG Preparation:**
+- All curriculum files structured with clean markdown
+- Content chunked to <300 tokens per section
+- Clear headers and bullet points for embedding
+- Consistent formatting across all modules
+
+**Assessment Logic Preserved:**
+- Multi-factor scoring: keyword (40%) + structure (30%) + LLM (30%)
+- Pass threshold: 60% overall score
+- Advancement: 3 passes out of 5 attempts
+- Demotion: 3 consecutive failures
 
 **Language/Knowledge Split:**
 - Language scaffolding preserves meaning while gently correcting grammar

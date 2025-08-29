@@ -27,8 +27,10 @@ class EnglishModule:
         
         gamification_service.update_progress(user_context, "session_complete", self.module_name)
         
-        if any(word in user_input_lower for word in ["grammar", "correct", "fix"]):
-            base_response = await self._grammar_correction(user_input, user_context)
+        if any(word in user_input_lower for word in ["grammar", "correct", "fix", "tense", "verb"]):
+            base_response = await self._grammar_tutoring(user_input, user_context, "grammar")
+        elif any(word in user_input_lower for word in ["story", "write", "create", "composition", "essay"]):
+            base_response = await self._composition_tutoring(user_input, user_context, "composition")
         elif any(word in user_input_lower for word in ["repeat", "practice", "pronunciation"]):
             base_response = await self._repeat_practice(user_input, user_context)
         elif any(word in user_input_lower for word in ["help", "learn", "teach"]):
@@ -85,15 +87,15 @@ class EnglishModule:
         
         from app.services.curriculum_service import curriculum_service
         phone_number = user_context.get("phone_number", "")
-        current_stage = curriculum_service.get_user_stage(phone_number, "english")
+        current_stage = curriculum_service.get_user_stage(phone_number, "grammar")
         
         assessment = await curriculum_service.assess_student_response(
-            corrected_input, "english", current_stage, "tutoring"
+            corrected_input, "grammar", current_stage, "tutoring"
         )
         
-        curriculum_service.log_assessment(phone_number, "english", current_stage, assessment)
+        curriculum_service.log_assessment(phone_number, "grammar", current_stage, assessment)
         
-        stage_change = curriculum_service.check_stage_advancement(phone_number, "english")
+        stage_change = curriculum_service.check_stage_advancement(phone_number, "grammar")
         
         user_level = user_context.get("english_level", "A1")
         recent_errors = user_context.get("recent_errors", [])
@@ -231,5 +233,69 @@ class EnglishModule:
         except Exception as e:
             print(f"Error in accent recovery: {e}")
             return user_input, ""
+
+    async def _grammar_tutoring(self, user_input: str, user_context: Dict[str, Any], module: str) -> str:
+        """Grammar-focused tutoring with curriculum assessment"""
+        
+        from app.services.language_scaffolding_service import language_scaffolding_service
+        corrected_input, correction_feedback, needs_correction = await language_scaffolding_service.process_with_scaffolding(user_input)
+        
+        from app.services.curriculum_service import curriculum_service
+        phone_number = user_context.get("phone_number", "")
+        current_stage = curriculum_service.get_user_stage(phone_number, module)
+        
+        assessment = await curriculum_service.assess_student_response(
+            corrected_input, module, current_stage, "grammar"
+        )
+        
+        curriculum_service.log_assessment(phone_number, module, current_stage, assessment)
+        stage_change = curriculum_service.check_stage_advancement(phone_number, module)
+        
+        messages = [
+            {"role": "system", "content": "Focus on grammar instruction, error correction, and tense usage. Keep responses under 2 sentences."},
+            {"role": "user", "content": corrected_input}
+        ]
+        
+        if settings.use_llama:
+            response = await llama_service.generate_response(messages, module, "normal", user_context)
+        else:
+            response = await openai_service.generate_response(messages, module)
+        
+        if correction_feedback:
+            response = f"{correction_feedback} {response}"
+        
+        if stage_change:
+            response += f"\n\nGreat progress in grammar! You've advanced to {stage_change} level! 📚"
+        
+        return response
+
+    async def _composition_tutoring(self, user_input: str, user_context: Dict[str, Any], module: str) -> str:
+        """Composition-focused tutoring with creative writing assessment"""
+        
+        from app.services.curriculum_service import curriculum_service
+        phone_number = user_context.get("phone_number", "")
+        current_stage = curriculum_service.get_user_stage(phone_number, module)
+        
+        assessment = await curriculum_service.assess_student_response(
+            user_input, module, current_stage, "composition"
+        )
+        
+        curriculum_service.log_assessment(phone_number, module, current_stage, assessment)
+        stage_change = curriculum_service.check_stage_advancement(phone_number, module)
+        
+        messages = [
+            {"role": "system", "content": "Focus on creative writing, storytelling, and expression. Encourage creativity and cultural storytelling. Keep responses under 2 sentences."},
+            {"role": "user", "content": user_input}
+        ]
+        
+        if settings.use_llama:
+            response = await llama_service.generate_response(messages, module, "normal", user_context)
+        else:
+            response = await openai_service.generate_response(messages, module)
+        
+        if stage_change:
+            response += f"\n\nYour storytelling is improving! You've advanced to {stage_change} level! ✨"
+        
+        return response
 
 english_module = EnglishModule()

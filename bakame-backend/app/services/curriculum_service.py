@@ -9,7 +9,7 @@ from app.config import settings
 
 class CurriculumService:
     def __init__(self):
-        self.modules = ["english", "math", "debate", "comprehension"]
+        self.modules = ["grammar", "composition", "math", "debate", "comprehension"]
         self.bloom_stages = ["remember", "understand", "apply", "analyze", "evaluate", "create"]
         
         self.curriculum_data = self._load_curriculum_data()
@@ -21,13 +21,13 @@ class CurriculumService:
         }
     
     def _load_curriculum_data(self) -> Dict[str, Dict[str, Any]]:
-        """Load curriculum stage data from markdown files"""
+        """Load curriculum stage data from nested folder structure"""
         curriculum = {}
         
         for module in self.modules:
             curriculum[module] = {}
             for stage in self.bloom_stages:
-                file_path = f"/home/ubuntu/repos/mvp/bakame-backend/docs/curriculum/{module}_{stage}.md"
+                file_path = f"/home/ubuntu/repos/mvp/bakame-backend/docs/curriculum/{module}/{stage}.md"
                 if os.path.exists(file_path):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
