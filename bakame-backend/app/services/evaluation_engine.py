@@ -5,7 +5,7 @@ from datetime import datetime
 from app.services.llama_service import llama_service
 from app.services.openai_service import openai_service
 from app.services.redis_service import redis_service
-from app.services.deepgram_service import deepgram_service
+from app.services.mcp_client import mcp_client
 from app.config import settings
 
 class EvaluationEngine:
@@ -302,6 +302,18 @@ class EvaluationEngine:
             module_history[:] = module_history[-50:]
         
         redis_service.set_user_context(phone_number, context)
+        
+        import asyncio
+        asyncio.create_task(mcp_client.log_evaluation(
+            phone_number=phone_number,
+            module=module,
+            stage=stage,
+            user_input=user_input,
+            overall_score=evaluation_result["overall_score"],
+            is_pass=evaluation_result["is_pass"],
+            emotional_state=evaluation_result["emotional_state"],
+            feedback=evaluation_result["feedback"]
+        ))
     
     def check_advancement(self, phone_number: str, module: str) -> Optional[str]:
         """Check if student should advance based on evaluation history"""
