@@ -1,24 +1,19 @@
 # Voice Configuration Documentation
 
-## TTS Voice Selection
+## ElevenLabs Conversational AI Configuration
 
 ### Primary Voice Configuration
-- **Voice**: `aura-2-aries-en` (Deepgram Aura-2)
-- **Characteristics**: Warm, energetic, caring male voice
-- **Rate**: `0.95` (slightly slower for clarity)
-- **Pitch**: `-1st` (deeper pitch for male voice warmth)
-- **Style**: `conversational`
+- **Agent**: ElevenLabs Conversational AI with RAG integration
+- **Voice Settings**: Stability 0.5, Similarity Boost 0.8
+- **Knowledge Base**: Code of the Debater, Chinua, Mental Math materials
+- **Agent Goal**: Guide offline learners through English conversation, debate, grammar, reading comprehension, and mental math
 
 ### Voice Selection Rationale
-The `aura-2-aries-en` voice was selected for its:
-- **Child-friendly tone**: Warm and encouraging for young learners
-- **Cultural appropriateness**: Professional yet approachable for Rwandan context
-- **Clarity**: Excellent pronunciation for English language learning
-- **Emotional range**: Capable of expressing encouragement and patience
-
-### Alternative Male Voices Available
-- `aura-2-arcas-en`: Natural, smooth, clear
-- `aura-2-apollo-en`: Confident, comfortable
+The ElevenLabs conversational AI was selected for its:
+- **Natural conversation**: Human-like interactions for young learners
+- **Educational focus**: Specialized for tutoring and learning assistance
+- **Adaptive responses**: Context-aware based on student progress
+- **Cultural sensitivity**: Configurable for Rwandan educational context
 
 ## Dynamic Temperature Control
 
@@ -62,9 +57,9 @@ When frustration is detected in student responses:
 ## Audio Format Requirements
 
 ### Telephony Standards
-- **Output Format**: 8kHz mono μ-law (PCM u-law)
-- **Source Quality**: 22kHz linear16 from Deepgram
-- **Transcoding**: Automatic conversion via FFmpeg
+- **Output Format**: Audio URLs from ElevenLabs API
+- **Source Quality**: High-quality conversational AI audio
+- **Integration**: Direct audio playback via Twilio `<Play>` verb
 
 ### Quality Assurance
 - **Bit Rate**: Optimized for telephony bandwidth
@@ -89,10 +84,10 @@ if conversation_state == "intro" and len(response) > 100:
 
 ## Fallback Chain
 
-### TTS Provider Hierarchy
-1. **Primary**: Deepgram Aura TTS
-2. **Secondary**: OpenAI TTS (if available)
-3. **Last Resort**: Twilio `<Say>` verb
+### Voice Provider Hierarchy
+1. **Primary**: ElevenLabs Conversational AI
+2. **Secondary**: Twilio `<Say>` verb with fallback message
+3. **Last Resort**: Basic TwiML error handling
 
 ### Fallback Triggers
 - API timeout (>5 seconds)
@@ -116,23 +111,18 @@ if conversation_state == "intro" and len(response) > 100:
 
 ### Required Configuration
 ```bash
-TTS_PROVIDER=deepgram
-TTS_VOICE=aura-2-aries-en
-TTS_RATE=0.95
-TTS_PITCH=-1st
-TTS_STYLE=conversational
+ELEVENLABS_API_KEY=your_elevenlabs_api_key
+MCP_SERVER_URL=http://localhost:8001
 ```
 
-### Optional Overrides
+### ElevenLabs Agent Configuration
 ```bash
-# For testing different voices
-TTS_VOICE_OVERRIDE=aura-2-arcas-en
+# Agent ID in ElevenLabs dashboard
+ELEVENLABS_AGENT_ID=bakame
 
-# For adjusting speech rate
-TTS_RATE_OVERRIDE=1.0
-
-# For development/testing
-TTS_PROVIDER=openai
+# Voice settings
+ELEVENLABS_STABILITY=0.5
+ELEVENLABS_SIMILARITY_BOOST=0.8
 ```
 
 ## Testing and Validation

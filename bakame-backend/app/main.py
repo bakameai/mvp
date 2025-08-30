@@ -105,7 +105,7 @@ async def startup_event():
     """Initialize database tables and validate environment on startup"""
     required_vars = [
         "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER",
-        "OPENAI_API_KEY", "LLAMA_API_KEY", "DEEPGRAM_API_KEY",
+        "OPENAI_API_KEY", "LLAMA_API_KEY", "ELEVENLABS_API_KEY",
         "REDIS_URL", "DATABASE_URL"
     ]
     
@@ -193,10 +193,10 @@ async def healthz():
         health_status["checks"]["openai_api"] = {"status": "unhealthy", "error": str(e)}
     
     try:
-        from app.services.deepgram_service import deepgram_service
-        health_status["checks"]["deepgram_api"] = {"status": "healthy", "note": "Service available"}
+        from app.services.elevenlabs_service import elevenlabs_service
+        health_status["checks"]["elevenlabs_api"] = {"status": "healthy", "note": "Service available"}
     except Exception as e:
-        health_status["checks"]["deepgram_api"] = {"status": "unhealthy", "error": str(e)}
+        health_status["checks"]["elevenlabs_api"] = {"status": "unhealthy", "error": str(e)}
         overall_healthy = False
     
     health_status["status"] = "healthy" if overall_healthy else "unhealthy"

@@ -2,27 +2,19 @@
 """
 Audio format verification script for Twilio compatibility.
 Checks that audio files are mono, 8000 Hz, pcm_mulaw format.
+NOTE: This script is deprecated as BAKAME has transitioned to ElevenLabs conversational AI.
 """
 
 import subprocess
 import sys
 import os
 import asyncio
-from app.services.deepgram_service import deepgram_service
 
 async def generate_test_audio():
-    """Generate a test audio file using Deepgram TTS"""
-    print("Generating test audio file...")
-    try:
-        audio_file = await deepgram_service.text_to_speech(
-            "Hello, this is a test of Twilio-compatible audio format.",
-            call_sid="test",
-            sequence=1
-        )
-        return audio_file
-    except Exception as e:
-        print(f"Error generating test audio: {e}")
-        return None
+    """Generate a test audio file - deprecated after ElevenLabs transition"""
+    print("This script is deprecated after transitioning to ElevenLabs conversational AI.")
+    print("ElevenLabs handles audio format compatibility automatically.")
+    return None
 
 def check_audio_format(file_path):
     """Check audio format using ffprobe"""

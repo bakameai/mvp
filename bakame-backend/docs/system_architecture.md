@@ -42,8 +42,8 @@ The BAKAME IVR system is a comprehensive voice-based learning platform designed 
 ┌─────────────────────────────────────────────────────────────────┐
 │                    AI & External APIs                          │
 ├─────────────┬─────────────┬─────────────┬─────────────────────┤
-│   Llama     │   OpenAI    │  Deepgram   │     Twilio          │
-│   API       │   API       │   TTS/ASR   │     Voice           │
+│   Llama     │   OpenAI    │ ElevenLabs  │     Twilio          │
+│   API       │   API       │ Convai/TTS  │     Voice           │
 └─────────────┴─────────────┴─────────────┴─────────────────────┘
 ```
 
@@ -344,7 +344,7 @@ async def health_check():
         "database": await check_database_connectivity(), 
         "llama_api": await check_llama_api_health(),
         "openai_api": await check_openai_api_health(),
-        "deepgram_api": await check_deepgram_api_health()
+        "elevenlabs_api": await check_elevenlabs_api_health()
     }
     
     overall_status = "healthy" if all(checks.values()) else "degraded"

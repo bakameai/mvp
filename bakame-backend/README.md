@@ -45,7 +45,7 @@ BAKAME transforms basic feature phones into powerful learning tools through AI-p
 - **Backend**: FastAPI (Python 3.12+)
 - **Database**: PostgreSQL with SQLAlchemy ORM
 - **Cache**: Redis for session management and user progression
-- **AI Services**: Llama API (primary), OpenAI GPT-4 (fallback), Deepgram ASR
+- **AI Services**: Llama API (primary), OpenAI GPT-4 (fallback), ElevenLabs Conversational AI
 - **Telephony**: Twilio Voice and SMS with Media Streams
 - **Deployment**: Fly.io with auto-scaling
 
@@ -80,7 +80,7 @@ BAKAME transforms basic feature phones into powerful learning tools through AI-p
 - PostgreSQL database
 - Redis server
 - Twilio account with phone number
-- API keys: Llama, OpenAI, Deepgram
+- API keys: Llama, OpenAI, ElevenLabs
 
 ### Installation
 
@@ -177,7 +177,7 @@ TWILIO_PHONE_NUMBER=your_twilio_number
 # AI Services (Llama primary, OpenAI fallback)
 LLAMA_API_KEY=your_llama_key
 OPENAI_API_KEY=your_openai_key
-DEEPGRAM_API_KEY=your_deepgram_key
+ELEVENLABS_API_KEY=your_elevenlabs_key
 
 # Database & Cache
 DATABASE_URL=postgresql://user:pass@localhost/bakame

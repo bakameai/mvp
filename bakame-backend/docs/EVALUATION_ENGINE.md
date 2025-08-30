@@ -268,7 +268,7 @@ user:{phone_number}:
 3. **Stage Detection**: Current Bloom's taxonomy level
 4. **Prompt Delivery**: YAML-defined IVR prompt
 5. **Response Recording**: Twilio voice capture
-6. **Transcription**: Deepgram ASR processing
+6. **Transcription**: ElevenLabs voice processing
 7. **Multi-Factor Evaluation**: Comprehensive scoring
 8. **Feedback Selection**: Emotionally appropriate response
 9. **Progression Check**: Advancement/demotion logic
@@ -330,7 +330,7 @@ evaluation_engine.py      # Main evaluation orchestration
 llama_service.py          # LLM integration with evaluation context
 curriculum_service.py     # Legacy assessment system integration
 redis_service.py          # Session and progression storage
-deepgram_service.py       # Speech-to-text processing
+elevenlabs_service.py     # ElevenLabs conversational AI integration
 ```
 
 ### Database Schema
@@ -413,7 +413,7 @@ async def test_evaluation_flow():
 
 ### Advanced Features
 
-1. **Voice Emotion Analysis**: Deepgram sentiment API integration
+1. **Voice Emotion Analysis**: ElevenLabs sentiment API integration
 2. **Adaptive Difficulty**: Dynamic schema adjustment based on performance
 3. **Peer Comparison**: Anonymous benchmarking against similar learners
 4. **Cultural Storytelling**: AI-generated Rwandan folktales for comprehension
@@ -443,7 +443,7 @@ async def test_evaluation_flow():
 - **YAML Schema**: Structured evaluation definition format
 - **Redis Session Management**: High-performance user state storage
 - **Twilio Voice API**: Telephony integration for voice interactions
-- **Deepgram ASR**: Advanced speech recognition for evaluation
+- **ElevenLabs AI**: Advanced conversational AI for evaluation
 
 ### Open Educational Resources
 - **Grammar**: Speak English: 30 Days to Better English

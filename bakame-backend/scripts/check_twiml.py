@@ -73,10 +73,10 @@ async def test_fallback_behavior():
     print("\n=== Fallback Behavior Test ===\n")
     
     print("📋 Expected Fallback Chain:")
-    print("   1. Primary: Deepgram Aura TTS → <Play>")
-    print("   2. Secondary: OpenAI TTS → <Play>")
-    print("   3. Last Resort: Twilio <Say>")
-    print("\n⚠️  To test fallback, temporarily disable Deepgram API")
+    print("   1. Primary: ElevenLabs Conversational AI → <Play>")
+    print("   2. Secondary: Twilio <Say> fallback")
+    print("   3. Last Resort: Basic TwiML responses")
+    print("\n⚠️  To test fallback, temporarily disable ElevenLabs API")
 
 async def main():
     """Main verification function"""

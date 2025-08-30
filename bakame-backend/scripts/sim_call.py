@@ -9,7 +9,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from app.services.llama_service import llama_service
 from app.services.openai_service import openai_service
-from app.services.deepgram_service import deepgram_service
+from app.services.elevenlabs_service import elevenlabs_service
 
 async def create_test_audio_samples():
     """Create test audio samples if they don't exist"""

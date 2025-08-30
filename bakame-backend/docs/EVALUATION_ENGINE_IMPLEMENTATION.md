@@ -171,7 +171,7 @@ Comprehensive test suite (`test_evaluation_engine.py`):
 
 ### Data Flow
 1. **IVR Prompt Generation:** Dynamic prompts from YAML schemas
-2. **Student Response:** Voice input transcribed via Deepgram/Whisper
+2. **Student Response:** Voice input transcribed via ElevenLabs Conversational AI
 3. **Multi-Factor Evaluation:** Keyword + Structure + LLM assessment
 4. **Emotional Analysis:** Real-time emotional state detection
 5. **Feedback Selection:** Context-aware response generation

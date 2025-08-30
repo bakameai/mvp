@@ -16,9 +16,9 @@ class ProviderConfig:
                 "current": "whisper"
             },
             ProviderType.TTS: {
-                "primary": "deepgram",
-                "fallback": "coqui_local",
-                "current": "deepgram"
+                "primary": "elevenlabs",
+                "fallback": "twilio_say",
+                "current": "elevenlabs"
             },
             ProviderType.LLM: {
                 "primary": "llama",

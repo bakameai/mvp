@@ -54,7 +54,7 @@ Expected response:
     "database": {"status": "healthy"},
     "llama_api": {"status": "healthy"},
     "openai_api": {"status": "healthy"},
-    "deepgram_api": {"status": "healthy"}
+    "elevenlabs_api": {"status": "healthy"}
   }
 }
 ```
@@ -134,13 +134,12 @@ TWILIO_AUTH_TOKEN=xxxxx
 TWILIO_PHONE_NUMBER=+1234567890
 OPENAI_API_KEY=sk-xxxxx
 LLAMA_API_KEY=xxxxx
-DEEPGRAM_API_KEY=xxxxx
+ELEVENLABS_API_KEY=sk-xxxxx
 REDIS_URL=redis://localhost:6379/0
 DATABASE_URL=postgresql://user:pass@localhost/bakame_db
 
 # Optional provider configuration
 ASR_PROVIDER=whisper  # or whisper_local
-TTS_PROVIDER=deepgram  # or coqui_local
 ```
 
 ### Provider Switching
@@ -153,21 +152,21 @@ export TTS_PROVIDER=coqui_local
 poetry run uvicorn app.main:app --reload
 ```
 
-## TTS Configuration
+## Voice AI Configuration
 
-### Voice Selection
-The system uses Deepgram Aura-2 male voices for warm, kid-friendly speech synthesis.
+### ElevenLabs Conversational AI
+The system uses ElevenLabs Conversational AI with RAG-based knowledge integration for natural, educational conversations.
 
-**Default Configuration:**
-- Voice: `aura-2-aries-en` (warm, energetic, caring male voice)
-- Rate: `0.95` (slightly slower for clarity)
-- Pitch: `-1st` (deeper pitch for male voice warmth)
-- Style: `conversational`
+**Agent Configuration:**
+- Agent ID: `bakame`
+- Goal: Guide offline learners through English conversation, debate, grammar, reading comprehension, and mental math
+- RAG Documents: Code of the Debater, Chinua, Mental Math curriculum
+- Voice Settings: Stability 0.5, Similarity Boost 0.8
 
-**Available Male Voices:**
-- `aura-2-aries-en`: Warm, Energetic, Caring (recommended for kids)
-- `aura-2-arcas-en`: Natural, Smooth, Clear
-- `aura-2-apollo-en`: Confident, Comfortable
+**Features:**
+- Context-aware conversations with student progress tracking
+- Adaptive responses based on learning stage and performance
+- Natural interruption handling and conversational flow
 
 ### Dynamic Temperature Control
 
@@ -206,11 +205,8 @@ The system uses Deepgram Aura-2 male voices for warm, kid-friendly speech synthe
 
 **Environment Variables:**
 ```bash
-TTS_PROVIDER=deepgram
-TTS_VOICE=aura-2-aries-en
-TTS_RATE=0.95
-TTS_PITCH=-1st
-TTS_STYLE=conversational
+ELEVENLABS_API_KEY=sk-xxxxx
+MCP_SERVER_URL=http://localhost:8001
 ```
 
 ### Voice Audition
@@ -255,14 +251,14 @@ This generates audio samples for comparison and creates a report in `docs/VOICE_
 - Logged in analytics with confirmation status
 
 ### Audio Format Requirements
-- **Telephony Standard**: 8kHz mono μ-law (PCM u-law)
-- **Source Quality**: 22kHz linear16 from Deepgram
-- **Transcoding**: Automatic conversion via FFmpeg
+- **ElevenLabs Output**: High-quality audio URLs for direct Twilio playback
+- **Telephony Compatibility**: Automatic format optimization by ElevenLabs
+- **No Transcoding**: Direct audio streaming from ElevenLabs to Twilio
 
 ### Fallback Chain
-1. **Primary**: Deepgram Aura TTS
-2. **Secondary**: OpenAI TTS (if available)
-3. **Last Resort**: Twilio `<Say>` verb
+1. **Primary**: ElevenLabs Conversational AI with audio response
+2. **Secondary**: ElevenLabs text response with Twilio `<Say>`
+3. **Last Resort**: Basic Twilio `<Say>` verb
 
 ### Barge-in Configuration
 - **Sentence Chunking**: Automatic splitting on sentence boundaries
