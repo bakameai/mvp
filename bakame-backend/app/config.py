@@ -9,17 +9,12 @@ class Settings(BaseSettings):
     llama_api_key: str
     use_llama: bool = True
     newsapi_key: str
-    deepgram_api_key: str
+    elevenlabs_api_key: str
     redis_url: str = "redis://localhost:6379/0"
     database_url: str
     app_env: str = "development"
     debug: bool = True
-    
-    tts_provider: str = "deepgram"
-    tts_voice: str = "aura-2-aries-en"
-    tts_rate: float = 0.95
-    tts_pitch: str = "-1st"
-    tts_style: str = "conversational"
+    mcp_server_url: str = "http://localhost:8001"
     
     class Config:
         env_file = ".env"
