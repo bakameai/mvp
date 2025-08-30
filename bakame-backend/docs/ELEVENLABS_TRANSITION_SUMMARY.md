@@ -66,7 +66,7 @@ MCP_SERVER_URL=http://localhost:8001
 
 # MCP Server (.env)
 SUPABASE_URL=https://pttxlvbyvhgvwbakabyc.supabase.co
-SUPABASE_SERVICE_KEY=your_service_role_key_here
+SUPABASE_SERVICE_KEY=your_rotated_service_role_key_here
 ```
 
 ### ElevenLabs Dashboard Setup
