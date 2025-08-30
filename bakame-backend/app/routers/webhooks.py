@@ -246,6 +246,7 @@ async def handle_voice_call(
         
         if current_module_name != "general":
             from app.services.curriculum_service import curriculum_service
+            from app.services.evaluation_engine import evaluation_engine
             current_stage = curriculum_service.get_user_stage(phone_number, current_module_name)
             user_context["curriculum_stage"] = current_stage
         
