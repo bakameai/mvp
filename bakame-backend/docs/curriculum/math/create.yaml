@@ -1,0 +1,48 @@
+stage: create
+module: math
+goal: "Create original mathematical problems and develop personal problem-solving strategies"
+source: "Secrets of Mental Math, Chapter 8-9"
+
+ivr_prompt: |
+  Now you're the teacher! Create a mental math problem for me to solve.
+  Make up a multiplication problem using numbers between 20 and 99, and tell me the best strategy to solve it.
+  Then give me the answer. Be creative!
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "creates original multiplication problem"
+  - "suggests solving strategy"
+  - "provides correct answer"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "creates a valid multiplication problem with appropriate numbers"
+    - "suggests a reasonable mental math strategy"
+    - "provides the correct answer"
+    - "shows creativity and mathematical understanding"
+  
+keywords:
+  positive: ["multiply", "times", "strategy", "round", "break down", "answer", "equals", "method"]
+  negative: ["don't know", "too hard", "can't think"]
+
+feedback_templates:
+  pass: "Fantastic problem creation! You made a good problem and explained a smart strategy to solve it."
+  fail_hint: "Try creating a problem like '34 × 25' and think about how to make it easier with rounding or breaking down."
+  fail_repeat: "Good effort! Remember to give me the numbers to multiply, a strategy, and the final answer."
+  encouragement: "Creating problems is the highest level of math thinking! You're becoming a math teacher!"
+
+emotional_responses:
+  hesitation: "Think of two numbers you'd like to multiply. Maybe something like 45 × 12? What strategy would work?"
+  confusion: "Here's an example: '48 × 25. Strategy: 48 × 25 = 50 × 25 - 2 × 25 = 1250 - 50 = 1200.'"
+  frustration: "Creating your own problems shows you really understand math! You're at the expert level!"
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

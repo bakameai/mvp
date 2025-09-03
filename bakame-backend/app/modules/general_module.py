@@ -23,11 +23,6 @@ class GeneralModule:
         
         user_input_lower = user_input.lower()
         
-        if not user_context.get("user_name"):
-            user_context["user_name"] = user_input.strip()
-            from app.services.redis_service import redis_service
-            redis_service.set_user_context(user_context.get("phone_number", ""), user_context)
-            return f"Nice to meet you, {user_input.strip()}! I can help with English, Math, Reading, and Debate. What would you like to try?"
         
         if any(word in user_input_lower for word in ["bye", "goodbye", "stop", "quit", "done"]):
             return f"Want to keep learning or stop for now? You did great today, {user_context.get('user_name', 'friend')}. I'll be here next time you call."
@@ -128,12 +123,12 @@ class GeneralModule:
         return response + "\n\nJust say what you'd like to try, like 'English' or 'Math'. Ni iki gikureba uyu munsi? (What interests you today?)"
     
     async def get_welcome_message(self, user_context: Dict[str, Any] = None) -> str:
-        """Get welcome message for General module - ask for name first"""
+        """Get welcome message for General module with personalization"""
         user_name = user_context.get("user_name") if user_context else None
         
-        if not user_name:
-            return "Hello! I'm Bakame, your learning helper. What's your name?"
+        if user_name and user_name != "Friend":
+            return f"Muraho neza, {user_name}! Welcome back, my friend. I'm excited to practice with you today. What would you like to learn?"
         else:
-            return f"Hello {user_name}! I can help with English, Math, Reading, and Debate. What would you like to try?"
+            return "Muraho neza! Welcome to BAKAME! I'm excited to help you learn today. What would you like to practice? Say ENGLISH, MATH, STORIES, or DEBATE."
 
 general_module = GeneralModule()

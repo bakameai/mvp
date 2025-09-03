@@ -1,0 +1,47 @@
+stage: apply
+module: grammar
+goal: "Use correct grammar structures in new contexts and situations"
+source: "Speak English: 30 Days to Better English, Chapter 5-7"
+
+ivr_prompt: |
+  Now let's practice using grammar in real situations. Tell me about what you did yesterday. 
+  Use at least two sentences and make sure to use past tense verbs. What did you do yesterday?
+
+expected_structure:
+  - "≥2 complete sentences"
+  - "1+ past tense verbs"
+  - "no future tense mixing"
+  - "clear narrative flow"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "uses past tense verbs correctly (went, played, ate, etc.)"
+    - "provides at least 2 complete sentences"
+    - "no conflicting tenses (avoid 'will' or 'going to')"
+    - "demonstrates practical grammar application"
+  
+keywords:
+  positive: ["went", "played", "ate", "walked", "talked", "worked", "studied", "helped", "visited"]
+  negative: ["will", "going to", "tomorrow", "next", "future"]
+
+feedback_templates:
+  pass: "Great job! You told a clear story using past tense. Your grammar is improving!"
+  fail_hint: "Remember to use past tense when talking about yesterday. Try using words like 'went' or 'played'."
+  fail_repeat: "Good effort! Let's practice: instead of 'I go', say 'I went'. Try telling me again."
+  encouragement: "You're making progress! Grammar takes practice, and you're doing well."
+
+emotional_responses:
+  hesitation: "Think about actions you did yesterday. Use words like 'went', 'ate', or 'played'."
+  confusion: "Let me give you an example: 'Yesterday I went to the market and bought food.' Now you try!"
+  frustration: "Don't worry! Even native speakers make grammar mistakes. You're learning and improving."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

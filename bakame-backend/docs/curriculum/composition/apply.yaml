@@ -1,0 +1,47 @@
+stage: apply
+module: composition
+goal: "Apply storytelling techniques to create character descriptions and scenes"
+source: "Things Fall Apart, Chapters 7-9"
+
+ivr_prompt: |
+  Now let's apply what you've learned about character development. Create a short description of a person in your community.
+  Like Achebe describes Okonkwo, tell me about their personality, what they do, and what motivates them.
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "describes character traits"
+  - "mentions actions/occupation"
+  - "explains motivation"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "creates a clear character description"
+    - "includes personality traits and actions"
+    - "attempts to explain character motivation"
+    - "shows application of storytelling techniques"
+  
+keywords:
+  positive: ["because", "wants", "tries", "works", "believes", "fears", "hopes", "character"]
+  negative: ["don't know", "can't think", "boring"]
+
+feedback_templates:
+  pass: "Wonderful character creation! You described their traits, actions, and motivations just like a real author."
+  fail_hint: "Think of someone you know. What do they do? Why do they do it? What drives them?"
+  fail_repeat: "Good start! Try adding why this person acts the way they do. What motivates them?"
+  encouragement: "Creating characters is what authors do! You're applying storytelling skills."
+
+emotional_responses:
+  hesitation: "Think about a teacher, shopkeeper, or family member. What makes them unique?"
+  confusion: "Here's a structure: 'My neighbor is... She works as... She does this because she wants...'"
+  frustration: "Character creation takes practice! You're learning the craft of storytelling."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

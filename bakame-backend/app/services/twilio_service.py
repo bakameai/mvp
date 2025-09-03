@@ -4,8 +4,9 @@ from twilio.twiml.voice_response import VoiceResponse
 from twilio.twiml.messaging_response import MessagingResponse
 import requests
 import os
+import asyncio
 from app.config import settings
-from app.services.deepgram_service import deepgram_service
+from app.services.elevenlabs_service import elevenlabs_service
 from app.services.openai_service import openai_service
 
 class TwilioService:
@@ -13,25 +14,61 @@ class TwilioService:
         self.client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
         self.phone_number = settings.twilio_phone_number
     
-    async def create_voice_response(self, message: str, gather_input: bool = True) -> str:
-        """Create TwiML voice response using Twilio Say verb"""
+    async def create_voice_response(self, message: str, gather_input: bool = True, call_sid: str = None, user_context: Dict[str, Any] = None, **kwargs) -> str:
+        """Create TwiML voice response with ElevenLabs audio"""
         response = VoiceResponse()
         
         try:
-            if gather_input:
-                gather = response.gather(
-                    input='speech',
-                    timeout=10,
-                    speech_timeout='auto',
-                    action='/webhook/voice/process',
-                    method='POST'
-                )
-                gather.say(message, voice='man', language='en-US')
-                response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
-                response.redirect('/webhook/voice/process')
+            from app.services.redis_service import redis_service
+            user_context = user_context or {}
+            phone_number = user_context.get("phone_number", "")
+            
+            conversation_id = redis_service.get_session_data(call_sid, "elevenlabs_conversation_id")
+            if not conversation_id:
+                conversation_id = await elevenlabs_service.create_conversation(phone_number, user_context)
+                if conversation_id:
+                    redis_service.set_session_data(call_sid, "elevenlabs_conversation_id", conversation_id, ttl=3600)
+            
+            if conversation_id:
+                audio_url = await elevenlabs_service.send_message(conversation_id, message)
+                
+                if gather_input:
+                    gather = response.gather(
+                        input='speech',
+                        timeout=10,
+                        speech_timeout='auto',
+                        action='/webhook/voice/process',
+                        method='POST'
+                    )
+                    
+                    if audio_url:
+                        gather.play(audio_url)
+                    else:
+                        gather.say(message, voice='man', language='en-US')
+                    
+                    response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
+                    response.redirect('/webhook/voice/process')
+                else:
+                    if audio_url:
+                        response.play(audio_url)
+                    else:
+                        response.say(message, voice='man', language='en-US')
+                    response.hangup()
             else:
-                response.say(message, voice='man', language='en-US')
-                response.hangup()
+                if gather_input:
+                    gather = response.gather(
+                        input='speech',
+                        timeout=10,
+                        speech_timeout='auto',
+                        action='/webhook/voice/process',
+                        method='POST'
+                    )
+                    gather.say(message, voice='man', language='en-US')
+                    response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
+                    response.redirect('/webhook/voice/process')
+                else:
+                    response.say(message, voice='man', language='en-US')
+                    response.hangup()
                     
         except Exception as e:
             print(f"Error in voice response generation: {e}")
@@ -51,6 +88,14 @@ class TwilioService:
                 response.hangup()
         
         return str(response)
+    
+    def _get_audio_url(self, audio_file_path: str) -> str:
+        """Generate URL for audio file that Twilio can access"""
+        relative_path = audio_file_path.replace('/tmp/', '')
+        
+        base_url = "https://app-lfzepwvu.fly.dev"
+        return f"{base_url}/{relative_path}"
+    
     
     def create_sms_response(self, message: str) -> str:
         """Create TwiML SMS response"""

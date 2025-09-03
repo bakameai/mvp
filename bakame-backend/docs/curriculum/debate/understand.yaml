@@ -1,0 +1,48 @@
+stage: understand
+module: debate
+goal: "Understand the difference between facts, opinions, and logical reasoning"
+source: "Code of the Debater, Chapters 3-4"
+
+ivr_prompt: |
+  Let's understand different types of statements. I'll give you three statements:
+  1. "Rwanda has 12 million people" 2. "Rwanda is the best country in Africa" 3. "Rwanda's population growth helps its economy"
+  Can you explain which is fact, which is opinion, and which is reasoning?
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "identifies fact vs opinion vs reasoning"
+  - "explains the differences"
+  - "shows understanding of logic types"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "correctly identifies statement 1 as fact (verifiable)"
+    - "identifies statement 2 as opinion (subjective judgment)"
+    - "identifies statement 3 as reasoning (cause-effect relationship)"
+    - "explains why each category applies"
+  
+keywords:
+  positive: ["fact", "opinion", "reasoning", "prove", "believe", "because", "verifiable", "subjective"]
+  negative: ["all same", "don't know", "confused"]
+
+feedback_templates:
+  pass: "Excellent understanding! You correctly identified facts (provable), opinions (beliefs), and reasoning (connections)."
+  fail_hint: "Think: Can you prove it with numbers? That's fact. Is it what someone believes? That's opinion. Does it explain why? That's reasoning."
+  fail_repeat: "Good try! #1 is fact (can be counted), #2 is opinion (personal belief), #3 is reasoning (explains connection)."
+  encouragement: "Understanding different types of statements is crucial for good debate!"
+
+emotional_responses:
+  hesitation: "Take it step by step. Which statement can you verify with data? Which is someone's personal view?"
+  confusion: "Let me help: Facts can be proven, opinions are personal beliefs, reasoning explains how things connect."
+  frustration: "These distinctions are tricky even for adults! You're learning critical thinking skills."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

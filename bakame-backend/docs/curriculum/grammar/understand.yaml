@@ -1,0 +1,47 @@
+stage: understand
+module: grammar
+goal: "Comprehend and explain basic English grammar rules and their applications"
+source: "Speak English: 30 Days to Better English, Chapters 4-5"
+
+ivr_prompt: |
+  Let's check your understanding of grammar rules. I'll give you a sentence and you explain why it's correct or incorrect.
+  "She have three books." Can you tell me what's wrong with this sentence and how to fix it?
+
+expected_structure:
+  - "≥1 complete explanation"
+  - "identifies subject-verb agreement error"
+  - "provides correct form"
+  - "shows understanding of rule"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "recognizes subject-verb agreement problem"
+    - "mentions 'has' instead of 'have'"
+    - "explains the rule about singular/plural"
+    - "demonstrates understanding of grammar concept"
+  
+keywords:
+  positive: ["has", "singular", "plural", "agreement", "subject", "verb", "wrong", "should be"]
+  negative: ["don't know", "correct", "fine", "good"]
+
+feedback_templates:
+  pass: "Excellent! You understand subject-verb agreement. 'She has' is correct because 'she' is singular."
+  fail_hint: "Think about the subject 'she'. Is it singular or plural? What verb form goes with singular subjects?"
+  fail_repeat: "Good try! Remember: 'she' is singular, so we use 'has' not 'have'. Let's practice more."
+  encouragement: "Grammar rules can be tricky! You're learning step by step."
+
+emotional_responses:
+  hesitation: "Take your time. Think about whether 'she' is one person or many people."
+  confusion: "Let me help: 'She' is singular (one person), so we say 'she has' not 'she have'."
+  frustration: "Don't worry! Even native speakers make these mistakes. You're doing great!"
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

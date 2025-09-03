@@ -1,0 +1,48 @@
+stage: remember
+module: comprehension
+goal: "Recall key information and main ideas from spoken content"
+source: "The Art of Public Speaking, Chapters 1-2"
+
+ivr_prompt: |
+  I'll tell you about effective communication, then ask you to remember the key points.
+  "Good speakers use three tools: clear voice, eye contact, and organized ideas. They practice beforehand and connect with their audience."
+  What are the main points I just mentioned?
+
+expected_structure:
+  - "≥2 complete sentences"
+  - "recalls specific details"
+  - "identifies main points"
+  - "shows listening comprehension"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "recalls the three tools: voice, eye contact, organization"
+    - "mentions practice and audience connection"
+    - "demonstrates active listening"
+    - "shows comprehension of main ideas"
+  
+keywords:
+  positive: ["voice", "eye contact", "organized", "practice", "audience", "connect", "three tools"]
+  negative: ["don't remember", "forgot", "wasn't listening"]
+
+feedback_templates:
+  pass: "Excellent listening! You remembered the three tools and the importance of practice and audience connection."
+  fail_hint: "Think back: I mentioned three specific tools good speakers use, plus two other important things they do."
+  fail_repeat: "Good try! The main points were: clear voice, eye contact, organized ideas, practice, and connecting with audience."
+  encouragement: "Good listening skills are the foundation of comprehension!"
+
+emotional_responses:
+  hesitation: "Take your time. Think about what makes a good speaker. What tools did I mention?"
+  confusion: "Let me help you focus: three tools (voice, eyes, organization) plus two actions (practice, connect)."
+  frustration: "Remembering spoken information takes concentration! You're developing important listening skills."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

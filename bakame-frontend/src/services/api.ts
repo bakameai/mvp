@@ -138,23 +138,6 @@ export const authAPI = {
     };
   },
 
-  async submitEarlyAccess(data: any): Promise<any> {
-    try {
-      const response = await api.post('/api/early-access', data);
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      return { success: false, error: error.response?.data?.detail || error.message };
-    }
-  },
-
-  async submitContactForm(data: any): Promise<any> {
-    try {
-      const response = await api.post('/api/contact', data);
-      return { success: true, data: response.data };
-    } catch (error: any) {
-      return { success: false, error: error.response?.data?.detail || error.message };
-    }
-  },
 
   async sendIVRMessage(messageData: any): Promise<any> {
     const response = await api.post('/api/ivr/message', messageData);
@@ -248,6 +231,19 @@ export const rateLimitAPI = {
 export const adminAPI = {
   async getAdminStats(): Promise<any> {
     const response = await api.get('/admin/stats');
+    return response.data;
+  },
+
+  async getIVRStats(): Promise<any> {
+    const response = await api.get('/admin/ivr-stats');
+    return response.data;
+  },
+
+  async getUserSessions(phoneNumber?: string, limit: number = 100): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (phoneNumber) params.append('phone_number', phoneNumber);
+    params.append('limit', limit.toString());
+    const response = await api.get(`/admin/sessions?${params.toString()}`);
     return response.data;
   },
 

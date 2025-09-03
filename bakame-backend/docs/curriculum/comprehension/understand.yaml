@@ -1,0 +1,47 @@
+stage: understand
+module: comprehension
+goal: "Understand underlying meanings and implications in spoken communication"
+source: "The Art of Public Speaking, Chapters 3-4"
+
+ivr_prompt: |
+  Listen to this scenario: "A student gives a presentation but speaks very quietly, looks at the floor, and jumps between topics randomly."
+  What do you think this tells us about the student? What might be the underlying issues here?
+
+expected_structure:
+  - "≥2 complete sentences"
+  - "identifies underlying issues"
+  - "explains implications"
+  - "shows deeper understanding"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "identifies nervousness or lack of confidence"
+    - "recognizes poor preparation or organization"
+    - "understands connection between behavior and feelings"
+    - "demonstrates insight into communication psychology"
+  
+keywords:
+  positive: ["nervous", "scared", "unprepared", "confidence", "practice", "anxiety", "afraid"]
+  negative: ["bad person", "stupid", "don't care", "lazy"]
+
+feedback_templates:
+  pass: "Great understanding! You see that the behavior suggests nervousness and possibly lack of preparation."
+  fail_hint: "Think about why someone might speak quietly and avoid eye contact. What feelings might cause this behavior?"
+  fail_repeat: "Good thinking! The student seems nervous or unprepared, which affects their speaking confidence."
+  encouragement: "Understanding the psychology behind communication shows deep comprehension!"
+
+emotional_responses:
+  hesitation: "Consider how you feel when you're nervous. How might that affect how you speak or stand?"
+  confusion: "Think about it: quiet voice + looking down + jumping topics = what emotional state?"
+  frustration: "Reading between the lines is advanced thinking! You're developing emotional intelligence."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

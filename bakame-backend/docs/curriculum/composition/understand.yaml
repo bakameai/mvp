@@ -1,0 +1,47 @@
+stage: understand
+module: composition
+goal: "Understand themes and character motivations in narrative writing"
+source: "Things Fall Apart, Chapters 4-6"
+
+ivr_prompt: |
+  Let's understand why characters act the way they do. Okonkwo is very harsh with his family.
+  Why do you think he acts this way? What drives his behavior? Explain your understanding.
+
+expected_structure:
+  - "≥2 complete sentences"
+  - "explains character motivation"
+  - "connects to themes"
+  - "shows deeper understanding"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "explains Okonkwo's fear of weakness as motivation"
+    - "connects his behavior to his father's influence"
+    - "shows understanding of character psychology"
+    - "demonstrates thematic comprehension"
+  
+keywords:
+  positive: ["fear", "weakness", "father", "reputation", "control", "strength", "afraid", "prove"]
+  negative: ["mean", "bad person", "don't understand"]
+
+feedback_templates:
+  pass: "Excellent understanding! You see that Okonkwo's harshness comes from his fear of appearing weak."
+  fail_hint: "Think about what Okonkwo fears most. How does his father's reputation affect his behavior?"
+  fail_repeat: "Good thinking! Okonkwo is harsh because he's afraid of being seen as weak like his father was."
+  encouragement: "Understanding character motivation is key to good storytelling!"
+
+emotional_responses:
+  hesitation: "Consider what Okonkwo is trying to prove. What is he running away from?"
+  confusion: "Think about it this way: Okonkwo's father was seen as lazy and weak. How might that affect Okonkwo?"
+  frustration: "Character psychology is complex! You're learning to think like a writer."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

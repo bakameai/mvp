@@ -19,7 +19,9 @@ class LoggingService:
                 writer.writerow([
                     'timestamp', 'phone_number', 'session_id', 'module_name',
                     'interaction_type', 'user_input', 'ai_response', 'session_duration',
-                    'emotional_data', 'gamification_data'
+                    'emotional_data', 'gamification_data', 'call_id', 'turn', 
+                    'asr_ms', 'llm_ms', 'tts_ms', 'total_ms', 'tokens_in', 
+                    'tokens_out', 'asr_confidence', 'error'
                 ])
     
     async def log_interaction(self, 
@@ -79,19 +81,34 @@ class LoggingService:
             print(f"Error logging to PostgreSQL: {e}")
         
         try:
+            from app.utils.redact import pii_redactor
+            
+            redacted_user_input = pii_redactor.redact_text(user_input)
+            redacted_ai_response = pii_redactor.redact_text(ai_response)
+            
             with open(self.csv_file_path, 'a', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
                 writer.writerow([
                     timestamp.isoformat(),
-                    phone_number,
+                    phone_number,  # Keep for record joining
                     session_id,
                     module_name,
                     interaction_type,
-                    user_input,
-                    ai_response,
+                    redacted_user_input,
+                    redacted_ai_response,
                     session_duration,
                     str(emotional_data) if emotional_data else "",
-                    str(gamification_data) if gamification_data else ""
+                    str(gamification_data) if gamification_data else "",
+                    "",  # call_id
+                    "",  # turn
+                    "",  # asr_ms
+                    "",  # llm_ms
+                    "",  # tts_ms
+                    "",  # total_ms
+                    "",  # tokens_in
+                    "",  # tokens_out
+                    "",  # asr_confidence
+                    ""   # error
                 ])
         except Exception as e:
             print(f"Error logging to CSV: {e}")
@@ -181,5 +198,49 @@ class LoggingService:
         except Exception as e:
             print(f"Error getting user sessions: {e}")
             return []
+    
+    async def log_turn_metrics(self,
+                              call_id: str,
+                              turn: int,
+                              phone_number: str,
+                              asr_ms: float = 0,
+                              llm_ms: float = 0,
+                              tts_ms: float = 0,
+                              tokens_in: int = 0,
+                              tokens_out: int = 0,
+                              asr_confidence: float = 0,
+                              error: str = None):
+        """Log per-turn metrics for observability"""
+        
+        timestamp = datetime.utcnow()
+        total_ms = asr_ms + llm_ms + tts_ms
+        
+        try:
+            with open(self.csv_file_path, 'a', newline='', encoding='utf-8') as file:
+                writer = csv.writer(file)
+                writer.writerow([
+                    timestamp.isoformat(),
+                    phone_number,
+                    call_id,
+                    "metrics",  # module_name
+                    "turn_metrics",  # interaction_type
+                    "",  # user_input
+                    "",  # ai_response
+                    total_ms / 1000,  # session_duration in seconds
+                    "",  # emotional_data
+                    "",  # gamification_data
+                    call_id,
+                    turn,
+                    asr_ms,
+                    llm_ms,
+                    tts_ms,
+                    total_ms,
+                    tokens_in,
+                    tokens_out,
+                    asr_confidence,
+                    error or ""
+                ])
+        except Exception as e:
+            print(f"Error logging turn metrics: {e}")
 
 logging_service = LoggingService()

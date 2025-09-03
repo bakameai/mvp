@@ -9,11 +9,12 @@ class Settings(BaseSettings):
     llama_api_key: str
     use_llama: bool = True
     newsapi_key: str
-    deepgram_api_key: str
+    elevenlabs_api_key: str
     redis_url: str = "redis://localhost:6379/0"
     database_url: str
     app_env: str = "development"
     debug: bool = True
+    mcp_server_url: str = "https://bakame-elevenlabs-mcp-myaxhewi.fly.dev"
     
     class Config:
         env_file = ".env"

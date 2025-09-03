@@ -1,43 +1,76 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Building2, TrendingUp, Activity } from "lucide-react";
+import { Users, Building2, TrendingUp, Activity, Phone, BookOpen, Clock, Target, Mic, MessageSquare, GraduationCap, BarChart3 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { adminAPI } from "@/services/api";
 import { UserProfile } from "@/pages/AdminDashboard";
+import { StatCard } from "./StatCard";
+import { ActivityFeed } from "./ActivityFeed";
+import { QuickActions } from "./QuickActions";
+import { WelcomeSection } from "./WelcomeSection";
+import { ProfileCard } from "./ProfileCard";
+import { DataChart } from "./DataChart";
 
 interface DashboardStatsProps {
   userProfile: UserProfile;
+  onActionClick?: (action: string) => void;
 }
 
-export const DashboardStats = ({ userProfile }: DashboardStatsProps) => {
+export const DashboardStats = ({ userProfile, onActionClick }: DashboardStatsProps) => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalOrganizations: 0,
     activeUsers: 0,
     newUsersThisMonth: 0,
+    totalIVRSessions: 0,
+    voiceSessions: 0,
+    smsSessions: 0,
+    recentSessions24h: 0,
+    averageSessionDuration: 0,
+    peerLearningSessions: 0,
+    activePeerSessions: 0,
+    moduleStats: {} as Record<string, number>,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Only admins can see all user stats
         if (userProfile.role === 'admin') {
-          const adminStats = await adminAPI.getAdminStats();
+          const [adminStats, ivrStats] = await Promise.all([
+            adminAPI.getAdminStats(),
+            adminAPI.getIVRStats()
+          ]);
           
           setStats({
             totalUsers: adminStats.total_users || 0,
-            totalOrganizations: adminStats.total_organizations || 0,
+            totalOrganizations: adminStats.organizations || 0,
             activeUsers: adminStats.active_users || 0,
             newUsersThisMonth: adminStats.new_users_this_month || 0,
+            totalIVRSessions: ivrStats.total_ivr_sessions || 0,
+            voiceSessions: ivrStats.voice_sessions || 0,
+            smsSessions: ivrStats.sms_sessions || 0,
+            recentSessions24h: ivrStats.recent_sessions_24h || 0,
+            averageSessionDuration: ivrStats.average_session_duration || 0,
+            peerLearningSessions: ivrStats.peer_learning_sessions || 0,
+            activePeerSessions: ivrStats.active_peer_sessions || 0,
+            moduleStats: ivrStats.module_statistics || {},
           });
         } else {
-          // For non-admin users, show limited stats
           setStats({
-            totalUsers: 1, // Just themselves
-            totalOrganizations: 1, // Their organization
+            totalUsers: 1,
+            totalOrganizations: 1,
             activeUsers: 1,
             newUsersThisMonth: 0,
+            totalIVRSessions: 0,
+            voiceSessions: 0,
+            smsSessions: 0,
+            recentSessions24h: 0,
+            averageSessionDuration: 0,
+            peerLearningSessions: 0,
+            activePeerSessions: 0,
+            moduleStats: {},
           });
         }
       } catch (error) {
@@ -52,32 +85,52 @@ export const DashboardStats = ({ userProfile }: DashboardStatsProps) => {
 
   const statCards = [
     {
-      title: "Total Users",
-      value: stats.totalUsers,
-      icon: Users,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
+      title: "Total IVR Sessions",
+      value: stats.totalIVRSessions,
+      icon: Phone,
+      iconColor: "blue" as const,
     },
     {
-      title: "Organizations",
-      value: stats.totalOrganizations,
-      icon: Building2,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
+      title: "Voice Interactions",
+      value: stats.voiceSessions,
+      icon: Mic,
+      iconColor: "green" as const,
     },
     {
-      title: "Active Users",
-      value: stats.activeUsers,
-      icon: Activity,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50",
+      title: "SMS Interactions", 
+      value: stats.smsSessions,
+      icon: MessageSquare,
+      iconColor: "purple" as const,
     },
     {
-      title: "New This Month",
-      value: stats.newUsersThisMonth,
+      title: "Avg Duration (min)",
+      value: stats.averageSessionDuration,
+      icon: Clock,
+      iconColor: "orange" as const,
+    },
+    {
+      title: "Recent Sessions (24h)",
+      value: stats.recentSessions24h,
       icon: TrendingUp,
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
+      iconColor: "blue" as const,
+    },
+    {
+      title: "Peer Learning Sessions",
+      value: stats.peerLearningSessions,
+      icon: Users,
+      iconColor: "green" as const,
+    },
+    {
+      title: "Active Peer Sessions",
+      value: stats.activePeerSessions,
+      icon: Activity,
+      iconColor: "purple" as const,
+    },
+    {
+      title: "Total Students",
+      value: stats.totalUsers,
+      icon: GraduationCap,
+      iconColor: "orange" as const,
     },
   ];
 
@@ -97,80 +150,70 @@ export const DashboardStats = ({ userProfile }: DashboardStatsProps) => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.title}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  </div>
-                  <div className={`${stat.bgColor} p-3 rounded-full`}>
-                    <Icon className={`h-6 w-6 ${stat.color}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+    <>
+      {/* IVR Learning System Dashboard */}
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-foreground mb-6 flex items-center gap-3 animate-fade-in">
+          <Phone className="h-10 w-10 text-stat-blue" />
+          📞 BAKAME IVR Learning System
+          <Badge variant="secondary" className="animate-pulse-glow bg-stat-green/20 text-stat-green border-stat-green/30 text-sm px-3 py-1">
+            🔴 Live Data
+          </Badge>
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.slice(0, 4).map((stat, index) => (
+            <div key={index} style={{ animationDelay: `${index * 0.1}s` }}>
+              <StatCard
+                title={stat.title}
+                value={stat.value}
+                icon={stat.icon}
+                iconColor={stat.iconColor}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome to Bakame AI Dashboard</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 mb-4">
-              Manage your AI-powered applications and user base from this central dashboard.
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                Monitor user activity and engagement
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                Manage organizations and partnerships
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
-                Configure system settings and preferences
-              </div>
+      {/* Session Analytics & Peer Learning */}
+      <div className="mb-8">
+        <h3 className="text-2xl font-semibold text-foreground mb-4 flex items-center gap-2 animate-fade-in">
+          <BarChart3 className="h-8 w-8 text-stat-purple" />
+          📊 Session Analytics & Peer Learning
+          <Badge variant="outline" className="bg-stat-purple/10 text-stat-purple border-stat-purple/30">
+            Real-time
+          </Badge>
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.slice(4).map((stat, index) => (
+            <div key={index + 4} style={{ animationDelay: `${(index + 4) * 0.1}s` }}>
+              <StatCard
+                title={stat.title}
+                value={stat.value}
+                icon={stat.icon}
+                iconColor={stat.iconColor}
+              />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Profile</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-gray-500">Name</label>
-                <p className="font-medium">{userProfile.full_name || 'Not set'}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Email</label>
-                <p className="font-medium">{userProfile.email}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Role</label>
-                <p className="font-medium capitalize">{userProfile.role}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Organization</label>
-                <p className="font-medium">{userProfile.organization || 'Not set'}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
       </div>
-    </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <DataChart />
+        <DataChart />
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          <WelcomeSection />
+          <ActivityFeed />
+        </div>
+        <div className="space-y-6">
+          <ProfileCard userProfile={userProfile} />
+          <QuickActions onActionClick={onActionClick || (() => {})} />
+        </div>
+      </div>
+    </>
   );
 };

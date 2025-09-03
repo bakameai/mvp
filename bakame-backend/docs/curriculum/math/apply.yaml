@@ -1,0 +1,48 @@
+stage: apply
+module: math
+goal: "Apply mental math techniques to solve real-world problems"
+source: "Secrets of Mental Math, Chapter 2-3"
+
+ivr_prompt: |
+  Let's practice mental math with a real situation. You're at the market in Kigali. 
+  You bought 3 pineapples at 450 francs each, and you paid with 2000 francs. 
+  How much change should you get? Tell me your answer and how you figured it out.
+
+expected_structure:
+  - "correct final answer (650 francs)"
+  - "shows calculation steps"
+  - "demonstrates mental math process"
+  - "clear explanation"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "arrives at correct answer: 650 francs"
+    - "shows multiplication: 3 × 450 = 1350"
+    - "shows subtraction: 2000 - 1350 = 650"
+    - "explains thinking process clearly"
+  
+keywords:
+  positive: ["650", "1350", "multiply", "times", "subtract", "change", "francs"]
+  negative: ["don't know", "can't", "too hard", "impossible"]
+
+feedback_templates:
+  pass: "Excellent! You got 650 francs change. Your mental math skills are strong!"
+  fail_hint: "Let's break it down: first multiply 3 × 450, then subtract from 2000. What do you get?"
+  fail_repeat: "Good try! Remember: 3 pineapples × 450 francs = 1350 francs total. Then 2000 - 1350 = ?"
+  encouragement: "Math can be challenging, but you're thinking through it step by step. That's great!"
+
+emotional_responses:
+  hesitation: "Take it step by step. First, how much do 3 pineapples cost in total?"
+  confusion: "Let me help: 3 × 450 = 1350. Now subtract 1350 from 2000. What's left?"
+  frustration: "You can do this! Break big problems into smaller steps. That's what good mathematicians do."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

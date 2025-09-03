@@ -1,0 +1,49 @@
+stage: evaluate
+module: debate
+goal: "Evaluate arguments and form reasoned opinions on important topics"
+source: "Code of the Debater, Chapter 4-5"
+
+ivr_prompt: |
+  Let's discuss an important topic. Should students in Rwanda wear school uniforms? 
+  Give me one reason FOR uniforms and one reason AGAINST uniforms. 
+  Then tell me your personal opinion and why you think that way.
+
+expected_structure:
+  - "one argument for uniforms"
+  - "one argument against uniforms"
+  - "clear personal position"
+  - "reasoning for opinion"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "provides argument supporting uniforms"
+    - "provides argument opposing uniforms"
+    - "states clear personal opinion"
+    - "uses reasoning connectors (because, however, but)"
+    - "demonstrates balanced thinking"
+  
+keywords:
+  positive: ["because", "however", "but", "think", "believe", "opinion", "reason", "equality", "cost", "identity"]
+  negative: ["don't know", "maybe", "not sure", "whatever"]
+
+feedback_templates:
+  pass: "Excellent reasoning! You considered both sides and formed your own thoughtful opinion."
+  fail_hint: "Try to think of one good thing about uniforms and one problem with uniforms. Then tell me what you think."
+  fail_repeat: "Good start! Remember to give reasons for your opinion. Use words like 'because' to explain your thinking."
+  encouragement: "Thinking about different sides of an issue is what good debaters do. You're developing critical thinking!"
+
+emotional_responses:
+  hesitation: "There's no wrong answer here. Think about your own school experience. What do you notice about uniforms?"
+  confusion: "Let me help: uniforms might help with equality, but they might limit self-expression. What do you think?"
+  frustration: "This is challenging thinking! You're learning to analyze complex issues like adults do."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

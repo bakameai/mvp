@@ -77,7 +77,33 @@ class ComprehensionModule:
         if current_story and current_question_index < len(current_story.get("questions", [])):
             return await self._check_comprehension_answer(user_input, current_story, current_question_index, user_context)
         
-        return await self._start_new_story(user_context)
+        return await self._evaluation_based_tutoring(user_input, user_context)
+    
+    async def _evaluation_based_tutoring(self, user_input: str, user_context: Dict[str, Any]) -> str:
+        """Comprehension tutoring using evaluation engine assessment"""
+        
+        from app.services.evaluation_engine import evaluation_engine
+        phone_number = user_context.get("phone_number", "")
+        current_stage = user_context.get("curriculum_stage", "remember")
+        
+        if not user_context.get("evaluation_prompt_given"):
+            ivr_prompt = evaluation_engine.get_ivr_prompt("comprehension", current_stage, user_context)
+            user_context["evaluation_prompt_given"] = True
+            return ivr_prompt
+        
+        evaluation = await evaluation_engine.evaluate_response(
+            user_input, "comprehension", current_stage, user_context
+        )
+        
+        evaluation_engine.log_evaluation(phone_number, "comprehension", current_stage, evaluation, user_input)
+        advancement = evaluation_engine.check_advancement(phone_number, "comprehension")
+        
+        response = evaluation["feedback"]
+        if advancement:
+            response += f"\n\nExcellent progress! You've advanced to {advancement} level! 📖"
+        
+        user_context["evaluation_prompt_given"] = False
+        return response
     
     async def _start_new_story(self, user_context: Dict[str, Any]) -> str:
         """Start a new comprehension story - dynamic generation or static fallback"""
@@ -116,7 +142,9 @@ class ComprehensionModule:
         ]
         
         if settings.use_llama:
-            evaluation = await llama_service.generate_response(messages, self.module_name)
+            evaluation = await llama_service.generate_response(
+                messages, self.module_name, "normal", user_context
+            )
         else:
             evaluation = await openai_service.generate_response(messages, self.module_name)
         is_correct = "CORRECT" in evaluation.upper()
@@ -208,7 +236,9 @@ class ComprehensionModule:
             ]
             
             if settings.use_llama:
-                response = await llama_service.generate_response(messages, self.module_name)
+                response = await llama_service.generate_response(
+                    messages, self.module_name, "normal", user_context
+                )
             else:
                 response = await openai_service.generate_response(messages, self.module_name)
             

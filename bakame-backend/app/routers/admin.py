@@ -171,45 +171,251 @@ async def export_csv():
 
 @router.get("/curriculum")
 async def get_curriculum_alignment():
-    """Get curriculum alignment data (placeholder for now)"""
+    """Get comprehensive curriculum alignment data"""
+    from app.services.curriculum_service import curriculum_service
+    
     return {
         "curriculum_standards": [
             {
-                "subject": "English Language Arts",
-                "grade_level": "Elementary",
+                "subject": "Grammar",
+                "grade_level": "Elementary to Advanced", 
+                "bloom_stages": curriculum_service.bloom_stages,
                 "standards": [
-                    "Grammar and Usage",
-                    "Vocabulary Development",
-                    "Reading Comprehension",
-                    "Oral Communication"
+                    "Verb Tenses and Agreement",
+                    "Sentence Structure", 
+                    "Grammar Pattern Recognition",
+                    "Error Correction"
                 ],
-                "bakame_modules": ["english", "comprehension", "debate"]
+                "source": "Speak English: 30 Days to Better English"
+            },
+            {
+                "subject": "Composition", 
+                "grade_level": "Elementary to Advanced",
+                "bloom_stages": curriculum_service.bloom_stages,
+                "standards": [
+                    "Creative Writing",
+                    "Storytelling Techniques",
+                    "Cultural Expression",
+                    "Narrative Structure"
+                ],
+                "source": "Things Fall Apart (Chinua Achebe)"
             },
             {
                 "subject": "Mathematics",
-                "grade_level": "Elementary",
+                "grade_level": "Elementary to Advanced",
+                "bloom_stages": curriculum_service.bloom_stages,
                 "standards": [
-                    "Number Operations",
-                    "Mental Math",
+                    "Mental Math Techniques",
+                    "Number Operations", 
                     "Problem Solving",
                     "Mathematical Reasoning"
                 ],
-                "bakame_modules": ["math"]
+                "source": "Secrets of Mental Math"
             },
             {
-                "subject": "Critical Thinking",
-                "grade_level": "All Levels",
+                "subject": "Debate",
+                "grade_level": "Intermediate to Advanced",
+                "bloom_stages": curriculum_service.bloom_stages,
                 "standards": [
-                    "Argumentation",
-                    "Analysis and Evaluation",
-                    "Perspective Taking",
-                    "Evidence-Based Reasoning"
+                    "Argument Construction",
+                    "Critical Thinking",
+                    "Public Speaking",
+                    "Logical Reasoning"
                 ],
-                "bakame_modules": ["debate", "general"]
+                "source": "Code of the Debater (Alfred Snider)"
+            },
+            {
+                "subject": "Comprehension",
+                "grade_level": "Elementary to Advanced", 
+                "bloom_stages": curriculum_service.bloom_stages,
+                "standards": [
+                    "Reading Comprehension",
+                    "Text Analysis",
+                    "Critical Reading",
+                    "Communication Skills"
+                ],
+                "source": "Art of Public Speaking"
             }
         ],
-        "alignment_notes": "BAKAME modules are designed to support core educational standards through interactive voice and SMS learning experiences."
+        "oer_sources": {
+            "grammar": ["Speak English: 30 Days to Better English (Educational Use)"],
+            "composition": ["Things Fall Apart (Public Domain)"],
+            "math": ["Secrets of Mental Math (Educational Use)"],
+            "debate": ["Code of the Debater (Open Access)"],
+            "comprehension": ["Art of Public Speaking (Public Domain)"]
+        },
+        "assessment_system": {
+            "scoring_method": "Multi-factor (keyword + structure + LLM)",
+            "pass_threshold": 0.6,
+            "advancement_rule": "3 passes out of 5 attempts",
+            "demotion_rule": "3 consecutive failures"
+        }
     }
+
+@router.get("/evaluation-analytics")
+async def get_evaluation_analytics():
+    """Get comprehensive evaluation analytics with Bloom stage heatmaps"""
+    try:
+        from app.services.evaluation_engine import evaluation_engine
+        
+        def _get_stage_distribution(module: str) -> Dict[str, int]:
+            """Get distribution of students across Bloom stages for a module"""
+            stage_counts = {}
+            for stage in evaluation_engine.bloom_stages:
+                stage_counts[stage] = 0
+            
+            all_contexts = redis_service.get_all_user_contexts()
+            for context in all_contexts:
+                curriculum_stages = context.get("curriculum_stages", {})
+                current_stage = curriculum_stages.get(module, "remember")
+                if current_stage in stage_counts:
+                    stage_counts[current_stage] += 1
+            
+            return stage_counts
+        
+        def _get_emotional_trends() -> Dict[str, int]:
+            """Get emotional state distribution across all evaluations"""
+            emotional_counts = {"neutral": 0, "hesitation": 0, "confusion": 0, "frustration": 0}
+            
+            all_contexts = redis_service.get_all_user_contexts()
+            for context in all_contexts:
+                evaluation_history = context.get("evaluation_history", {})
+                for module_history in evaluation_history.values():
+                    for evaluation in module_history:
+                        emotional_state = evaluation.get("emotional_state", "neutral")
+                        if emotional_state in emotional_counts:
+                            emotional_counts[emotional_state] += 1
+            
+            return emotional_counts
+        
+        def _get_component_score_analysis() -> Dict[str, float]:
+            """Get average scores for each assessment component"""
+            component_totals = {"keyword": 0, "structure": 0, "llm": 0}
+            component_counts = {"keyword": 0, "structure": 0, "llm": 0}
+            
+            all_contexts = redis_service.get_all_user_contexts()
+            for context in all_contexts:
+                evaluation_history = context.get("evaluation_history", {})
+                for module_history in evaluation_history.values():
+                    for evaluation in module_history:
+                        component_scores = evaluation.get("component_scores", {})
+                        for component, score in component_scores.items():
+                            if component in component_totals:
+                                component_totals[component] += score
+                                component_counts[component] += 1
+            
+            averages = {}
+            for component in component_totals:
+                if component_counts[component] > 0:
+                    averages[component] = component_totals[component] / component_counts[component]
+                else:
+                    averages[component] = 0.0
+            
+            return averages
+        
+        def _get_advancement_statistics() -> Dict[str, Dict[str, int]]:
+            """Get advancement and demotion statistics by module"""
+            advancement_stats = {}
+            
+            for module in evaluation_engine.modules:
+                advancement_stats[module] = {
+                    "total_students": 0,
+                    "advanced_students": 0,
+                    "demoted_students": 0,
+                    "advancement_rate": 0.0
+                }
+            
+            all_contexts = redis_service.get_all_user_contexts()
+            for context in all_contexts:
+                curriculum_stages = context.get("curriculum_stages", {})
+                evaluation_history = context.get("evaluation_history", {})
+                
+                for module in evaluation_engine.modules:
+                    if module in evaluation_history and evaluation_history[module]:
+                        advancement_stats[module]["total_students"] += 1
+                        current_stage = curriculum_stages.get(module, "remember")
+                        
+                        if current_stage != "remember":
+                            advancement_stats[module]["advanced_students"] += 1
+            
+            for module in advancement_stats:
+                total = advancement_stats[module]["total_students"]
+                advanced = advancement_stats[module]["advanced_students"]
+                if total > 0:
+                    advancement_stats[module]["advancement_rate"] = advanced / total
+            
+            return advancement_stats
+        
+        return {
+            "status": "success",
+            "bloom_stage_distribution": {
+                "grammar": _get_stage_distribution("grammar"),
+                "composition": _get_stage_distribution("composition"), 
+                "math": _get_stage_distribution("math"),
+                "debate": _get_stage_distribution("debate"),
+                "comprehension": _get_stage_distribution("comprehension")
+            },
+            "emotional_state_trends": _get_emotional_trends(),
+            "assessment_component_scores": _get_component_score_analysis(),
+            "advancement_rates": _get_advancement_statistics(),
+            "timestamp": str(datetime.utcnow())
+        }
+    except Exception as e:
+        print(f"Error getting evaluation analytics: {e}")
+        return {
+            "status": "error",
+            "message": "Failed to retrieve evaluation analytics",
+            "timestamp": str(datetime.utcnow())
+        }
+
+@router.get("/student-evaluation-history")
+async def get_student_evaluation_history(phone_number: str):
+    """Get detailed evaluation history for specific student"""
+    try:
+        context = redis_service.get_user_context(phone_number)
+        evaluation_history = context.get("evaluation_history", {})
+        
+        total_evaluations = sum(len(module_history) for module_history in evaluation_history.values())
+        
+        return {
+            "status": "success",
+            "phone_number": phone_number,
+            "evaluation_history": evaluation_history,
+            "current_stages": context.get("curriculum_stages", {}),
+            "total_evaluations": total_evaluations,
+            "timestamp": str(datetime.utcnow())
+        }
+    except Exception as e:
+        print(f"Error getting student evaluation history: {e}")
+        return {
+            "status": "error",
+            "message": "Failed to retrieve student evaluation history",
+            "timestamp": str(datetime.utcnow())
+        }
+
+@router.get("/curriculum/student-progress")
+async def get_student_progress(phone_number: str = None):
+    """Get student curriculum progress data"""
+    from app.services.curriculum_service import curriculum_service
+    from app.services.redis_service import redis_service
+    
+    if phone_number:
+        context = redis_service.get_user_context(phone_number)
+        curriculum_stages = context.get("curriculum_stages", {})
+        assessment_history = context.get("assessment_history", {})
+        
+        return {
+            "phone_number": phone_number,
+            "current_stages": curriculum_stages,
+            "assessment_history": assessment_history,
+            "user_name": context.get("user_name", "Unknown")
+        }
+    else:
+        return {
+            "total_students": "Available via session analytics",
+            "stage_distribution": "Requires Redis scan implementation",
+            "average_progression": "Calculated from assessment history"
+        }
 
 @router.post("/curriculum/upload")
 async def upload_curriculum_data(curriculum_data: Dict[str, Any]):
@@ -481,6 +687,54 @@ async def get_peer_learning_sessions(db: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving peer learning sessions: {str(e)}")
+
+@router.get("/ivr-stats")
+async def get_ivr_statistics(
+    current_user: WebUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get comprehensive IVR statistics for dashboard"""
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        from app.models.database import UserSession, PeerLearningSession
+        from datetime import datetime, timedelta
+        from sqlalchemy import func
+        
+        total_ivr_sessions = db.query(UserSession).count()
+        voice_sessions = db.query(UserSession).filter(UserSession.interaction_type == "voice").count()
+        sms_sessions = db.query(UserSession).filter(UserSession.interaction_type == "sms").count()
+        
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        recent_sessions = db.query(UserSession).filter(UserSession.timestamp >= yesterday).count()
+        
+        avg_duration_result = db.query(func.avg(UserSession.session_duration)).filter(
+            UserSession.session_duration.isnot(None)
+        ).scalar()
+        avg_session_duration = round(avg_duration_result or 0, 1)
+        
+        module_stats = {}
+        sessions_by_module = db.query(UserSession.module_name, func.count(UserSession.id)).group_by(UserSession.module_name).all()
+        for module, count in sessions_by_module:
+            module_stats[module] = count
+        
+        peer_sessions = db.query(PeerLearningSession).count()
+        active_peer_sessions = db.query(PeerLearningSession).filter(PeerLearningSession.ended_at.is_(None)).count()
+        
+        return {
+            "total_ivr_sessions": total_ivr_sessions,
+            "voice_sessions": voice_sessions,
+            "sms_sessions": sms_sessions,
+            "recent_sessions_24h": recent_sessions,
+            "average_session_duration": avg_session_duration,
+            "peer_learning_sessions": peer_sessions,
+            "active_peer_sessions": active_peer_sessions,
+            "module_statistics": module_stats,
+            "last_updated": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving IVR statistics: {str(e)}")
 
 @router.post("/populate-sample-data")
 async def populate_sample_data():

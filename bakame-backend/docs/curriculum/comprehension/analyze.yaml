@@ -1,0 +1,47 @@
+stage: analyze
+module: comprehension
+goal: "Analyze speaker intent, bias, and persuasive techniques in spoken communication"
+source: "The Art of Public Speaking, Chapters 7-8"
+
+ivr_prompt: |
+  Analyze this speaker's message: "Everyone knows that our school needs new computers. Other schools have them, and we're falling behind. Don't you want our students to succeed?"
+  What persuasive techniques is the speaker using? What should we watch out for?
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "identifies persuasive techniques"
+  - "analyzes speaker strategies"
+  - "shows critical thinking"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "identifies bandwagon appeal ('everyone knows', 'other schools')"
+    - "recognizes emotional appeal ('don't you want students to succeed')"
+    - "analyzes assumption-making and pressure tactics"
+    - "demonstrates critical analysis of persuasion"
+  
+keywords:
+  positive: ["bandwagon", "emotional", "pressure", "assumes", "everyone", "guilt", "persuasion"]
+  negative: ["good argument", "makes sense", "nothing wrong", "convincing"]
+
+feedback_templates:
+  pass: "Excellent analysis! You spotted the bandwagon appeal and emotional pressure tactics the speaker is using."
+  fail_hint: "Look for phrases like 'everyone knows' and 'don't you want...' What are these trying to do to your emotions?"
+  fail_repeat: "Good thinking! The speaker uses peer pressure ('everyone/other schools') and guilt ('don't you want success')."
+  encouragement: "Analyzing persuasive techniques protects you from manipulation! You're thinking critically."
+
+emotional_responses:
+  hesitation: "Consider: is 'everyone knows' actually evidence? What about 'don't you want...' - how does that make you feel?"
+  confusion: "Think about it: the speaker is trying to make you feel bad if you disagree. That's emotional manipulation."
+  frustration: "Spotting persuasion techniques is advanced analysis! You're developing media literacy skills."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

@@ -1,4 +1,4 @@
-import requests
+import aiohttp
 import json
 from typing import List, Dict, Any, Optional
 from app.config import settings
@@ -11,9 +11,29 @@ class LlamaService:
         ]
         self.working_url = None
         
-    async def generate_response(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:
-        """Generate response using Llama API with Rwandan cultural context"""
+    async def generate_response(self, messages: List[Dict[str, str]], module_name: str = "general", 
+                              conversation_state: str = "normal", user_context: Dict[str, Any] = None) -> str:
+        """Generate response with curriculum-aware prompt injection"""
         try:
+            curriculum_prompt = ""
+            if user_context and module_name != "general":
+                from app.services.curriculum_service import curriculum_service
+                phone_number = user_context.get("phone_number", "")
+                if phone_number:
+                    current_stage = curriculum_service.get_user_stage(phone_number, module_name)
+                    curriculum_prompt = curriculum_service.get_curriculum_prompt(module_name, current_stage, user_context)
+            
+            temperature_map = {
+                "welcome": 0.4,
+                "normal": 0.9,
+                "rwanda_fact": 1.6,
+                "intro": 0.4,
+                "assessment": 0.2,
+                "facts": 1.6
+            }
+            
+            temperature = temperature_map.get(conversation_state, 0.9)
+            
             system_prompts = {
                 "english": "You are Bakame, a warm and patient voice-based AI tutor. Speak slowly, clearly, and gently. Use short, plain English. Be encouraging, even if the user gets things wrong. Correct grammar simply. Give pronunciation help (e.g., 'The th sound is soft—put your tongue behind your teeth.'). Use repetition when needed. Encourage mistakes: 'Making mistakes is how we learn.' Always end with warmth: 'Thanks for learning with me—you're doing great.'",
                 
@@ -28,17 +48,31 @@ class LlamaService:
             
             system_prompt = system_prompts.get(module_name, system_prompts["general"])
             
+            if curriculum_prompt:
+                system_prompt = f"{curriculum_prompt}\n\n{system_prompt}"
+            
             full_messages = [{"role": "system", "content": system_prompt}] + messages
             
-            response = await self._call_llama_api(full_messages, module_name)
+            response = await self._call_llama_api(full_messages, module_name, temperature)
             return response.strip()
             
         except Exception as e:
             print(f"Error in Llama generation: {e}")
             return "Ndabwira ko nfite ikibazo gito. (I'm having a small issue.) Please try again, and I'll do my best to help you learn!"
     
-    async def _call_llama_api(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:
-        """Call Llama API with multiple endpoint fallback, then OpenAI with Rwanda context"""
+    async def _call_llama_api(self, messages: List[Dict[str, str]], module_name: str = "general", temperature: float = 0.9) -> str:
+        """Call Llama API with circuit breaker protection"""
+        from app.utils.circuit_breaker import llm_circuit_breaker
+        
+        try:
+            return await llm_circuit_breaker.call(self._make_llama_request, messages, module_name, temperature)
+        except Exception as e:
+            print(f"Circuit breaker triggered, falling back to OpenAI: {e}")
+            from app.services.openai_service import openai_service
+            return await openai_service.generate_response(messages, module_name)
+    
+    async def _make_llama_request(self, messages: List[Dict[str, str]], module_name: str = "general", temperature: float = 0.9) -> str:
+        """Make the actual Llama API request"""
         
         if self.working_url:
             urls_to_try = [self.working_url] + [url for url in self.base_urls if url != self.working_url]
@@ -55,32 +89,26 @@ class LlamaService:
             "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
             "messages": messages,
             "max_tokens": 100,
-            "temperature": 0.7,
+            "temperature": temperature,
             "top_p": 0.9
         }
         
-        for url in urls_to_try:
-            for headers in headers_variants:
-                try:
-                    response = requests.post(url, headers=headers, json=payload, timeout=30)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        if 'completion_message' in data and 'content' in data['completion_message']:
-                            self.working_url = url
-                            return data['completion_message']['content']['text']
-                    
-                except Exception as e:
-                    print(f"Llama API error with {url}: {e}")
-                    continue
+        async with aiohttp.ClientSession() as session:
+            for url in urls_to_try:
+                for headers in headers_variants:
+                    try:
+                        async with session.post(url, headers=headers, json=payload, timeout=30) as response:
+                            if response.status == 200:
+                                data = await response.json()
+                                if 'completion_message' in data and 'content' in data['completion_message']:
+                                    self.working_url = url
+                                    return data['completion_message']['content']['text']
+                        
+                    except Exception as e:
+                        print(f"Llama API error with {url}: {e}")
+                        continue
         
-        print("Llama API failed, falling back to OpenAI with Rwanda context")
-        try:
-            from app.services.openai_service import openai_service
-            return await openai_service.generate_response(messages, module_name)
-        except Exception as e:
-            print(f"OpenAI fallback error: {e}")
-            return "Ndabwira ko nfite ikibazo. (I have an issue.) Let me try to help you another way."
+        raise Exception("All Llama API endpoints failed")
     
     async def transcribe_audio(self, audio_data: bytes, audio_format: str = "wav") -> str:
         """Keep using OpenAI Whisper for transcription"""

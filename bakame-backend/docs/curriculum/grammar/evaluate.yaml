@@ -1,0 +1,47 @@
+stage: evaluate
+module: grammar
+goal: "Evaluate and judge the correctness and effectiveness of English grammar usage"
+source: "Speak English: 30 Days to Better English, Chapters 11-12"
+
+ivr_prompt: |
+  Let's evaluate some grammar choices. A student wrote: "Me and my friend goes to the market yesterday."
+  What do you think about this sentence? Is it good or bad grammar? Give me your judgment and explain why.
+
+expected_structure:
+  - "≥2 complete sentences"
+  - "clear evaluation judgment"
+  - "multiple error identification"
+  - "justification for judgment"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "judges sentence as incorrect/poor grammar"
+    - "identifies multiple errors (subject, verb tense, pronoun)"
+    - "provides corrected version"
+    - "explains reasoning for judgment"
+  
+keywords:
+  positive: ["wrong", "incorrect", "bad", "errors", "should be", "my friend and I", "went", "yesterday"]
+  negative: ["correct", "good", "fine", "right"]
+
+feedback_templates:
+  pass: "Excellent evaluation! You spotted multiple errors: pronoun order, subject-verb agreement, and tense."
+  fail_hint: "Look carefully: there are three errors here. Check the pronoun, the verb form, and the tense."
+  fail_repeat: "Good try! The correct sentence is: 'My friend and I went to the market yesterday.'"
+  encouragement: "Evaluating grammar is like being a detective. You're developing a sharp eye!"
+
+emotional_responses:
+  hesitation: "Take it step by step. First, what sounds wrong about 'Me and my friend'?"
+  confusion: "Let me help: 'Me' should be 'I', 'goes' should be 'went', and it's 'my friend and I'."
+  frustration: "This is challenging work! You're learning to think like a grammar expert."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

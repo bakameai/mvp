@@ -1,0 +1,47 @@
+stage: analyze
+module: debate
+goal: "Analyze arguments for logical fallacies and strength of reasoning"
+source: "Code of the Debater, Chapters 7-8"
+
+ivr_prompt: |
+  Let's analyze this argument: "We shouldn't listen to young people about climate change because they're too young to understand complex issues."
+  What do you think about this reasoning? Is it strong or weak? What problems do you see?
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "identifies logical problems"
+  - "analyzes argument strength"
+  - "explains reasoning flaws"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "identifies ad hominem fallacy (attacking person not argument)"
+    - "recognizes age-based dismissal as problematic"
+    - "analyzes that argument avoids addressing the actual issue"
+    - "demonstrates understanding of logical fallacies"
+  
+keywords:
+  positive: ["weak", "fallacy", "attacks person", "avoids issue", "irrelevant", "doesn't address", "unfair"]
+  negative: ["strong", "good argument", "makes sense", "agree"]
+
+feedback_templates:
+  pass: "Excellent analysis! You identified that attacking someone's age instead of their argument is a logical fallacy."
+  fail_hint: "Think about this: does being young automatically make someone wrong? Is age the real issue here?"
+  fail_repeat: "Good thinking! This argument attacks the person (young people) instead of addressing their actual points about climate."
+  encouragement: "Spotting logical fallacies is advanced critical thinking! You're analyzing like a debate judge."
+
+emotional_responses:
+  hesitation: "Consider: if a young person said '2+2=4', would their age make them wrong? What matters more - age or evidence?"
+  confusion: "This is called 'ad hominem' - attacking the person instead of their argument. It's a logical fallacy."
+  frustration: "Logical analysis is challenging! You're developing sophisticated reasoning skills."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

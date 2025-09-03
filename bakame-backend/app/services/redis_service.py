@@ -119,5 +119,43 @@ class RedisService:
             ]
         
         return recent_history
+    
+    def set_session_data(self, session_id: str, key: str, value: str, ttl: int = 300):
+        """Set session-specific data with TTL (default 5 minutes)"""
+        if self.redis_available:
+            try:
+                session_key = f"session:{session_id}:{key}"
+                self.redis_client.setex(session_key, ttl, value)
+            except Exception as e:
+                print(f"Redis error setting session data: {e}")
+        else:
+            session_key = f"session:{session_id}:{key}"
+            self.memory_store[session_key] = value
+    
+    def get_session_data(self, session_id: str, key: str) -> Optional[str]:
+        """Get session-specific data"""
+        if self.redis_available:
+            try:
+                session_key = f"session:{session_id}:{key}"
+                return self.redis_client.get(session_key)
+            except Exception as e:
+                print(f"Redis error getting session data: {e}")
+                return None
+        else:
+            session_key = f"session:{session_id}:{key}"
+            return self.memory_store.get(session_key)
+    
+    def delete_session_data(self, session_id: str, key: str):
+        """Delete session-specific data"""
+        if self.redis_available:
+            try:
+                session_key = f"session:{session_id}:{key}"
+                self.redis_client.delete(session_key)
+            except Exception as e:
+                print(f"Redis error deleting session data: {e}")
+        else:
+            session_key = f"session:{session_id}:{key}"
+            if session_key in self.memory_store:
+                del self.memory_store[session_key]
 
 redis_service = RedisService()

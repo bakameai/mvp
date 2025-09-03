@@ -1,0 +1,49 @@
+stage: analyze
+module: math
+goal: "Analyze mathematical patterns and compare different problem-solving strategies"
+source: "Secrets of Mental Math, Chapter 4-5"
+
+ivr_prompt: |
+  Let's analyze different ways to solve the same problem. To calculate 47 × 8, you could do:
+  Method 1: 47 × 8 = 40 × 8 + 7 × 8 = 320 + 56 = 376
+  Method 2: 47 × 8 = 50 × 8 - 3 × 8 = 400 - 24 = 376
+  Which method do you think is easier and why? Analyze both approaches.
+
+expected_structure:
+  - "≥3 complete sentences"
+  - "compares both methods"
+  - "identifies advantages/disadvantages"
+  - "shows analytical reasoning"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "analyzes both mathematical methods"
+    - "identifies which is easier or more efficient"
+    - "explains reasoning for preference"
+    - "demonstrates understanding of mental math strategies"
+  
+keywords:
+  positive: ["easier", "faster", "simpler", "round numbers", "breaking down", "method", "strategy", "prefer"]
+  negative: ["same", "don't know", "both hard"]
+
+feedback_templates:
+  pass: "Great analysis! You understand that rounding to 50 makes the calculation easier with round numbers."
+  fail_hint: "Think about which numbers are easier to work with: 40 and 7, or 50 and 3? Round numbers are usually simpler."
+  fail_repeat: "Good thinking! Method 2 is often easier because 50 × 8 = 400 is simpler than 40 × 8 + 7 × 8."
+  encouragement: "Analyzing different strategies is what mathematicians do! You're thinking like a problem solver."
+
+emotional_responses:
+  hesitation: "Consider which multiplication is easier: 50 × 8 or 40 × 8? Round numbers are your friend!"
+  confusion: "Let me help: 50 × 8 = 400 is easy to calculate, then you just subtract 24. That's often simpler."
+  frustration: "Comparing strategies is advanced thinking! You're developing mathematical judgment."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

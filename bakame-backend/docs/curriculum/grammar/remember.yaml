@@ -1,0 +1,47 @@
+stage: remember
+module: grammar
+goal: "Recall and recognize basic English grammar structures, verb tenses, and sentence patterns"
+source: "Speak English: 30 Days to Better English, Chapters 1-3"
+
+ivr_prompt: |
+  Hello! Let's practice some basic grammar. I'll ask you a few questions about English sentences. 
+  Listen carefully: "I go to school yesterday." Is this sentence correct? Tell me what you think.
+
+expected_structure:
+  - "≥1 complete response"
+  - "recognition of error"
+  - "basic tense awareness"
+  - "simple explanation attempt"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "recognizes grammar error in sentence"
+    - "mentions past tense or 'went' or 'yesterday'"
+    - "shows basic understanding of time/tense relationship"
+    - "attempts to explain or correct"
+  
+keywords:
+  positive: ["wrong", "incorrect", "went", "past", "yesterday", "should be", "mistake"]
+  negative: ["correct", "right", "good", "fine"]
+
+feedback_templates:
+  pass: "Excellent! You spotted the grammar mistake. 'I went to school yesterday' is correct because we use past tense with 'yesterday'."
+  fail_hint: "Think about when this happened. Yesterday is in the past, so what form of 'go' should we use?"
+  fail_repeat: "Good try! Remember: yesterday = past time, so we say 'went' not 'go'. Let's try another one."
+  encouragement: "Grammar can be tricky, even for adults! You're learning step by step."
+
+emotional_responses:
+  hesitation: "Take your time. There's no rush. Think about the time word 'yesterday'."
+  confusion: "Let me help you. When we talk about yesterday, we use past tense verbs like 'went'."
+  frustration: "You're doing great! Learning grammar takes practice. Let's break it down together."
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3

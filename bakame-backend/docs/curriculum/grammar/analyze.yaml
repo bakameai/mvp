@@ -1,0 +1,47 @@
+stage: analyze
+module: grammar
+goal: "Analyze complex grammar structures and identify patterns in English sentences"
+source: "Speak English: 30 Days to Better English, Chapters 8-10"
+
+ivr_prompt: |
+  Now let's analyze grammar patterns. Listen to these two sentences: "I am going to school" and "I will go to school."
+  What's the difference between these two ways of talking about the future? Explain when you would use each one.
+
+expected_structure:
+  - "≥2 complete sentences"
+  - "identifies future tense difference"
+  - "explains usage contexts"
+  - "shows analytical thinking"
+
+llm_scoring_criteria:
+  temperature: 0.2
+  rules:
+    - "distinguishes between 'going to' and 'will' future forms"
+    - "mentions planning vs. spontaneous decisions"
+    - "provides examples or contexts for each"
+    - "demonstrates analytical understanding"
+  
+keywords:
+  positive: ["plan", "decision", "future", "will", "going to", "different", "when", "use"]
+  negative: ["same", "no difference", "don't know"]
+
+feedback_templates:
+  pass: "Great analysis! You understand that 'going to' shows plans and 'will' shows quick decisions."
+  fail_hint: "Think about this: 'going to' is for plans you made before. 'Will' is for decisions you make right now."
+  fail_repeat: "Good effort! 'Going to' = planned future. 'Will' = spontaneous future. Try explaining again."
+  encouragement: "Analyzing grammar takes practice. You're thinking like a language expert!"
+
+emotional_responses:
+  hesitation: "Think about when you make plans versus when you decide something suddenly."
+  confusion: "Let me give an example: 'I'm going to study tonight' (planned) vs 'I'll help you' (spontaneous)."
+  frustration: "This is advanced grammar! You're tackling difficult concepts. Keep going!"
+
+advancement_criteria:
+  pass_threshold: 0.6
+  advancement_rule: "3 passes out of 5 attempts"
+  demotion_rule: "3 consecutive failures"
+
+assessment_weights:
+  keyword_match: 0.4
+  sentence_structure: 0.3
+  llm_evaluation: 0.3
