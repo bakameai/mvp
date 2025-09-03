@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     database_url: str
     app_env: str = "development"
     debug: bool = True
-    mcp_server_url: str = "http://localhost:8001"
+    mcp_server_url: str = "https://bakame-elevenlabs-mcp-myaxhewi.fly.dev"
     
     class Config:
         env_file = ".env"
