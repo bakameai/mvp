@@ -18,25 +18,14 @@ async def inbound_call(_: Request):
 
 @app.websocket("/twilio-stream")
 async def twilio_stream(ws: WebSocket):
-    await ws.accept()
+    await ws.accept()   # this is CRUCIAL for Twilio handshake
+
     print("[Twilio] WS connected", flush=True)
 
     try:
         while True:
             msg = await ws.receive_text()
-            data = json.loads(msg)
-            ev = data.get("event")
-
-            if ev == "start":
-                print(f"[Twilio] Media start: {data}", flush=True)
-
-            elif ev == "media":
-                pass
-
-            elif ev == "stop":
-                print("[Twilio] Media stop", flush=True)
-                break
-
+            print(f"[Twilio] Incoming: {msg[:100]}...", flush=True)
     except Exception as e:
         print(f"[Twilio] WS error: {e}", flush=True)
     finally:
