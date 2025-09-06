@@ -30,20 +30,6 @@ app.include_router(admin.router, tags=["admin"])
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(content.router, prefix="/api", tags=["content"])
 
-@app.websocket("/twilio-stream")
-async def twilio_websocket_handler(websocket: WebSocket):
-    print("[Twilio] WebSocket connection attempt received", flush=True)
-    await websocket.accept()
-    print("[Twilio] WebSocket connected - sent 101 Switching Protocols", flush=True)
-    
-    try:
-        while True:
-            data = await websocket.receive_text()
-            print(f"[Twilio] Received data: {data}", flush=True)
-    except WebSocketDisconnect:
-        print("[Twilio] WebSocket disconnected", flush=True)
-    except Exception as e:
-        print(f"[Twilio] WebSocket error: {e}", flush=True)
 
 @app.get("/audio/{filename}")
 async def serve_audio(filename: str):
@@ -102,3 +88,18 @@ async def root():
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok", "service": "BAKAME MVP"}
+
+@app.websocket("/twilio-stream")
+async def handle_twilio_websocket(websocket: WebSocket):
+    print("[Twilio] WebSocket connection attempt", flush=True)
+    await websocket.accept()
+    print("[Twilio] WebSocket accepted - 101 Switching Protocols sent", flush=True)
+    
+    try:
+        while True:
+            data = await websocket.receive_text()
+            print(f"[Twilio] Data received: {data}", flush=True)
+    except WebSocketDisconnect:
+        print("[Twilio] WebSocket disconnected", flush=True)
+    except Exception as e:
+        print(f"[Twilio] WebSocket error: {e}", flush=True)
