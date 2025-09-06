@@ -63,7 +63,7 @@ async def twilio_stream(ws: WebSocket):
     el_to_twilio_task: Optional[asyncio.Task] = None
 
     try:
-        el_ws = await websockets.connect(EL_WS_URL, extra_headers=el_headers)
+        el_ws = await websockets.connect(EL_WS_URL)
         print("[EL] WS connected", flush=True)
 
         async def pump_el_to_twilio():
