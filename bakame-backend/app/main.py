@@ -31,16 +31,20 @@ app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(content.router, prefix="/api", tags=["content"])
 
 @app.websocket("/twilio-stream")
-async def twilio_stream_endpoint(websocket: WebSocket):
+async def handle_twilio_websocket_stream(websocket: WebSocket):
+    """Handle Twilio WebSocket stream connection"""
+    print("[Twilio] WebSocket connection attempt received", flush=True)
     await websocket.accept()
-    print("[Twilio] WebSocket connected successfully - endpoint is working!", flush=True)
+    print("[Twilio] WebSocket connected successfully - sending 101 Switching Protocols", flush=True)
 
     try:
         while True:
             data = await websocket.receive_text()
-            print(f"[Twilio->Relay] {data}", flush=True)
+            print(f"[Twilio->Stream] Received: {data}", flush=True)
     except WebSocketDisconnect:
         print("[Twilio] WebSocket disconnected", flush=True)
+    except Exception as e:
+        print(f"[Twilio] WebSocket error: {e}", flush=True)
 
 @app.get("/audio/{filename}")
 async def serve_audio(filename: str):
