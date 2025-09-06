@@ -19,7 +19,7 @@ ENV you must set in Fly (or locally):
 EL_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 EL_AGENT_ID = os.getenv("ELEVENLABS_AGENT_ID", "")
 
-EL_WS_URL = f"wss://api.elevenlabs.io/v1/convai/stream?agent_id={EL_AGENT_ID}"
+EL_WS_URL = f"wss://api.elevenlabs.io/v1/convai/conversation?agent_id={EL_AGENT_ID}"
 
 app = FastAPI()
 
@@ -56,15 +56,17 @@ async def twilio_stream(ws: WebSocket):
     print("[Twilio] WS connected", flush=True)
 
     el_headers = {
-        "Authorization": f"Bearer {EL_API_KEY}",
+        "xi-api-key": EL_API_KEY,
     }
 
     el_ws: Optional[websockets.WebSocketClientProtocol] = None
     el_to_twilio_task: Optional[asyncio.Task] = None
 
     try:
-        el_ws = await websockets.connect(EL_WS_URL)
-        print("[EL] WS connected", flush=True)
+        print(f"[EL] Connecting to: {EL_WS_URL}", flush=True)
+        print(f"[EL] Using API key: {EL_API_KEY[:8]}...{EL_API_KEY[-4:]}", flush=True)
+        el_ws = await websockets.connect(EL_WS_URL, extra_headers=el_headers)
+        print("[EL] WS connected successfully!", flush=True)
 
         async def pump_el_to_twilio():
             """Read audio chunks from 11Labs and push back to Twilio."""
