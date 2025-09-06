@@ -31,16 +31,15 @@ app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(content.router, prefix="/api", tags=["content"])
 
 @app.websocket("/twilio-stream")
-async def handle_twilio_websocket_stream(websocket: WebSocket):
-    """Handle Twilio WebSocket stream connection"""
+async def twilio_websocket_handler(websocket: WebSocket):
     print("[Twilio] WebSocket connection attempt received", flush=True)
     await websocket.accept()
-    print("[Twilio] WebSocket connected successfully - sending 101 Switching Protocols", flush=True)
-
+    print("[Twilio] WebSocket connected - sent 101 Switching Protocols", flush=True)
+    
     try:
         while True:
             data = await websocket.receive_text()
-            print(f"[Twilio->Stream] Received: {data}", flush=True)
+            print(f"[Twilio] Received data: {data}", flush=True)
     except WebSocketDisconnect:
         print("[Twilio] WebSocket disconnected", flush=True)
     except Exception as e:
