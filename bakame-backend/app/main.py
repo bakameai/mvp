@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import webhooks, admin, auth, content
@@ -29,6 +29,18 @@ app.include_router(webhooks.router, prefix="/webhook", tags=["webhooks"])
 app.include_router(admin.router, tags=["admin"])
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(content.router, prefix="/api", tags=["content"])
+
+@app.websocket("/twilio-stream")
+async def twilio_stream(ws: WebSocket):
+    await ws.accept()
+    print("[Twilio] WebSocket connected", flush=True)
+
+    try:
+        while True:
+            data = await ws.receive_text()
+            print(f"[Twilio->Relay] {data}", flush=True)
+    except WebSocketDisconnect:
+        print("[Twilio] WebSocket disconnected", flush=True)
 
 @app.get("/audio/{filename}")
 async def serve_audio(filename: str):
