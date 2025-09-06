@@ -26,9 +26,13 @@ BAKAME (Building African Knowledge through Accessible Mobile Education) is a com
 ├─────────────────────────────────────────────────────────────────┤
 │  AI Processing Layer                                           │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │   OpenAI GPT    │  │  Whisper STT    │  │   Llama LLM     │ │
-│  │   (Primary AI)  │  │ (Speech-to-Text)│  │  (Alternative)  │ │
+│  │ ElevenLabs ConvAI│  │   OpenAI GPT    │  │  Whisper STT    │ │
+│  │ (Primary Voice) │  │   (Primary AI)  │  │ (Speech-to-Text)│ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+│  ┌─────────────────┐                                           │
+│  │   Llama LLM     │                                           │
+│  │  (Alternative)  │                                           │
+│  └─────────────────┘                                           │
 ├─────────────────────────────────────────────────────────────────┤
 │  Data & Session Management                                     │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
@@ -255,7 +259,7 @@ web_users (
 2. Twilio webhook → /webhook/call
 3. Welcome message generation
 4. Speech collection (Gather)
-5. Audio → OpenAI Whisper → Text
+5. Audio → ElevenLabs ConvAI/OpenAI Whisper → Text
 6. Text → Module Processing
 7. AI Response Generation
 8. TwiML Voice Response
@@ -284,10 +288,10 @@ web_users (
 │                    AI PROCESSING LAYER                         │
 ├─────────────────────────────────────────────────────────────────┤
 │  Speech Processing                                              │
-│  ┌─────────────────┐  ┌─────────────────┐                     │
-│  │ OpenAI Whisper  │  │   Deepgram      │                     │
-│  │   (Primary)     │  │  (Alternative)  │                     │
-│  └─────────────────┘  └─────────────────┘                     │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │ ElevenLabs ConvAI│  │ OpenAI Whisper  │  │   Deepgram      │ │
+│  │   (Primary)     │  │   (Fallback)    │  │  (Alternative)  │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 ├─────────────────────────────────────────────────────────────────┤
 │  Text Generation                                               │
 │  ┌─────────────────┐  ┌─────────────────┐                     │
@@ -509,6 +513,8 @@ class Settings(BaseSettings):
     
     # AI Services
     openai_api_key: str
+    elevenlabs_agent_id: str = "agent_0301k3y6dwrve63sb37n6f4ffkrj"
+    use_elevenlabs: bool = False
     llama_api_key: str
     use_llama: bool = True
     deepgram_api_key: str

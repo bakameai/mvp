@@ -4,10 +4,12 @@ import uuid
 from typing import Optional
 from app.services.twilio_service import twilio_service
 from app.services.openai_service import openai_service
+from app.services.elevenlabs_service import elevenlabs_service
 from app.services.redis_service import redis_service
 from app.services.logging_service import logging_service
 from app.services.offline_service import offline_service
 from app.services.multimodal_service import multimodal_service
+from app.config import settings
 from app.modules.english_module import english_module
 from app.modules.math_module import math_module
 from app.modules.comprehension_module import comprehension_module
@@ -66,7 +68,16 @@ async def handle_voice_call(
         elif RecordingUrl:
             audio_data = await twilio_service.download_recording(RecordingUrl)
             if audio_data:
-                user_input = await openai_service.transcribe_audio(audio_data)
+                if settings.use_elevenlabs:
+                    try:
+                        user_input = await elevenlabs_service.transcribe_audio(audio_data, user_context)
+                        if not user_input:
+                            user_input = await openai_service.transcribe_audio(audio_data)
+                    except Exception as e:
+                        print(f"ElevenLabs transcription failed, falling back to OpenAI: {e}")
+                        user_input = await openai_service.transcribe_audio(audio_data)
+                else:
+                    user_input = await openai_service.transcribe_audio(audio_data)
         
         if not user_input:
             return Response(

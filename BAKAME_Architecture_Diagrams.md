@@ -29,10 +29,11 @@ graph TB
     end
     
     subgraph "AI Processing"
-        A1[OpenAI GPT-4o-mini<br/>Text Generation]
-        A2[OpenAI Whisper<br/>Speech-to-Text]
-        A3[Llama LLM<br/>Alternative AI]
-        A4[Deepgram<br/>Alternative STT]
+        A1[ElevenLabs ConvAI<br/>Voice Processing]
+        A2[OpenAI GPT-4o-mini<br/>Text Generation]
+        A3[OpenAI Whisper<br/>Speech-to-Text]
+        A4[Llama LLM<br/>Alternative AI]
+        A5[Deepgram<br/>Alternative STT]
     end
     
     subgraph "Data Layer"
@@ -111,7 +112,7 @@ sequenceDiagram
     Redis-->>API: User Session Data
     
     alt Voice Call
-        API->>AI: Transcribe Audio (Whisper)
+        API->>AI: Transcribe Audio (ElevenLabs/Whisper)
         AI-->>API: Text Input
     end
     
@@ -131,7 +132,7 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     A[User Input] --> B{Input Type?}
-    B -->|Voice| C[Whisper STT]
+    B -->|Voice| C[ElevenLabs ConvAI/Whisper STT]
     B -->|SMS| D[Direct Text]
     
     C --> E[Text Processing]
@@ -335,7 +336,8 @@ erDiagram
 graph TB
     subgraph "External Services"
         EXT1[Twilio<br/>Voice/SMS API]
-        EXT2[OpenAI<br/>GPT + Whisper]
+        EXT2[ElevenLabs<br/>ConvAI Agent]
+        EXT2B[OpenAI<br/>GPT + Whisper]
         EXT3[Llama API<br/>Alternative LLM]
         EXT4[NewsAPI<br/>Current Events]
         EXT5[Deepgram<br/>Alternative STT]

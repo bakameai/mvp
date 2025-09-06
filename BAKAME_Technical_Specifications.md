@@ -19,7 +19,7 @@ This document provides detailed technical specifications for the BAKAME (Buildin
 
 #### AI Processing Requirements
 - **FR-008:** Generate educational responses using GPT-4o-mini
-- **FR-009:** Transcribe audio using OpenAI Whisper
+- **FR-009:** Transcribe audio using ElevenLabs ConvAI or OpenAI Whisper
 - **FR-010:** Provide fallback AI services (Llama, Deepgram)
 - **FR-011:** Detect and respond to user emotions
 - **FR-012:** Implement gamification with points and achievements
@@ -195,6 +195,26 @@ class LearningModule:
 - **Context Management:** Maintain conversation state
 
 #### AI Processing Services
+
+**ElevenLabs Service Specifications:**
+```python
+class ElevenLabsService:
+    def __init__(self):
+        self.agent_id = settings.elevenlabs_agent_id
+        self.websocket_url = f"wss://api.elevenlabs.io/v1/convai/conversation?agent_id={self.agent_id}"
+    
+    async def transcribe_audio(self, audio_data: bytes, user_context: Dict[str, Any]) -> str:
+        """Transcribe audio using ElevenLabs ConvAI"""
+        # WebSocket-based real-time transcription
+        # Agent ID: agent_0301k3y6dwrve63sb37n6f4ffkrj
+        # Public agent mode (no API key required)
+    
+    async def process_conversation(self, audio_data: bytes, user_context: Dict[str, Any]) -> str:
+        """Process complete conversation turn with ElevenLabs agent"""
+        # Real-time voice processing with cultural context
+        # Rwandan-specific prompts and responses
+        # Natural conversation flow
+```
 
 **OpenAI Service Specifications:**
 ```python
