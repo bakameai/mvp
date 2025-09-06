@@ -55,17 +55,13 @@ async def twilio_stream(ws: WebSocket):
     await ws.accept()
     print("[Twilio] WS connected", flush=True)
 
-    el_headers = {
-        "xi-api-key": EL_API_KEY,
-    }
-
     el_ws: Optional[websockets.WebSocketClientProtocol] = None
     el_to_twilio_task: Optional[asyncio.Task] = None
 
     try:
         print(f"[EL] Connecting to: {EL_WS_URL}", flush=True)
-        print(f"[EL] Using API key: {EL_API_KEY[:8]}...{EL_API_KEY[-4:]}", flush=True)
-        el_ws = await websockets.connect(EL_WS_URL, extra_headers=el_headers)
+        print("[EL] Attempting connection without authentication headers (per docs)", flush=True)
+        el_ws = await websockets.connect(EL_WS_URL)
         print("[EL] WS connected successfully!", flush=True)
 
         async def pump_el_to_twilio():
