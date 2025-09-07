@@ -158,7 +158,7 @@ async def twilio_stream(ws: WebSocket):
         print("[EL] Waiting for conversation initiation...", flush=True)
 
         async def pump_el_to_twilio():
-            """Read audio chunks from 11Labs and push back to Twilio with enhanced debugging."""
+            """Read audio chunks from 11Labs and push back to Twilio with WebSocket reconnection support."""
             from collections import deque
             import traceback
             
@@ -166,22 +166,78 @@ async def twilio_stream(ws: WebSocket):
             buffer_processing = True
             audio_sent_count = 0
             audio_failed_count = 0
+            reconnection_attempts = 0
+            
+            async def check_websocket_connection():
+                """Check if WebSocket connection is healthy and ready for sending"""
+                try:
+                    if ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                        print(f"[RECONNECT] WebSocket in invalid state: {ws.client_state.name}", flush=True)
+                        return False
+                    
+                    return True
+                    
+                except Exception as e:
+                    print(f"[RECONNECT] Connection check failed: {e}", flush=True)
+                    return False
+            
+            async def send_audio_with_retry(audio_data, max_retries=3):
+                """Send audio with retry logic and connection validation"""
+                nonlocal audio_sent_count, audio_failed_count, reconnection_attempts
+                
+                for attempt in range(max_retries):
+                    try:
+                        if not await check_websocket_connection():
+                            print(f"[RETRY] WebSocket not ready (attempt {attempt + 1})", flush=True)
+                            if attempt < max_retries - 1:
+                                await asyncio.sleep(0.1 * (2 ** attempt))  # Exponential backoff
+                            continue
+                        
+                        msg_json = json.dumps(audio_data)
+                        await ws.send_text(msg_json)
+                        audio_sent_count += 1
+                        print(f"[RETRY] ✅ Audio sent successfully (attempt {attempt + 1}), total sent: {audio_sent_count}", flush=True)
+                        return True
+                        
+                    except Exception as e:
+                        audio_failed_count += 1
+                        error_msg = str(e).lower()
+                        print(f"[RETRY] Attempt {attempt + 1} failed: {e}", flush=True)
+                        
+                        if any(keyword in error_msg for keyword in ["not connected", "closed", "accept first", "connection"]):
+                            reconnection_attempts += 1
+                            print(f"[RETRY] Connection error detected (reconnection attempt #{reconnection_attempts})", flush=True)
+                            
+                            if attempt == 0:  # Only log this once per audio chunk
+                                print(f"[RETRY] WebSocket connection lost, will buffer audio for later delivery", flush=True)
+                            break
+                        
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(0.1 * (2 ** attempt))
+                
+                return False
             
             async def process_audio_buffer():
-                """Process buffered audio when WebSocket is ready"""
+                """Process buffered audio when WebSocket is ready with enhanced retry logic"""
                 nonlocal audio_sent_count, audio_failed_count
                 
                 while buffer_processing:
                     try:
-                        if audio_buffer and ws.client_state.name == "CONNECTED":
-                            audio_data = audio_buffer.popleft()
+                        if audio_buffer and await check_websocket_connection():
+                            sent_count = 0
+                            max_batch = min(10, len(audio_buffer))  # Send up to 10 at once
                             
-                            msg_json = json.dumps(audio_data)
-                            print(f"[BUFFER] Sending to Twilio: {msg_json[:100]}... (total: {len(msg_json)} chars)", flush=True)
+                            while audio_buffer and sent_count < max_batch:
+                                audio_data = audio_buffer.popleft()
+                                
+                                if await send_audio_with_retry(audio_data, max_retries=2):
+                                    sent_count += 1
+                                else:
+                                    audio_buffer.appendleft(audio_data)
+                                    break
                             
-                            await ws.send_text(msg_json)
-                            audio_sent_count += 1
-                            print(f"[BUFFER] ✅ Sent buffered audio chunk #{audio_sent_count} (buffer size: {len(audio_buffer)})", flush=True)
+                            if sent_count > 0:
+                                print(f"[BUFFER] ✅ Sent {sent_count} buffered audio chunks, remaining: {len(audio_buffer)}", flush=True)
                             
                         await asyncio.sleep(0.01)
                     except Exception as e:
@@ -214,17 +270,8 @@ async def twilio_stream(ws: WebSocket):
                         msg_json = json.dumps(out)
                         print(f"[BINARY] Message to Twilio: {msg_json[:100]}... (total: {len(msg_json)} chars)", flush=True)
                         
-                        if ws.client_state.name == "CONNECTED":
-                            try:
-                                await ws.send_text(msg_json)
-                                audio_sent_count += 1
-                                print(f"[DIRECT] ✅ Sent binary audio #{audio_sent_count} immediately ({len(pcm16k)} bytes PCM -> {len(base64.b64decode(ulaw_b64))} bytes μ-law)", flush=True)
-                            except Exception as e:
-                                audio_failed_count += 1
-                                print(f"[DIRECT] ❌ Failed #{audio_failed_count} sending binary audio, buffering: {e}", flush=True)
-                                print(f"[DIRECT] Error traceback: {traceback.format_exc()}", flush=True)
-                                audio_buffer.append(out)
-                        else:
+                        success = await send_audio_with_retry(out)
+                        if not success:
                             audio_buffer.append(out)
                             print(f"[BUFFER] Buffered binary audio ({len(pcm16k)} bytes, state: {ws_state}, buffer size: {len(audio_buffer)})", flush=True)
                         
@@ -275,17 +322,8 @@ async def twilio_stream(ws: WebSocket):
                                         msg_json = json.dumps(out)
                                         print(f"[AUDIO] Message to Twilio: {msg_json[:100]}... (total: {len(msg_json)} chars)", flush=True)
                                         
-                                        if ws.client_state.name == "CONNECTED":
-                                            try:
-                                                await ws.send_text(msg_json)
-                                                audio_sent_count += 1
-                                                print(f"[DIRECT] ✅ Sent audio #{audio_sent_count} immediately (event #{event_id}: {len(pcm16k)} bytes PCM -> {len(base64.b64decode(ulaw_b64))} bytes μ-law)", flush=True)
-                                            except Exception as e:
-                                                audio_failed_count += 1
-                                                print(f"[DIRECT] ❌ Failed #{audio_failed_count} sending audio event #{event_id}, buffering: {e}", flush=True)
-                                                print(f"[DIRECT] Error traceback: {traceback.format_exc()}", flush=True)
-                                                audio_buffer.append(out)
-                                        else:
+                                        success = await send_audio_with_retry(out)
+                                        if not success:
                                             audio_buffer.append(out)
                                             print(f"[BUFFER] Buffered audio event #{event_id} ({len(pcm16k)} bytes, state: {ws_state}, buffer size: {len(audio_buffer)})", flush=True)
                                             
@@ -323,17 +361,8 @@ async def twilio_stream(ws: WebSocket):
                                     msg_json = json.dumps(out)
                                     print(f"[LEGACY] Message to Twilio: {msg_json[:100]}... (total: {len(msg_json)} chars)", flush=True)
                                     
-                                    if ws.client_state.name == "CONNECTED":
-                                        try:
-                                            await ws.send_text(msg_json)
-                                            audio_sent_count += 1
-                                            print(f"[DIRECT] ✅ Sent legacy audio #{audio_sent_count} immediately ({len(pcm16k)} bytes)", flush=True)
-                                        except Exception as e:
-                                            audio_failed_count += 1
-                                            print(f"[DIRECT] ❌ Failed #{audio_failed_count} sending legacy audio, buffering: {e}", flush=True)
-                                            print(f"[DIRECT] Error traceback: {traceback.format_exc()}", flush=True)
-                                            audio_buffer.append(out)
-                                    else:
+                                    success = await send_audio_with_retry(out)
+                                    if not success:
                                         audio_buffer.append(out)
                                         print(f"[BUFFER] Buffered legacy audio ({len(pcm16k)} bytes, state: {ws_state}, buffer size: {len(audio_buffer)})", flush=True)
                                         
@@ -350,7 +379,7 @@ async def twilio_stream(ws: WebSocket):
                 print(f"[EL->Twilio] pump error traceback: {traceback.format_exc()}", flush=True)
             finally:
                 buffer_processing = False
-                print(f"[STATS] Audio sent: {audio_sent_count}, failed: {audio_failed_count}", flush=True)
+                print(f"[STATS] Audio sent: {audio_sent_count}, failed: {audio_failed_count}, reconnection attempts: {reconnection_attempts}", flush=True)
                 if 'buffer_task' in locals():
                     buffer_task.cancel()
                     try:
