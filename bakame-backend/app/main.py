@@ -155,6 +155,9 @@ async def twilio_stream(ws: WebSocket):
         print("[EL] Connecting with proper authentication...", flush=True)
         el_ws = await open_el_ws()
         print("[EL] WS connected successfully with authentication!", flush=True)
+        
+        el_ready = False
+        print("[EL] Waiting for conversation initiation...", flush=True)
 
         async def pump_el_to_twilio():
             """Read audio chunks from 11Labs and push back to Twilio."""
@@ -178,7 +181,12 @@ async def twilio_stream(ws: WebSocket):
                             msg_type = msg.get("type")
                             print(f"[EL->Twilio] Received message type: {msg_type}", flush=True)
                             
-                            if msg_type == "audio":
+                            if msg_type == "conversation_initiation_metadata":
+                                nonlocal el_ready
+                                el_ready = True
+                                print("[EL] Conversation initiated, ready to receive audio!", flush=True)
+                            
+                            elif msg_type == "audio":
                                 audio_event = msg.get("audio_event", {})
                                 audio_base64 = audio_event.get("audio_base_64", "")
                                 if audio_base64:
@@ -238,7 +246,7 @@ async def twilio_stream(ws: WebSocket):
                         audio_buffer.clear()
                         buffer_start_time = None
 
-                if el_ws is not None:
+                if el_ws is not None and el_ready:
                     try:
                         audio_b64 = base64.b64encode(pcm16k).decode('utf-8')
                         el_message = {
@@ -247,6 +255,8 @@ async def twilio_stream(ws: WebSocket):
                         await el_ws.send(json.dumps(el_message))
                     except Exception as e:
                         print(f"[Twilio->EL] send error: {e}", flush=True)
+                elif el_ws is not None and not el_ready:
+                    print("[Twilio->EL] Skipping audio - EL not ready yet", flush=True)
 
             elif event == "stop":
                 print("[Twilio] Media stop", flush=True)
