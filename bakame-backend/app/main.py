@@ -25,11 +25,8 @@ from app.elevenlabs_client import open_el_ws
 ENV you must set in Fly (or locally):
   ELEVENLABS_API_KEY   -> your 11Labs User API key
   ELEVENLABS_AGENT_ID  -> your Agent ID (e.g., agent_0301k3y6dwrve6... )
-  ELEVENLABS_WS_SECRET -> any random secret string (optional, for 11Labs MCP auth if you use it)
+  ELEVENLABS_WS_SECRET -> workspace secret for ElevenLabs ConvAI authentication
 """
-
-EL_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-EL_AGENT_ID = os.getenv("ELEVENLABS_AGENT_ID", "")
 
 MODULES = {
     "english": english_module,
