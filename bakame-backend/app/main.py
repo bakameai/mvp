@@ -167,18 +167,46 @@ async def twilio_stream(ws: WebSocket):
                         pcm16k = bytes(raw)
                         ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
                         out = {"event": "media", "media": {"payload": ulaw_b64}}
+                        print(f"[EL->Twilio] Sending binary audio chunk ({len(pcm16k)} bytes)", flush=True)
                         await ws.send_text(json.dumps(out))
                     else:
                         try:
                             msg = json.loads(raw)
-                        except Exception:
+                        except Exception as e:
+                            print(f"[EL->Twilio] Failed to parse JSON: {e}", flush=True)
                             msg = None
 
-                        if msg and "audio" in msg:
-                            pcm16k = base64.b64decode(msg["audio"])
-                            ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
-                            out = {"event": "media", "media": {"payload": ulaw_b64}}
-                            await ws.send_text(json.dumps(out))
+                        if msg:
+                            msg_type = msg.get("type")
+                            print(f"[EL->Twilio] Received message type: {msg_type}", flush=True)
+                            
+                            if msg_type == "audio_event":
+                                audio_event = msg.get("audio_event", {})
+                                audio_base64 = audio_event.get("audio_base_64", "")
+                                if audio_base64:
+                                    try:
+                                        pcm16k = base64.b64decode(audio_base64)
+                                        ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
+                                        out = {"event": "media", "media": {"payload": ulaw_b64}}
+                                        print(f"[EL->Twilio] Sending audio_event chunk ({len(pcm16k)} bytes)", flush=True)
+                                        await ws.send_text(json.dumps(out))
+                                    except Exception as e:
+                                        print(f"[EL->Twilio] Error processing audio_event: {e}", flush=True)
+                            
+                            elif msg_type == "ping":
+                                pong_message = {"type": "pong", "event_id": msg.get("event_id")}
+                                await el_ws.send(json.dumps(pong_message))
+                                print(f"[EL->Twilio] Sent pong response", flush=True)
+                            
+                            elif "audio" in msg:
+                                try:
+                                    pcm16k = base64.b64decode(msg["audio"])
+                                    ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
+                                    out = {"event": "media", "media": {"payload": ulaw_b64}}
+                                    print(f"[EL->Twilio] Sending legacy audio chunk ({len(pcm16k)} bytes)", flush=True)
+                                    await ws.send_text(json.dumps(out))
+                                except Exception as e:
+                                    print(f"[EL->Twilio] Error processing legacy audio: {e}", flush=True)
             except Exception as e:
                 print(f"[EL->Twilio] pump error: {e}", flush=True)
 
