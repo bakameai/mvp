@@ -3,6 +3,8 @@ import json
 import base64
 import audioop
 import asyncio
+import io
+import wave
 from typing import Optional
 
 import websockets
@@ -80,8 +82,15 @@ async def process_audio_buffer(audio_buffer: bytearray, phone_number: str, sessi
             print("[BAKAME] No phone number available, skipping AI processing", flush=True)
             return
         
-        audio_bytes = bytes(audio_buffer)
-        user_input = await openai_service.transcribe_audio(audio_bytes, "wav")
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, 'wb') as wav_file:
+            wav_file.setnchannels(1)  # mono
+            wav_file.setsampwidth(2)  # 16-bit
+            wav_file.setframerate(16000)  # 16kHz
+            wav_file.writeframes(bytes(audio_buffer))
+        
+        wav_bytes = wav_buffer.getvalue()
+        user_input = await openai_service.transcribe_audio(wav_bytes, "wav")
         
         if not user_input or len(user_input.strip()) < 2:
             print("[BAKAME] No meaningful transcription, skipping", flush=True)
