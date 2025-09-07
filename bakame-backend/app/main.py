@@ -162,6 +162,10 @@ async def twilio_stream(ws: WebSocket):
                 async for raw in el_ws:
                     msg = None
                     if isinstance(raw, (bytes, bytearray)):
+                        if ws.client_state.name != "CONNECTED":
+                            print(f"[EL->Twilio] Twilio WebSocket not connected (state: {ws.client_state.name}), stopping binary audio", flush=True)
+                            return
+                        
                         pcm16k = bytes(raw)
                         ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
                         out = {"event": "media", "media": {"payload": ulaw_b64}}
@@ -188,6 +192,10 @@ async def twilio_stream(ws: WebSocket):
                                 audio_base64 = audio_event.get("audio_base_64", "")
                                 if audio_base64:
                                     try:
+                                        if ws.client_state.name != "CONNECTED":
+                                            print(f"[EL->Twilio] Twilio WebSocket not connected (state: {ws.client_state.name}), skipping audio", flush=True)
+                                            return
+                                        
                                         pcm16k = base64.b64decode(audio_base64)
                                         ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
                                         out = {"event": "media", "media": {"payload": ulaw_b64}}
@@ -195,6 +203,9 @@ async def twilio_stream(ws: WebSocket):
                                         await ws.send_text(json.dumps(out))
                                     except Exception as e:
                                         print(f"[EL->Twilio] Error processing audio: {e}", flush=True)
+                                        if "close message has been sent" in str(e) or "not connected" in str(e).lower():
+                                            print("[EL->Twilio] Twilio WebSocket closed, stopping audio pump", flush=True)
+                                            return
                                 else:
                                     print(f"[EL->Twilio] Received audio message but no audio_base_64 data", flush=True)
                             
@@ -207,6 +218,10 @@ async def twilio_stream(ws: WebSocket):
                             
                             elif "audio" in msg and msg_type != "audio":
                                 try:
+                                    if ws.client_state.name != "CONNECTED":
+                                        print(f"[EL->Twilio] Twilio WebSocket not connected (state: {ws.client_state.name}), skipping legacy audio", flush=True)
+                                        return
+                                    
                                     pcm16k = base64.b64decode(msg["audio"])
                                     ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
                                     out = {"event": "media", "media": {"payload": ulaw_b64}}
@@ -214,6 +229,9 @@ async def twilio_stream(ws: WebSocket):
                                     await ws.send_text(json.dumps(out))
                                 except Exception as e:
                                     print(f"[EL->Twilio] Error processing legacy audio: {e}", flush=True)
+                                    if "close message has been sent" in str(e) or "not connected" in str(e).lower():
+                                        print("[EL->Twilio] Twilio WebSocket closed, stopping legacy audio pump", flush=True)
+                                        return
             except Exception as e:
                 print(f"[EL->Twilio] pump error: {e}", flush=True)
 
