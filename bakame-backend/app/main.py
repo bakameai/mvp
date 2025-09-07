@@ -205,7 +205,11 @@ async def twilio_stream(ws: WebSocket):
 
                 if el_ws is not None:
                     try:
-                        await el_ws.send(pcm16k)
+                        audio_b64 = base64.b64encode(pcm16k).decode('utf-8')
+                        el_message = {
+                            "user_audio_chunk": audio_b64
+                        }
+                        await el_ws.send(json.dumps(el_message))
                     except Exception as e:
                         print(f"[Twilio->EL] send error: {e}", flush=True)
 
