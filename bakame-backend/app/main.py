@@ -191,15 +191,19 @@ async def twilio_stream(ws: WebSocket):
                                         pcm16k = base64.b64decode(audio_base64)
                                         ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
                                         out = {"event": "media", "media": {"payload": ulaw_b64}}
-                                        print(f"[EL->Twilio] Sending audio chunk ({len(pcm16k)} bytes)", flush=True)
+                                        print(f"[EL->Twilio] Sending audio chunk ({len(pcm16k)} bytes PCM -> {len(base64.b64decode(ulaw_b64))} bytes μ-law)", flush=True)
                                         await ws.send_text(json.dumps(out))
                                     except Exception as e:
                                         print(f"[EL->Twilio] Error processing audio: {e}", flush=True)
+                                else:
+                                    print(f"[EL->Twilio] Received audio message but no audio_base_64 data", flush=True)
                             
                             elif msg_type == "ping":
-                                pong_message = {"type": "pong", "event_id": msg.get("event_id")}
+                                ping_event = msg.get("ping_event", {})
+                                event_id = ping_event.get("event_id")
+                                pong_message = {"type": "pong", "event_id": event_id}
                                 await el_ws.send(json.dumps(pong_message))
-                                print(f"[EL->Twilio] Sent pong response", flush=True)
+                                print(f"[EL->Twilio] Sent pong response for event_id: {event_id}", flush=True)
                             
                             elif "audio" in msg and msg_type != "audio":
                                 try:
