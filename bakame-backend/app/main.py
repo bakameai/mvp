@@ -19,6 +19,7 @@ from app.modules.math_module import math_module
 from app.modules.comprehension_module import comprehension_module
 from app.modules.debate_module import debate_module
 from app.modules.general_module import general_module
+from app.elevenlabs_client import open_el_ws
 
 """
 ENV you must set in Fly (or locally):
@@ -29,8 +30,6 @@ ENV you must set in Fly (or locally):
 
 EL_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 EL_AGENT_ID = os.getenv("ELEVENLABS_AGENT_ID", "")
-
-EL_WS_URL = f"wss://api.elevenlabs.io/v1/convai/conversation?agent_id={EL_AGENT_ID}"
 
 MODULES = {
     "english": english_module,
@@ -153,10 +152,9 @@ async def twilio_stream(ws: WebSocket):
     el_to_twilio_task: Optional[asyncio.Task] = None
 
     try:
-        print(f"[EL] Connecting to: {EL_WS_URL}", flush=True)
-        print("[EL] Attempting connection without authentication headers (per docs)", flush=True)
-        el_ws = await websockets.connect(EL_WS_URL)
-        print("[EL] WS connected successfully!", flush=True)
+        print("[EL] Connecting with proper authentication...", flush=True)
+        el_ws = await open_el_ws()
+        print("[EL] WS connected successfully with authentication!", flush=True)
 
         async def pump_el_to_twilio():
             """Read audio chunks from 11Labs and push back to Twilio."""
@@ -180,7 +178,7 @@ async def twilio_stream(ws: WebSocket):
                             msg_type = msg.get("type")
                             print(f"[EL->Twilio] Received message type: {msg_type}", flush=True)
                             
-                            if msg_type == "audio_event":
+                            if msg_type == "audio":
                                 audio_event = msg.get("audio_event", {})
                                 audio_base64 = audio_event.get("audio_base_64", "")
                                 if audio_base64:
@@ -188,17 +186,17 @@ async def twilio_stream(ws: WebSocket):
                                         pcm16k = base64.b64decode(audio_base64)
                                         ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
                                         out = {"event": "media", "media": {"payload": ulaw_b64}}
-                                        print(f"[EL->Twilio] Sending audio_event chunk ({len(pcm16k)} bytes)", flush=True)
+                                        print(f"[EL->Twilio] Sending audio chunk ({len(pcm16k)} bytes)", flush=True)
                                         await ws.send_text(json.dumps(out))
                                     except Exception as e:
-                                        print(f"[EL->Twilio] Error processing audio_event: {e}", flush=True)
+                                        print(f"[EL->Twilio] Error processing audio: {e}", flush=True)
                             
                             elif msg_type == "ping":
                                 pong_message = {"type": "pong", "event_id": msg.get("event_id")}
                                 await el_ws.send(json.dumps(pong_message))
                                 print(f"[EL->Twilio] Sent pong response", flush=True)
                             
-                            elif "audio" in msg:
+                            elif "audio" in msg and msg_type != "audio":
                                 try:
                                     pcm16k = base64.b64decode(msg["audio"])
                                     ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
