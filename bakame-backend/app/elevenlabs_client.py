@@ -29,7 +29,7 @@ async def open_el_ws():
         try:
             return await websockets.connect(
                 url,
-                additional_headers={"Authorization": f"Bearer {ws_secret}"},
+                extra_headers={"Authorization": f"Bearer {ws_secret}"},
                 ping_interval=None,
             )
         except InvalidStatusCode as e:
@@ -44,7 +44,7 @@ async def open_el_ws():
         )
         return await websockets.connect(
             url,
-            additional_headers={"xi-api-key": user_api},
+            extra_headers={"xi-api-key": user_api},
             ping_interval=None,
         )
 
