@@ -606,6 +606,10 @@ async def twilio_stream(ws: WebSocket):
             if el_to_twilio_task:
                 print("[Bridge] Cancelling EL->Twilio task", flush=True)
                 el_to_twilio_task.cancel()
+                try:
+                    await el_to_twilio_task
+                except asyncio.CancelledError:
+                    print("[Bridge] EL->Twilio task cancelled successfully", flush=True)
         except Exception as e:
             print(f"[Bridge] Error cancelling task: {e}", flush=True)
         try:
