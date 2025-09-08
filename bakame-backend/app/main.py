@@ -6,7 +6,10 @@ import asyncio
 import io
 import wave
 import time
+import math
+import struct
 from typing import Optional
+from collections import deque
 
 import websockets
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Form
@@ -65,11 +68,55 @@ def twilio_ulaw8k_to_pcm16_16k(b64_payload: str) -> bytes:
     return pcm16k
 
 
-def pcm16_16k_to_twilio_ulaw8k(pcm16k: bytes) -> str:
-    """From 16k PCM16 -> μ-law 8k (base64) for Twilio playback."""
+def pcm16_16k_to_mulaw8k_20ms_frames(pcm16k: bytes) -> list[bytes]:
+    """
+    Input:  16-bit PCM, 16kHz, mono
+    Output: list of 20ms μ-law frames at 8kHz; each frame is 160 bytes
+    """
     pcm8k, _ = audioop.ratecv(pcm16k, 2, 1, 16000, 8000, None)
-    ulaw = audioop.lin2ulaw(pcm8k, 2)
-    return base64.b64encode(ulaw).decode("ascii")
+    mulaw = audioop.lin2ulaw(pcm8k, 2)
+    FRAME_BYTES = 160
+    return [mulaw[i:i+FRAME_BYTES] for i in range(0, len(mulaw), FRAME_BYTES) if len(mulaw[i:i+FRAME_BYTES]) == FRAME_BYTES]
+
+async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes]):
+    """
+    Paces frames at ~20ms per chunk. Sends TEXT frames to Twilio.
+    """
+    if not stream_sid:
+        return
+
+    FRAME_INTERVAL_SEC = 0.02
+    next_deadline = time.perf_counter()
+
+    for frame in mulaw_frames:
+        payload_b64 = base64.b64encode(frame).decode("ascii")
+        msg = {
+            "event": "media",
+            "streamSid": stream_sid,
+            "media": {"payload": payload_b64},
+        }
+        await ws.send_text(json.dumps(msg))
+
+        next_deadline += FRAME_INTERVAL_SEC
+        sleep_for = next_deadline - time.perf_counter()
+        if sleep_for > 0:
+            await asyncio.sleep(sleep_for)
+        else:
+            next_deadline = time.perf_counter()
+
+def one_khz_tone_mulaw_8k_1s() -> list[bytes]:
+    """Generate 1kHz test tone for audio path verification"""
+    sr = 8000
+    dur = 1.0
+    freq = 1000.0
+    amp = 12000
+    samples = bytearray()
+    for n in range(int(sr*dur)):
+        val = int(amp * math.sin(2*math.pi*freq*(n/sr)))
+        samples += struct.pack("<h", val)
+    mulaw = audioop.lin2ulaw(bytes(samples), 2)
+    FRAME_BYTES = 160
+    return [mulaw[i:i+FRAME_BYTES] for i in range(0, len(mulaw), FRAME_BYTES)]
 
 
 async def process_audio_buffer(audio_buffer: bytearray, phone_number: str, session_id: str, el_ws):
@@ -145,6 +192,8 @@ async def twilio_stream(ws: WebSocket):
     buffer_start_time = None
     phone_number = None
     session_id = None
+    stream_sid = None
+    pending_mulaw_frames = deque()
 
     el_ws: Optional[websockets.WebSocketClientProtocol] = None
     el_to_twilio_task: Optional[asyncio.Task] = None
@@ -257,23 +306,15 @@ async def twilio_stream(ws: WebSocket):
                         print(f"[TIMING] Binary audio arrived at {current_time}, Twilio state: {ws_state}", flush=True)
                         
                         pcm16k = bytes(raw)
-                        ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
+                        frames = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k)
+                        print(f"[BINARY] {len(pcm16k)} bytes PCM → {len(frames)} frames", flush=True)
                         
-                        out = {
-                            "event": "media",
-                            "media": {
-                                "track": "outbound",
-                                "payload": ulaw_b64
-                            }
-                        }
-                        
-                        msg_json = json.dumps(out)
-                        print(f"[BINARY] Message to Twilio: {msg_json[:100]}... (total: {len(msg_json)} chars)", flush=True)
-                        
-                        success = await send_audio_with_retry(out)
-                        if not success:
-                            audio_buffer.append(out)
-                            print(f"[BUFFER] Buffered binary audio ({len(pcm16k)} bytes, state: {ws_state}, buffer size: {len(audio_buffer)})", flush=True)
+                        if not stream_sid:
+                            pending_mulaw_frames.extend(frames)
+                            print(f"[BUFFER] Buffered {len(frames)} binary frames (no streamSid yet)", flush=True)
+                        else:
+                            await send_twilio_media_frames(ws, stream_sid, frames)
+                            print(f"[BINARY] Sent {len(frames)} frames to Twilio", flush=True)
                         
                     else:
                         try:
@@ -309,23 +350,15 @@ async def twilio_stream(ws: WebSocket):
                                     
                                     try:
                                         pcm16k = base64.b64decode(audio_base64)
-                                        ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
+                                        frames = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k)
+                                        print(f"[AUDIO] Event #{event_id}: {len(pcm16k)} bytes PCM → {len(frames)} frames", flush=True)
                                         
-                                        out = {
-                                            "event": "media",
-                                            "media": {
-                                                "track": "outbound",
-                                                "payload": ulaw_b64
-                                            }
-                                        }
-                                        
-                                        msg_json = json.dumps(out)
-                                        print(f"[AUDIO] Message to Twilio: {msg_json[:100]}... (total: {len(msg_json)} chars)", flush=True)
-                                        
-                                        success = await send_audio_with_retry(out)
-                                        if not success:
-                                            audio_buffer.append(out)
-                                            print(f"[BUFFER] Buffered audio event #{event_id} ({len(pcm16k)} bytes, state: {ws_state}, buffer size: {len(audio_buffer)})", flush=True)
+                                        if not stream_sid:
+                                            pending_mulaw_frames.extend(frames)
+                                            print(f"[BUFFER] Buffered {len(frames)} frames for event #{event_id} (no streamSid yet)", flush=True)
+                                        else:
+                                            await send_twilio_media_frames(ws, stream_sid, frames)
+                                            print(f"[FRAME] Sent {len(frames)} frames for event #{event_id} (~214 chars base64 each)", flush=True)
                                             
                                     except Exception as e:
                                         print(f"[EL->Twilio] ❌ Error processing audio event #{event_id}: {e}", flush=True)
@@ -348,23 +381,15 @@ async def twilio_stream(ws: WebSocket):
                                 
                                 try:
                                     pcm16k = base64.b64decode(msg["audio"])
-                                    ulaw_b64 = pcm16_16k_to_twilio_ulaw8k(pcm16k)
+                                    frames = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k)
+                                    print(f"[LEGACY] {len(pcm16k)} bytes PCM → {len(frames)} frames", flush=True)
                                     
-                                    out = {
-                                        "event": "media",
-                                        "media": {
-                                            "track": "outbound",
-                                            "payload": ulaw_b64
-                                        }
-                                    }
-                                    
-                                    msg_json = json.dumps(out)
-                                    print(f"[LEGACY] Message to Twilio: {msg_json[:100]}... (total: {len(msg_json)} chars)", flush=True)
-                                    
-                                    success = await send_audio_with_retry(out)
-                                    if not success:
-                                        audio_buffer.append(out)
-                                        print(f"[BUFFER] Buffered legacy audio ({len(pcm16k)} bytes, state: {ws_state}, buffer size: {len(audio_buffer)})", flush=True)
+                                    if not stream_sid:
+                                        pending_mulaw_frames.extend(frames)
+                                        print(f"[BUFFER] Buffered {len(frames)} legacy frames (no streamSid yet)", flush=True)
+                                    else:
+                                        await send_twilio_media_frames(ws, stream_sid, frames)
+                                        print(f"[LEGACY] Sent {len(frames)} frames to Twilio", flush=True)
                                         
                                 except Exception as e:
                                     print(f"[EL->Twilio] ❌ Error processing legacy audio: {e}", flush=True)
@@ -398,8 +423,14 @@ async def twilio_stream(ws: WebSocket):
                 start_data = data.get("start", {})
                 phone_number = start_data.get("customParameters", {}).get("phone_number")
                 session_id = start_data.get("streamSid")
+                stream_sid = session_id
                 print(f"[Twilio] Media start for {phone_number}, streamSid: {session_id}, WS state: {ws.client_state.name}", flush=True)
                 print(f"[Twilio] Start data: {json.dumps(start_data, indent=2)}", flush=True)
+                
+                while pending_mulaw_frames:
+                    frame = pending_mulaw_frames.popleft()
+                    await send_twilio_media_frames(ws, stream_sid, [frame])
+                    print(f"[BUFFER] Flushed buffered frame to Twilio", flush=True)
 
             elif event == "media":
                 media_data = data.get("media", {})
