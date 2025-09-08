@@ -311,7 +311,10 @@ async def twilio_stream(ws: WebSocket):
                         
                         if not stream_sid:
                             pending_mulaw_frames.extend(frames)
-                            print(f"[BUFFER] Buffered {len(frames)} binary frames (no streamSid yet)", flush=True)
+                            while len(pending_mulaw_frames) > 100:
+                                pending_mulaw_frames.popleft()
+                                print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
+                            print(f"[BUFFER] Buffered {len(frames)} binary frames (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
                         else:
                             await send_twilio_media_frames(ws, stream_sid, frames)
                             print(f"[BINARY] Sent {len(frames)} frames to Twilio", flush=True)
@@ -355,7 +358,10 @@ async def twilio_stream(ws: WebSocket):
                                         
                                         if not stream_sid:
                                             pending_mulaw_frames.extend(frames)
-                                            print(f"[BUFFER] Buffered {len(frames)} frames for event #{event_id} (no streamSid yet)", flush=True)
+                                            while len(pending_mulaw_frames) > 100:
+                                                pending_mulaw_frames.popleft()
+                                                print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
+                                            print(f"[BUFFER] Buffered {len(frames)} frames for event #{event_id} (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
                                         else:
                                             await send_twilio_media_frames(ws, stream_sid, frames)
                                             print(f"[FRAME] Sent {len(frames)} frames for event #{event_id} (~214 chars base64 each)", flush=True)
@@ -386,7 +392,10 @@ async def twilio_stream(ws: WebSocket):
                                     
                                     if not stream_sid:
                                         pending_mulaw_frames.extend(frames)
-                                        print(f"[BUFFER] Buffered {len(frames)} legacy frames (no streamSid yet)", flush=True)
+                                        while len(pending_mulaw_frames) > 100:
+                                            pending_mulaw_frames.popleft()
+                                            print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
+                                        print(f"[BUFFER] Buffered {len(frames)} legacy frames (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
                                     else:
                                         await send_twilio_media_frames(ws, stream_sid, frames)
                                         print(f"[LEGACY] Sent {len(frames)} frames to Twilio", flush=True)
