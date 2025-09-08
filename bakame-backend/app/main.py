@@ -515,6 +515,7 @@ async def twilio_stream(ws: WebSocket):
                         pass
 
         el_to_twilio_task = asyncio.create_task(pump_el_to_twilio())
+        print("[Bridge] Started enhanced EL->Twilio audio processing task", flush=True)
 
         while True:
             msg = await ws.receive_text()
