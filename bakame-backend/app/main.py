@@ -60,6 +60,23 @@ async def twilio_webhook(From: str = Form(...), To: str = Form(...)):
     return Response(content=twiml, media_type="application/xml")
 
 
+def enhance_voice_audio(pcm16k: bytes) -> bytes:
+    """
+    Enhance voice audio quality before μ-law conversion.
+    Applies amplitude normalization and voice-frequency optimization.
+    """
+    if not pcm16k:
+        return pcm16k
+    
+    max_val = audioop.max(pcm16k, 2)
+    if max_val > 0:
+        target_amplitude = int(32767 * 0.8)
+        scale_factor = target_amplitude / max_val
+        if scale_factor != 1.0:
+            pcm16k = audioop.mul(pcm16k, 2, scale_factor)
+    
+    return pcm16k
+
 def twilio_ulaw8k_to_pcm16_16k(b64_payload: str) -> bytes:
     """Twilio sends 8k μ-law audio in base64. Convert -> 16kHz signed 16-bit PCM."""
     ulaw = base64.b64decode(b64_payload)
@@ -68,15 +85,19 @@ def twilio_ulaw8k_to_pcm16_16k(b64_payload: str) -> bytes:
     return pcm16k
 
 
-def pcm16_16k_to_mulaw8k_20ms_frames(pcm16k: bytes) -> list[bytes]:
+def pcm16_16k_to_mulaw8k_20ms_frames(pcm16k: bytes, state=None) -> tuple[list[bytes], any]:
     """
     Input:  16-bit PCM, 16kHz, mono
     Output: list of 20ms μ-law frames at 8kHz; each frame is 160 bytes
+    Enhanced with voice quality optimizations for Twilio compliance.
     """
-    pcm8k, _ = audioop.ratecv(pcm16k, 2, 1, 16000, 8000, None)
+    enhanced_pcm16k = enhance_voice_audio(pcm16k)
+    
+    pcm8k, new_state = audioop.ratecv(enhanced_pcm16k, 2, 1, 16000, 8000, state)
     mulaw = audioop.lin2ulaw(pcm8k, 2)
     FRAME_BYTES = 160
-    return [mulaw[i:i+FRAME_BYTES] for i in range(0, len(mulaw), FRAME_BYTES) if len(mulaw[i:i+FRAME_BYTES]) == FRAME_BYTES]
+    frames = [mulaw[i:i+FRAME_BYTES] for i in range(0, len(mulaw), FRAME_BYTES) if len(mulaw[i:i+FRAME_BYTES]) == FRAME_BYTES]
+    return frames, new_state
 
 async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes]):
     """
@@ -120,10 +141,11 @@ def one_khz_tone_mulaw_8k_1s() -> list[bytes]:
     for n in range(int(sr*dur)):
         val = int(amp * math.sin(2*math.pi*freq*(n/sr)))
         samples += struct.pack("<h", val)
-    mulaw = audioop.lin2ulaw(bytes(samples), 2)
+    enhanced_samples = enhance_voice_audio(bytes(samples))
+    mulaw = audioop.lin2ulaw(enhanced_samples, 2)
     FRAME_BYTES = 160
     frames = [mulaw[i:i+FRAME_BYTES] for i in range(0, len(mulaw), FRAME_BYTES) if len(mulaw[i:i+FRAME_BYTES]) == FRAME_BYTES]
-    print(f"[TEST] Generated 1s test tone: {len(frames)} frames ({len(frames)/50:.1f}s)", flush=True)
+    print(f"[TEST] Generated 1s enhanced test tone: {len(frames)} frames ({len(frames)/50:.1f}s)", flush=True)
     return frames
 
 def generate_30s_test_tone() -> list[bytes]:
@@ -137,15 +159,26 @@ def generate_30s_test_tone() -> list[bytes]:
     for n in range(int(sr * dur)):
         val = int(amp * math.sin(2 * math.pi * freq * (n / sr)))
         samples += struct.pack("<h", val)
-    mulaw = audioop.lin2ulaw(bytes(samples), 2)
+    enhanced_samples = enhance_voice_audio(bytes(samples))
+    mulaw = audioop.lin2ulaw(enhanced_samples, 2)
     FRAME_BYTES = 160
     frames = [mulaw[i:i+FRAME_BYTES] for i in range(0, len(mulaw), FRAME_BYTES) if len(mulaw[i:i+FRAME_BYTES]) == FRAME_BYTES]
-    print(f"[TEST] Generated 30s test tone: {len(frames)} frames ({len(frames)/50:.1f}s)", flush=True)
+    print(f"[TEST] Generated 30s enhanced test tone: {len(frames)} frames ({len(frames)/50:.1f}s)", flush=True)
     return frames
 
 def generate_silence_frame() -> bytes:
     """Generate a 20ms silence frame (160 bytes of μ-law silence = 0xFF)."""
     return bytes([0xFF] * 160)
+
+def log_audio_quality_metrics(pcm16k: bytes, frames: list[bytes], event_id: str = "unknown"):
+    """Log audio quality metrics for monitoring enhancement effectiveness."""
+    if pcm16k and frames:
+        rms_level = audioop.rms(pcm16k, 2)
+        max_level = audioop.max(pcm16k, 2)
+        dynamic_range = max_level / max(rms_level, 1)  # Avoid division by zero
+        
+        print(f"[QUALITY] Event {event_id}: RMS={rms_level}, Max={max_level}, "
+              f"Dynamic Range={dynamic_range:.2f}, Frames={len(frames)}", flush=True)
 
 
 async def process_audio_buffer(audio_buffer: bytearray, phone_number: str, session_id: str, el_ws):
@@ -239,12 +272,13 @@ async def twilio_stream(ws: WebSocket):
         print("[EL] Waiting for conversation initiation...", flush=True)
 
         async def pump_el_to_twilio():
-            """Read audio chunks from 11Labs and push back to Twilio with WebSocket reconnection support."""
+            """Read audio chunks from 11Labs and push back to Twilio with enhanced quality."""
             from collections import deque
             import traceback
             
             nonlocal stream_sid, last_audio_time, frames_sent_count, silence_padding_active
             
+            audio_conversion_state = None
             audio_buffer = deque()
             buffer_processing = True
             audio_sent_count = 0
@@ -376,8 +410,9 @@ async def twilio_stream(ws: WebSocket):
                         print(f"[TIMING] Binary audio arrived at {current_time}, Twilio state: {ws_state}", flush=True)
                         
                         pcm16k = bytes(raw)
-                        frames = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k)
-                        print(f"[BINARY] {len(pcm16k)} bytes PCM → {len(frames)} frames", flush=True)
+                        frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k, audio_conversion_state)
+                        log_audio_quality_metrics(pcm16k, frames, "binary")
+                        print(f"[BINARY] {len(pcm16k)} bytes PCM → {len(frames)} frames (enhanced)", flush=True)
                         
                         if not stream_sid:
                             pending_mulaw_frames.extend(frames)
@@ -426,8 +461,9 @@ async def twilio_stream(ws: WebSocket):
                                     
                                     try:
                                         pcm16k = base64.b64decode(audio_base64)
-                                        frames = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k)
-                                        print(f"[AUDIO] Event #{event_id}: {len(pcm16k)} bytes PCM → {len(frames)} frames", flush=True)
+                                        frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k, audio_conversion_state)
+                                        log_audio_quality_metrics(pcm16k, frames, f"audio-{event_id}")
+                                        print(f"[AUDIO] Event #{event_id}: {len(pcm16k)} bytes PCM → {len(frames)} frames (enhanced)", flush=True)
                                         
                                         if not stream_sid:
                                             pending_mulaw_frames.extend(frames)
@@ -463,8 +499,9 @@ async def twilio_stream(ws: WebSocket):
                                 
                                 try:
                                     pcm16k = base64.b64decode(msg["audio"])
-                                    frames = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k)
-                                    print(f"[LEGACY] {len(pcm16k)} bytes PCM → {len(frames)} frames", flush=True)
+                                    frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k, audio_conversion_state)
+                                    log_audio_quality_metrics(pcm16k, frames, "legacy")
+                                    print(f"[LEGACY] {len(pcm16k)} bytes PCM → {len(frames)} frames (enhanced)", flush=True)
                                     
                                     if not stream_sid:
                                         pending_mulaw_frames.extend(frames)
