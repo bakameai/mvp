@@ -161,9 +161,10 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
     Codec: G.711 μ-law, Sample rate: 8 kHz, Frame size: 20ms, Frame rate: 50fps exactly.
     """
     if not stream_sid:
-        return
+        return 0
 
     frame_count = 0
+    frames_sent = 0
     
     for frame in mulaw_frames:
         frame_count += 1
@@ -182,8 +183,11 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
         print(f"[FRAME] Sending frame {frame_count}, size=160, streamSid={stream_sid[:8]}..., payload_len={len(payload_b64)}", flush=True)
         
         await ws.send_text(json.dumps(msg))
+        frames_sent += 1
 
         await asyncio.sleep(0.02)
+    
+    return frames_sent
 
 def one_khz_tone_mulaw_8k_1s() -> list[bytes]:
     """Generate 1kHz test tone for 1 second at 8kHz μ-law, sliced into 20ms frames."""
@@ -353,8 +357,8 @@ async def twilio_stream(ws: WebSocket):
                             print("[SILENCE] ElevenLabs stalled, starting silence padding", flush=True)
                         
                         silence_frame = generate_silence_frame()
-                        await send_twilio_media_frames(ws, stream_sid, [silence_frame])
-                        frames_sent_count += 1
+                        frames_sent = await send_twilio_media_frames(ws, stream_sid, [silence_frame])
+                        frames_sent_count += frames_sent if frames_sent else 1
                         print(f"[SILENCE] Sent silence frame, total sent: {frames_sent_count}", flush=True)
                         
                         last_audio_time = time.time()
@@ -477,8 +481,8 @@ async def twilio_stream(ws: WebSocket):
                                 print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
                             print(f"[BUFFER] Buffered {len(frames)} binary frames (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
                         else:
-                            await send_twilio_media_frames(ws, stream_sid, frames)
-                            frames_sent_count += len(frames)
+                            frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
+                            frames_sent_count += frames_sent if frames_sent else len(frames)
                             last_audio_time = time.time()
                             silence_padding_active = False
                             print(f"[BINARY] Sent {len(frames)} frames to Twilio, total sent: {frames_sent_count}", flush=True)
@@ -528,8 +532,8 @@ async def twilio_stream(ws: WebSocket):
                                                 print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
                                             print(f"[BUFFER] Buffered {len(frames)} frames for event #{event_id} (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
                                         else:
-                                            await send_twilio_media_frames(ws, stream_sid, frames)
-                                            frames_sent_count += len(frames)
+                                            frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
+                                            frames_sent_count += frames_sent if frames_sent else len(frames)
                                             last_audio_time = time.time()
                                             silence_padding_active = False
                                             print(f"[AUDIO] Sent {len(frames)} frames for event #{event_id}, total sent: {frames_sent_count}", flush=True)
@@ -566,8 +570,8 @@ async def twilio_stream(ws: WebSocket):
                                             print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
                                         print(f"[BUFFER] Buffered {len(frames)} legacy frames (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
                                     else:
-                                        await send_twilio_media_frames(ws, stream_sid, frames)
-                                        frames_sent_count += len(frames)
+                                        frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
+                                        frames_sent_count += frames_sent if frames_sent else len(frames)
                                         last_audio_time = time.time()
                                         silence_padding_active = False
                                         print(f"[LEGACY] Sent {len(frames)} frames to Twilio, total sent: {frames_sent_count}", flush=True)
@@ -630,8 +634,8 @@ async def twilio_stream(ws: WebSocket):
                 
                 while pending_mulaw_frames:
                     frame = pending_mulaw_frames.popleft()
-                    await send_twilio_media_frames(ws, stream_sid, [frame])
-                    frames_sent_count += 1
+                    frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame])
+                    frames_sent_count += frames_sent if frames_sent else 1
                     print(f"[BUFFER] Flushed buffered frame to Twilio, total sent: {frames_sent_count}", flush=True)
 
             elif event == "media":
