@@ -182,8 +182,24 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
         
         print(f"[FRAME] Sending frame {frame_count}, size=160, streamSid={stream_sid[:8]}..., payload_len={len(payload_b64)}", flush=True)
         
-        await ws.send_text(json.dumps(msg))
-        frames_sent += 1
+        max_retries = 2
+        retry_count = 0
+        frame_sent = False
+        
+        while retry_count <= max_retries and not frame_sent:
+            try:
+                await ws.send_text(json.dumps(msg))
+                frames_sent += 1
+                frame_sent = True
+                if retry_count > 0:
+                    print(f"[FRAME] Frame {frame_count} sent successfully after {retry_count} retries", flush=True)
+            except Exception as e:
+                retry_count += 1
+                if retry_count <= max_retries:
+                    print(f"[FRAME] Frame {frame_count} send failed (attempt {retry_count}/{max_retries + 1}): {e}", flush=True)
+                    await asyncio.sleep(0.005)  # Brief retry delay
+                else:
+                    print(f"[FRAME] Frame {frame_count} send failed permanently after {max_retries + 1} attempts: {e}", flush=True)
 
         await asyncio.sleep(0.02)
     
