@@ -164,7 +164,6 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
         return 0
 
     frame_count = 0
-    frames_sent = 0
     
     for frame in mulaw_frames:
         frame_count += 1
@@ -189,7 +188,6 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
         while retry_count <= max_retries and not frame_sent:
             try:
                 await ws.send_text(json.dumps(msg))
-                frames_sent += 1
                 frame_sent = True
                 if retry_count > 0:
                     print(f"[FRAME] Frame {frame_count} sent successfully after {retry_count} retries", flush=True)
@@ -203,7 +201,7 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
 
         await asyncio.sleep(0.02)
     
-    return frames_sent
+    return frame_count
 
 def one_khz_tone_mulaw_8k_1s() -> list[bytes]:
     """Generate 1kHz test tone for 1 second at 8kHz μ-law, sliced into 20ms frames."""
