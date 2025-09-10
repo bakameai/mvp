@@ -30,7 +30,10 @@ async def open_el_ws():
             return await websockets.connect(
                 url,
                 additional_headers={"Authorization": f"Bearer {ws_secret}"},
-                ping_interval=None,
+                ping_interval=20,  # 20 second keepalive
+                ping_timeout=10,   # 10 second timeout
+                max_size=2**20,    # 1MB max message size
+                max_queue=32,      # Optimize send queue
             )
         except InvalidStatusCode as e:
             print(f"[EL] connect failed (Bearer) status={getattr(e, 'status_code', 'unknown')}", flush=True)
@@ -45,7 +48,10 @@ async def open_el_ws():
         return await websockets.connect(
             url,
             additional_headers={"xi-api-key": user_api},
-            ping_interval=None,
+            ping_interval=20,  # 20 second keepalive
+            ping_timeout=10,   # 10 second timeout
+            max_size=2**20,    # 1MB max message size
+            max_queue=32,      # Optimize send queue
         )
 
     raise RuntimeError(

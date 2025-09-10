@@ -25,6 +25,12 @@ from app.modules.debate_module import debate_module
 from app.modules.general_module import general_module
 from app.elevenlabs_client import open_el_ws
 
+SILENCE_THRESHOLD_MS = 250  # Reduced from 500ms for real-time conversation
+BUFFER_CHECK_INTERVAL_MS = 5  # Faster buffer processing
+SILENCE_CHECK_INTERVAL_MS = 50  # More responsive silence detection
+FRAME_RATE_TARGET = 50  # Target 50fps
+MAX_BUFFER_FRAMES = 150  # Increased from 100 for better buffering
+
 """
 ENV you must set in Fly (or locally):
   ELEVENLABS_API_KEY   -> your 11Labs User API key
@@ -63,10 +69,12 @@ async def twilio_webhook(From: str = Form(...), To: str = Form(...)):
 def enhance_voice_audio(pcm16k: bytes) -> bytes:
     """
     Enhance voice audio quality before μ-law conversion.
-    Applies amplitude normalization and voice-frequency optimization.
+    Applies amplitude normalization and voice-frequency optimization for 300-3400Hz range.
     """
     if not pcm16k:
         return pcm16k
+    
+    pcm16k = apply_voice_frequency_emphasis(pcm16k)
     
     max_val = audioop.max(pcm16k, 2)
     if max_val > 0:
@@ -76,6 +84,53 @@ def enhance_voice_audio(pcm16k: bytes) -> bytes:
             pcm16k = audioop.mul(pcm16k, 2, scale_factor)
     
     return pcm16k
+
+def apply_voice_frequency_emphasis(pcm16k: bytes) -> bytes:
+    """
+    Apply enhanced voice-frequency emphasis for telephone quality (300-3400Hz range).
+    Uses sharp bandpass filtering with pre-emphasis for optimal voice clarity.
+    """
+    try:
+        import numpy as np
+        from scipy import signal
+        
+        audio_data = np.frombuffer(pcm16k, dtype=np.int16).astype(np.float32)
+        
+        nyquist = 8000  # 16kHz / 2
+        low_freq = 300 / nyquist
+        high_freq = 3400 / nyquist
+        
+        b_band, a_band = signal.butter(4, [low_freq, high_freq], btype='band')
+        
+        filtered_audio = signal.filtfilt(b_band, a_band, audio_data)
+        
+        emphasis_freq = 2500 / nyquist  # 2.5kHz emphasis
+        b_emp, a_emp = signal.butter(1, emphasis_freq, btype='high')
+        pre_emphasized = signal.lfilter(b_emp, a_emp, filtered_audio)
+        
+        enhanced_audio = 0.7 * filtered_audio + 0.3 * pre_emphasized
+        
+        rms = np.sqrt(np.mean(enhanced_audio**2))
+        if rms > 0:
+            target_rms = 8000  # Target RMS level
+            compression_ratio = min(2.0, target_rms / rms)  # Max 2:1 compression
+            enhanced_audio *= compression_ratio
+        
+        enhanced_audio = np.clip(enhanced_audio, -32768, 32767).astype(np.int16)
+        
+        print(f"[VOICE] Enhanced 3.4kHz filtering applied, RMS: {rms:.0f}", flush=True)
+        return enhanced_audio.tobytes()
+        
+    except ImportError:
+        print("[VOICE] Scipy not available, using basic filtering", flush=True)
+        try:
+            debiased = audioop.bias(pcm16k, 2, 0)
+            return debiased
+        except:
+            return pcm16k
+    except Exception as e:
+        print(f"[AUDIO] Enhanced voice filtering failed: {e}", flush=True)
+        return pcm16k
 
 def twilio_ulaw8k_to_pcm16_16k(b64_payload: str) -> bytes:
     """Twilio sends 8k μ-law audio in base64. Convert -> 16kHz signed 16-bit PCM."""
@@ -290,9 +345,9 @@ async def twilio_stream(ws: WebSocket):
                 nonlocal stream_sid, last_audio_time, silence_padding_active, frames_sent_count
                 
                 while True:
-                    await asyncio.sleep(0.1)  # Check every 100ms
+                    await asyncio.sleep(0.05)  # Check every 50ms for faster response
                     
-                    if stream_sid and time.time() - last_audio_time > 0.5:  # 500ms silence threshold
+                    if stream_sid and time.time() - last_audio_time > 0.25:  # 250ms silence threshold for real-time
                         if not silence_padding_active:
                             silence_padding_active = True
                             print("[SILENCE] ElevenLabs stalled, starting silence padding", flush=True)
@@ -305,7 +360,7 @@ async def twilio_stream(ws: WebSocket):
                         last_audio_time = time.time()
             
             async def frame_rate_monitor():
-                """Monitor and log frame rate every second."""
+                """Monitor and log frame rate every second with performance alerts."""
                 nonlocal frames_sent_count
                 last_count = 0
                 
@@ -316,7 +371,8 @@ async def twilio_stream(ws: WebSocket):
                     last_count = current_count
                     
                     if fps > 0:
-                        print(f"[MONITOR] Frame rate: {fps} fps (target: 50 fps), total: {current_count}", flush=True)
+                        performance_status = "✅ OPTIMAL" if fps >= 45 else "⚠️ DEGRADED" if fps >= 30 else "❌ POOR"
+                        print(f"[MONITOR] Frame rate: {fps} fps (target: {FRAME_RATE_TARGET} fps) {performance_status}, total: {current_count}", flush=True)
             
             silence_task = asyncio.create_task(silence_padding_task())
             monitor_task = asyncio.create_task(frame_rate_monitor())
@@ -392,7 +448,7 @@ async def twilio_stream(ws: WebSocket):
                             if sent_count > 0:
                                 print(f"[BUFFER] ✅ Sent {sent_count} buffered audio chunks, remaining: {len(audio_buffer)}", flush=True)
                             
-                        await asyncio.sleep(0.01)
+                        await asyncio.sleep(0.005)  # 5ms for faster buffer processing
                     except Exception as e:
                         audio_failed_count += 1
                         print(f"[BUFFER] ❌ Error #{audio_failed_count} processing buffered audio: {e}", flush=True)
@@ -416,7 +472,7 @@ async def twilio_stream(ws: WebSocket):
                         
                         if not stream_sid:
                             pending_mulaw_frames.extend(frames)
-                            while len(pending_mulaw_frames) > 100:
+                            while len(pending_mulaw_frames) > MAX_BUFFER_FRAMES:
                                 pending_mulaw_frames.popleft()
                                 print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
                             print(f"[BUFFER] Buffered {len(frames)} binary frames (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
@@ -467,7 +523,7 @@ async def twilio_stream(ws: WebSocket):
                                         
                                         if not stream_sid:
                                             pending_mulaw_frames.extend(frames)
-                                            while len(pending_mulaw_frames) > 100:
+                                            while len(pending_mulaw_frames) > MAX_BUFFER_FRAMES:
                                                 pending_mulaw_frames.popleft()
                                                 print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
                                             print(f"[BUFFER] Buffered {len(frames)} frames for event #{event_id} (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
@@ -505,7 +561,7 @@ async def twilio_stream(ws: WebSocket):
                                     
                                     if not stream_sid:
                                         pending_mulaw_frames.extend(frames)
-                                        while len(pending_mulaw_frames) > 100:
+                                        while len(pending_mulaw_frames) > MAX_BUFFER_FRAMES:
                                             pending_mulaw_frames.popleft()
                                             print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
                                         print(f"[BUFFER] Buffered {len(frames)} legacy frames (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
