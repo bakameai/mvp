@@ -133,10 +133,36 @@ def apply_voice_frequency_emphasis(pcm16k: bytes) -> bytes:
         return pcm16k
 
 def twilio_ulaw8k_to_pcm16_16k(b64_payload: str) -> bytes:
-    """Twilio sends 8k μ-law audio in base64. Convert -> 16kHz signed 16-bit PCM."""
+    """
+    Twilio sends 8k μ-law audio in base64. Convert -> 16kHz signed 16-bit PCM.
+    Enhanced for ElevenLabs compatibility with improved quality preservation.
+    """
     ulaw = base64.b64decode(b64_payload)
     pcm8k = audioop.ulaw2lin(ulaw, 2)  # width=2 bytes/sample
+    
     pcm16k, _ = audioop.ratecv(pcm8k, 2, 1, 8000, 16000, None)
+    
+    try:
+        import struct
+        samples = struct.unpack(f'<{len(pcm16k)//2}h', pcm16k)
+        
+        max_amplitude = max(abs(s) for s in samples) if samples else 1
+        if max_amplitude > 0:
+            target_amplitude = int(32767 * 0.7)  # 70% of max 16-bit range
+            scale_factor = target_amplitude / max_amplitude
+            
+            normalized_samples = []
+            for sample in samples:
+                scaled = int(sample * scale_factor)
+                clamped = max(-32768, min(32767, scaled))
+                normalized_samples.append(clamped)
+            
+            pcm16k = struct.pack(f'<{len(normalized_samples)}h', *normalized_samples)
+            print(f"[AUDIO] Enhanced Twilio audio: normalized amplitude by {scale_factor:.2f}x for ElevenLabs", flush=True)
+        
+    except Exception as e:
+        print(f"[AUDIO] Audio normalization failed, using original: {e}", flush=True)
+    
     return pcm16k
 
 
@@ -705,13 +731,15 @@ async def twilio_stream(ws: WebSocket):
 
                     if el_ws is not None and el_ready:
                         try:
-                            audio_b64 = base64.b64encode(pcm16k).decode('utf-8')
+                            enhanced_pcm16k = enhance_voice_audio(pcm16k)
+                            
+                            audio_b64 = base64.b64encode(enhanced_pcm16k).decode('utf-8')
                             el_message = {
                                 "user_audio_chunk": audio_b64
                             }
                             await el_ws.send(json.dumps(el_message))
-                            print(f"[Twilio->EL] Sent {len(pcm16k)} bytes to ElevenLabs", flush=True)
-                            print(f"[DEBUG] User audio sent to EL - expecting audio response", flush=True)
+                            print(f"[Twilio->EL] Sent {len(enhanced_pcm16k)} bytes enhanced audio to ElevenLabs", flush=True)
+                            print(f"[DEBUG] Enhanced user audio sent to EL - expecting audio response", flush=True)
                         except Exception as e:
                             print(f"[Twilio->EL] send error: {e}", flush=True)
                     elif el_ws is not None and not el_ready:
