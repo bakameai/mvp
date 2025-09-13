@@ -87,49 +87,76 @@ def enhance_voice_audio(pcm16k: bytes) -> bytes:
 
 def apply_voice_frequency_emphasis(pcm16k: bytes) -> bytes:
     """
-    Apply enhanced voice-frequency emphasis for telephone quality (300-3400Hz range).
-    Uses sharp bandpass filtering with pre-emphasis for optimal voice clarity.
+    Advanced audio reconstruction for ElevenLabs compatibility.
+    Applies aggressive μ-law artifact removal and spectral enhancement.
     """
     try:
         import numpy as np
         from scipy import signal
         
         audio_data = np.frombuffer(pcm16k, dtype=np.int16).astype(np.float32)
+        original_rms = np.sqrt(np.mean(audio_data**2))
+        
+        noise_threshold = np.std(audio_data) * 0.08
+        audio_data = np.where(np.abs(audio_data) < noise_threshold, 0, audio_data)
         
         nyquist = 8000  # 16kHz / 2
         low_freq = 300 / nyquist
         high_freq = 3400 / nyquist
         
-        b_band, a_band = signal.butter(4, [low_freq, high_freq], btype='band')
-        
+        b_band, a_band = signal.butter(6, [low_freq, high_freq], btype='band')
         filtered_audio = signal.filtfilt(b_band, a_band, audio_data)
         
-        emphasis_freq = 2500 / nyquist  # 2.5kHz emphasis
-        b_emp, a_emp = signal.butter(1, emphasis_freq, btype='high')
-        pre_emphasized = signal.lfilter(b_emp, a_emp, filtered_audio)
+        hf_restore_freq = 2000 / nyquist
+        b_hf, a_hf = signal.butter(2, hf_restore_freq, btype='high')
+        hf_enhanced = signal.lfilter(b_hf, a_hf, filtered_audio)
         
-        enhanced_audio = 0.7 * filtered_audio + 0.3 * pre_emphasized
+        fundamental_freq = 150 / nyquist  # Typical voice fundamental
+        b_fund, a_fund = signal.butter(2, fundamental_freq, btype='high')
+        harmonic_enhanced = signal.lfilter(b_fund, a_fund, filtered_audio)
         
-        rms = np.sqrt(np.mean(enhanced_audio**2))
-        if rms > 0:
-            target_rms = 8000  # Target RMS level
-            compression_ratio = min(2.0, target_rms / rms)  # Max 2:1 compression
-            enhanced_audio *= compression_ratio
+        enhanced_audio = (0.5 * filtered_audio + 
+                         0.3 * hf_enhanced + 
+                         0.2 * harmonic_enhanced)
         
+        # Step 5: Dynamic range restoration with soft compression
+        current_rms = np.sqrt(np.mean(enhanced_audio**2))
+        if current_rms > 0:
+            signal_peak = np.max(np.abs(enhanced_audio))
+            dynamic_range = signal_peak / (current_rms + 1e-6)
+            
+            if dynamic_range > 3:  # High dynamic range - preserve
+                target_rms = min(9000, original_rms * 2.2)
+            else:  # Low dynamic range - boost aggressively
+                target_rms = min(12000, original_rms * 3.8)
+            
+            compression_ratio = target_rms / current_rms
+            enhanced_audio *= min(compression_ratio, 4.0)
+        
+        enhanced_audio = np.tanh(enhanced_audio / 20000) * 20000
+        
+        # Final processing
+        final_rms = np.sqrt(np.mean(enhanced_audio**2))
         enhanced_audio = np.clip(enhanced_audio, -32768, 32767).astype(np.int16)
         
-        print(f"[VOICE] Enhanced 3.4kHz filtering applied, RMS: {rms:.0f}", flush=True)
+        print(f"[VOICE] Advanced reconstruction: RMS {int(original_rms)} → {int(final_rms)}, μ-law artifacts removed", flush=True)
         return enhanced_audio.tobytes()
         
     except ImportError:
-        print("[VOICE] Scipy not available, using basic filtering", flush=True)
+        print("[VOICE] Scipy not available, using enhanced basic filtering", flush=True)
         try:
-            debiased = audioop.bias(pcm16k, 2, 0)
-            return debiased
+            # Enhanced fallback processing
+            max_val = audioop.max(pcm16k, 2)
+            if max_val > 0:
+                target_amplitude = int(32767 * 0.9)
+                scale_factor = min(4.0, target_amplitude / max_val)
+                enhanced = audioop.mul(pcm16k, 2, scale_factor)
+                return enhanced
+            return pcm16k
         except:
             return pcm16k
     except Exception as e:
-        print(f"[AUDIO] Enhanced voice filtering failed: {e}", flush=True)
+        print(f"[AUDIO] Advanced voice reconstruction failed: {e}", flush=True)
         return pcm16k
 
 def twilio_ulaw8k_to_pcm16_16k(b64_payload: str) -> bytes:

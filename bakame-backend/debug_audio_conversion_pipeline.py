@@ -46,11 +46,11 @@ def generate_simulated_twilio_audio(duration_seconds=1.0, frequency=800.0):
     
     ulaw = audioop.lin2ulaw(pcm8k, 2)
     
-    pcm8k_restored = audioop.ulaw2lin(ulaw, 2)
+    ulaw_b64 = base64.b64encode(ulaw).decode('utf-8')
     
-    pcm16k_restored, _ = audioop.ratecv(pcm8k_restored, 2, 1, 8000, 16000, None)
+    pcm16k_enhanced = twilio_ulaw8k_to_pcm16_16k(ulaw_b64)
     
-    return pcm16k_clean, pcm16k_restored
+    return pcm16k_clean, pcm16k_enhanced
 
 async def test_audio_formats_with_elevenlabs():
     """Test different audio formats with ElevenLabs to identify why real phone audio doesn't trigger responses."""
@@ -100,19 +100,19 @@ async def test_audio_formats_with_elevenlabs():
         
         print(f"Clean audio responses: {audio_responses}")
         
-        print("\n📢 Test 2: Simulated Twilio μ-law conversion")
+        print("\n📢 Test 2: Enhanced Twilio μ-law conversion with amplitude normalization")
         clean_audio, twilio_audio = generate_simulated_twilio_audio(duration_seconds=0.5, frequency=800.0)
         
         print(f"Original audio: {len(clean_audio)} bytes")
-        print(f"After Twilio conversion: {len(twilio_audio)} bytes")
+        print(f"After enhanced Twilio conversion: {len(twilio_audio)} bytes")
         
-        enhanced_audio = enhance_voice_audio(twilio_audio)
-        print(f"After voice enhancement: {len(enhanced_audio)} bytes")
+        double_enhanced_audio = enhance_voice_audio(twilio_audio)
+        print(f"After double enhancement: {len(double_enhanced_audio)} bytes")
         
-        audio_b64 = base64.b64encode(enhanced_audio).decode('utf-8')
+        audio_b64 = base64.b64encode(double_enhanced_audio).decode('utf-8')
         el_message = {"user_audio_chunk": audio_b64}
         await el_ws.send(json.dumps(el_message))
-        print(f"✅ Sent simulated Twilio audio")
+        print(f"✅ Sent enhanced Twilio audio with double processing")
         
         twilio_responses = 0
         for _ in range(10):  # Wait up to 5 seconds
@@ -156,12 +156,16 @@ async def test_audio_formats_with_elevenlabs():
         print(f"Twilio-simulated responses: {twilio_responses}")
         print(f"Short chunks responses: {short_responses}")
         
-        if audio_responses > 0 and twilio_responses == 0:
-            print("\n❌ ISSUE IDENTIFIED: Twilio audio conversion pipeline breaks ElevenLabs compatibility")
-            print("   Possible causes:")
-            print("   - μ-law compression artifacts")
-            print("   - Sample rate conversion quality loss")
-            print("   - Audio enhancement pipeline issues")
+        if audio_responses > 0 and twilio_responses > 0:
+            print("\n✅ SUCCESS: Enhanced Twilio audio conversion now works with ElevenLabs!")
+            print("   Audio quality improvements fixed the compatibility issue")
+            print("   Expected: audio_frames_count will now increment during real phone calls")
+        elif audio_responses > 0 and twilio_responses == 0:
+            print("\n❌ ISSUE PERSISTS: Enhanced Twilio audio conversion still breaks ElevenLabs compatibility")
+            print("   Need additional audio quality improvements:")
+            print("   - Stronger noise reduction")
+            print("   - Better amplitude normalization")
+            print("   - Alternative resampling algorithms")
         elif audio_responses > 0 and short_responses == 0:
             print("\n❌ ISSUE IDENTIFIED: Short audio chunks don't trigger ElevenLabs responses")
             print("   Possible causes:")
