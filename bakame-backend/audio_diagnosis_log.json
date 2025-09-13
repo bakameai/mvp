@@ -1,0 +1,329 @@
+{
+  "results": {
+    "audio_received": 2,
+    "audio_sent": 2,
+    "message_count": 53,
+    "success_rate": 1.0
+  },
+  "message_log": [
+    {
+      "timestamp": 1757210598.0408678,
+      "source": "DIAGNOSTIC",
+      "message_type": "CONNECTION_TEST",
+      "details": "Testing ElevenLabs WebSocket connection"
+    },
+    {
+      "timestamp": 1757210598.5640132,
+      "source": "DIAGNOSTIC",
+      "message_type": "CONNECTION_SUCCESS",
+      "details": "ElevenLabs WebSocket connected successfully"
+    },
+    {
+      "timestamp": 1757210598.5641074,
+      "source": "DIAGNOSTIC",
+      "message_type": "MOCK_TWILIO_READY",
+      "details": "Mock Twilio WebSocket created"
+    },
+    {
+      "timestamp": 1757210598.564312,
+      "source": "DIAGNOSTIC",
+      "message_type": "TEST_AUDIO_SENT",
+      "details": "Sent test audio to ElevenLabs"
+    },
+    {
+      "timestamp": 1757210598.5643418,
+      "source": "DIAGNOSTIC",
+      "message_type": "PUMP_SIMULATION",
+      "details": "Starting pump_el_to_twilio simulation"
+    },
+    {
+      "timestamp": 1757210598.5643818,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: conversation_initiation_metadata"
+    },
+    {
+      "timestamp": 1757210598.5643897,
+      "source": "EL_JSON",
+      "message_type": "CONVERSATION_INIT",
+      "details": "ElevenLabs conversation ready"
+    },
+    {
+      "timestamp": 1757210598.7950604,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: audio"
+    },
+    {
+      "timestamp": 1757210598.795101,
+      "source": "EL_AUDIO",
+      "message_type": "STRUCTURED_AUDIO",
+      "details": "Audio #1: 43552 chars base64, Twilio state: CONNECTED"
+    },
+    {
+      "timestamp": 1757210598.795452,
+      "source": "EL_AUDIO",
+      "message_type": "CONVERSION_SUCCESS",
+      "details": "Converted 32662 bytes PCM -> 8166 bytes \u03bc-law"
+    },
+    {
+      "timestamp": 1757210598.7955673,
+      "source": "MOCK_TWILIO",
+      "message_type": "AUDIO_RECEIVED",
+      "details": "Received 8166 bytes \u03bc-law audio"
+    },
+    {
+      "timestamp": 1757210598.7955947,
+      "source": "EL_AUDIO",
+      "message_type": "FORWARDING_SUCCESS",
+      "details": "\u2705 Successfully forwarded audio chunk #1"
+    },
+    {
+      "timestamp": 1757210598.8979466,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: audio"
+    },
+    {
+      "timestamp": 1757210598.897987,
+      "source": "EL_AUDIO",
+      "message_type": "STRUCTURED_AUDIO",
+      "details": "Audio #2: 124832 chars base64, Twilio state: CONNECTED"
+    },
+    {
+      "timestamp": 1757210598.8989847,
+      "source": "EL_AUDIO",
+      "message_type": "CONVERSION_SUCCESS",
+      "details": "Converted 93622 bytes PCM -> 23406 bytes \u03bc-law"
+    },
+    {
+      "timestamp": 1757210598.8991551,
+      "source": "MOCK_TWILIO",
+      "message_type": "AUDIO_RECEIVED",
+      "details": "Received 23406 bytes \u03bc-law audio"
+    },
+    {
+      "timestamp": 1757210598.8991823,
+      "source": "EL_AUDIO",
+      "message_type": "FORWARDING_SUCCESS",
+      "details": "\u2705 Successfully forwarded audio chunk #2"
+    },
+    {
+      "timestamp": 1757210598.8992872,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: agent_response"
+    },
+    {
+      "timestamp": 1757210600.3112736,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210600.3114808,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 2"
+    },
+    {
+      "timestamp": 1757210602.012248,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210602.0124276,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 3"
+    },
+    {
+      "timestamp": 1757210603.7135642,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210603.7137277,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 4"
+    },
+    {
+      "timestamp": 1757210605.4167128,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210605.4169402,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 5"
+    },
+    {
+      "timestamp": 1757210607.116776,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210607.116977,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 6"
+    },
+    {
+      "timestamp": 1757210608.8190494,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210608.8192296,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 7"
+    },
+    {
+      "timestamp": 1757210610.5215583,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210610.521835,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 8"
+    },
+    {
+      "timestamp": 1757210612.2206695,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210612.220883,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 9"
+    },
+    {
+      "timestamp": 1757210613.9224312,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210613.9226637,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 10"
+    },
+    {
+      "timestamp": 1757210615.623147,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210615.6233344,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 11"
+    },
+    {
+      "timestamp": 1757210617.3248892,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210617.3251393,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 12"
+    },
+    {
+      "timestamp": 1757210619.0253847,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210619.025612,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 13"
+    },
+    {
+      "timestamp": 1757210620.7265007,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210620.726711,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 14"
+    },
+    {
+      "timestamp": 1757210622.427685,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210622.4278843,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 15"
+    },
+    {
+      "timestamp": 1757210624.1285825,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210624.128755,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 16"
+    },
+    {
+      "timestamp": 1757210625.8292332,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210625.8293931,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 17"
+    },
+    {
+      "timestamp": 1757210627.529943,
+      "source": "EL_JSON",
+      "message_type": "MESSAGE_RECEIVED",
+      "details": "Type: ping"
+    },
+    {
+      "timestamp": 1757210627.5301259,
+      "source": "EL_PING",
+      "message_type": "PONG_SENT",
+      "details": "Responded to ping with event_id: 18"
+    },
+    {
+      "timestamp": 1757210629.2302723,
+      "source": "DIAGNOSTIC",
+      "message_type": "TIMEOUT",
+      "details": "Stopping after 30 seconds"
+    }
+  ],
+  "timestamp": 1757210629.2310102
+}
