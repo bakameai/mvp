@@ -511,6 +511,7 @@ async def twilio_stream(ws: WebSocket):
                             frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
                             frames_sent_count += frames_sent if frames_sent else len(frames)
                             audio_frames_count += frames_sent if frames_sent else len(frames)
+                            print(f"[DEBUG] Successfully incremented audio_frames_count to {audio_frames_count} (binary)", flush=True)
                             last_audio_time = time.time()
                             silence_padding_active = False
                             print(f"[BINARY] Sent {len(frames)} frames to Twilio, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
@@ -534,6 +535,7 @@ async def twilio_stream(ws: WebSocket):
                                 nonlocal el_ready
                                 el_ready = True
                                 print("[EL] Conversation initiated, ready to receive audio!", flush=True)
+                                print(f"[DEBUG] el_ready flag set to True at {time.time()}", flush=True)
                             
                             elif msg_type == "audio":
                                 audio_event = msg.get("audio_event", {})
@@ -541,6 +543,7 @@ async def twilio_stream(ws: WebSocket):
                                 event_id = audio_event.get("event_id", "unknown")
                                 
                                 print(f"[AUDIO] Event ID: {event_id}, Audio data length: {len(audio_base64)}", flush=True)
+                                print(f"[DEBUG] About to process audio event - will increment audio_frames_count if successful", flush=True)
                                 
                                 if audio_base64:
                                     current_time = time.time()
@@ -563,12 +566,14 @@ async def twilio_stream(ws: WebSocket):
                                             frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
                                             frames_sent_count += frames_sent if frames_sent else len(frames)
                                             audio_frames_count += frames_sent if frames_sent else len(frames)
+                                            print(f"[DEBUG] Successfully incremented audio_frames_count to {audio_frames_count}", flush=True)
                                             last_audio_time = time.time()
                                             silence_padding_active = False
                                             print(f"[AUDIO] Sent {len(frames)} frames for event #{event_id}, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
                                             
                                     except Exception as e:
                                         print(f"[EL->Twilio] ❌ Error processing audio event #{event_id}: {e}", flush=True)
+                                        print(f"[DEBUG] Audio processing error prevented audio_frames_count increment", flush=True)
                                         print(f"[EL->Twilio] Error traceback: {traceback.format_exc()}", flush=True)
                                         print(f"[EL->Twilio] WebSocket state during error: {ws.client_state.name}", flush=True)
                                 else:
@@ -602,12 +607,14 @@ async def twilio_stream(ws: WebSocket):
                                         frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
                                         frames_sent_count += frames_sent if frames_sent else len(frames)
                                         audio_frames_count += frames_sent if frames_sent else len(frames)
+                                        print(f"[DEBUG] Successfully incremented audio_frames_count to {audio_frames_count} (legacy)", flush=True)
                                         last_audio_time = time.time()
                                         silence_padding_active = False
                                         print(f"[LEGACY] Sent {len(frames)} frames to Twilio, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
                                         
                                 except Exception as e:
                                     print(f"[EL->Twilio] ❌ Error processing legacy audio: {e}", flush=True)
+                                    print(f"[DEBUG] Legacy audio processing error prevented audio_frames_count increment", flush=True)
                                     print(f"[EL->Twilio] Error traceback: {traceback.format_exc()}", flush=True)
                                     print(f"[EL->Twilio] WebSocket state during legacy error: {ws.client_state.name}", flush=True)
                             
@@ -667,6 +674,7 @@ async def twilio_stream(ws: WebSocket):
                     frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame])
                     frames_sent_count += frames_sent if frames_sent else 1
                     audio_frames_count += frames_sent if frames_sent else 1
+                    print(f"[DEBUG] Successfully incremented audio_frames_count to {audio_frames_count} (buffer flush)", flush=True)
                     print(f"[BUFFER] Flushed buffered frame to Twilio, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
 
             elif event == "media":
@@ -702,6 +710,7 @@ async def twilio_stream(ws: WebSocket):
                             }
                             await el_ws.send(json.dumps(el_message))
                             print(f"[Twilio->EL] Sent {len(pcm16k)} bytes to ElevenLabs", flush=True)
+                            print(f"[DEBUG] User audio sent to EL - expecting audio response", flush=True)
                         except Exception as e:
                             print(f"[Twilio->EL] send error: {e}", flush=True)
                     elif el_ws is not None and not el_ready:
