@@ -574,6 +574,7 @@ async def twilio_stream(ws: WebSocket):
                                     except Exception as e:
                                         print(f"[EL->Twilio] ❌ Error processing audio event #{event_id}: {e}", flush=True)
                                         print(f"[DEBUG] Audio processing error prevented audio_frames_count increment", flush=True)
+                                        import traceback
                                         print(f"[EL->Twilio] Error traceback: {traceback.format_exc()}", flush=True)
                                         print(f"[EL->Twilio] WebSocket state during error: {ws.client_state.name}", flush=True)
                                 else:
