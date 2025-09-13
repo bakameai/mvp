@@ -331,6 +331,8 @@ async def twilio_stream(ws: WebSocket):
     pending_mulaw_frames = deque()
     last_audio_time = time.time()
     frames_sent_count = 0
+    silence_frames_count = 0
+    audio_frames_count = 0
     silence_padding_active = False
 
     el_ws: Optional[websockets.WebSocketClientProtocol] = None
@@ -349,7 +351,7 @@ async def twilio_stream(ws: WebSocket):
             from collections import deque
             import traceback
             
-            nonlocal stream_sid, last_audio_time, frames_sent_count, silence_padding_active
+            nonlocal stream_sid, last_audio_time, frames_sent_count, silence_padding_active, audio_frames_count, silence_frames_count
             
             audio_conversion_state = None
             audio_buffer = deque()
@@ -360,7 +362,7 @@ async def twilio_stream(ws: WebSocket):
             
             async def silence_padding_task():
                 """Send silence frames if ElevenLabs stalls to keep Twilio pipeline alive."""
-                nonlocal stream_sid, last_audio_time, silence_padding_active, frames_sent_count
+                nonlocal stream_sid, last_audio_time, silence_padding_active, frames_sent_count, silence_frames_count
                 
                 while True:
                     await asyncio.sleep(0.05)  # Check every 50ms for faster response
@@ -373,24 +375,35 @@ async def twilio_stream(ws: WebSocket):
                         silence_frame = generate_silence_frame()
                         frames_sent = await send_twilio_media_frames(ws, stream_sid, [silence_frame])
                         frames_sent_count += frames_sent if frames_sent else 1
-                        print(f"[SILENCE] Sent silence frame, total sent: {frames_sent_count}", flush=True)
+                        silence_frames_count += frames_sent if frames_sent else 1
+                        print(f"[SILENCE] Sent silence frame, total sent: {frames_sent_count} (silence: {silence_frames_count})", flush=True)
                         
                         last_audio_time = time.time()
             
             async def frame_rate_monitor():
-                """Monitor and log frame rate every second with performance alerts."""
-                nonlocal frames_sent_count
-                last_count = 0
+                """Monitor and log frame rate every second with enhanced audio/silence breakdown."""
+                nonlocal frames_sent_count, silence_frames_count, audio_frames_count
+                last_total_count = 0
+                last_silence_count = 0
+                last_audio_count = 0
                 
                 while True:
                     await asyncio.sleep(1.0)  # Every second
-                    current_count = frames_sent_count
-                    fps = current_count - last_count
-                    last_count = current_count
+                    current_total = frames_sent_count
+                    current_silence = silence_frames_count
+                    current_audio = audio_frames_count
                     
-                    if fps > 0:
-                        performance_status = "✅ OPTIMAL" if fps >= 45 else "⚠️ DEGRADED" if fps >= 30 else "❌ POOR"
-                        print(f"[MONITOR] Frame rate: {fps} fps (target: {FRAME_RATE_TARGET} fps) {performance_status}, total: {current_count}", flush=True)
+                    total_fps = current_total - last_total_count
+                    silence_fps = current_silence - last_silence_count
+                    audio_fps = current_audio - last_audio_count
+                    
+                    last_total_count = current_total
+                    last_silence_count = current_silence
+                    last_audio_count = current_audio
+                    
+                    if total_fps > 0:
+                        performance_status = "✅ OPTIMAL" if audio_fps >= 45 else "⚠️ DEGRADED" if audio_fps >= 30 else "❌ POOR" if audio_fps > 0 else "🔇 SILENCE"
+                        print(f"[MONITOR] Frame rate: {total_fps} fps (audio: {audio_fps}, silence: {silence_fps}) | target: {FRAME_RATE_TARGET} fps | {performance_status}, total: {current_total}", flush=True)
             
             silence_task = asyncio.create_task(silence_padding_task())
             monitor_task = asyncio.create_task(frame_rate_monitor())
@@ -497,9 +510,10 @@ async def twilio_stream(ws: WebSocket):
                         else:
                             frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
                             frames_sent_count += frames_sent if frames_sent else len(frames)
+                            audio_frames_count += frames_sent if frames_sent else len(frames)
                             last_audio_time = time.time()
                             silence_padding_active = False
-                            print(f"[BINARY] Sent {len(frames)} frames to Twilio, total sent: {frames_sent_count}", flush=True)
+                            print(f"[BINARY] Sent {len(frames)} frames to Twilio, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
                         
                     else:
                         try:
@@ -548,9 +562,10 @@ async def twilio_stream(ws: WebSocket):
                                         else:
                                             frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
                                             frames_sent_count += frames_sent if frames_sent else len(frames)
+                                            audio_frames_count += frames_sent if frames_sent else len(frames)
                                             last_audio_time = time.time()
                                             silence_padding_active = False
-                                            print(f"[AUDIO] Sent {len(frames)} frames for event #{event_id}, total sent: {frames_sent_count}", flush=True)
+                                            print(f"[AUDIO] Sent {len(frames)} frames for event #{event_id}, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
                                             
                                     except Exception as e:
                                         print(f"[EL->Twilio] ❌ Error processing audio event #{event_id}: {e}", flush=True)
@@ -586,9 +601,10 @@ async def twilio_stream(ws: WebSocket):
                                     else:
                                         frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
                                         frames_sent_count += frames_sent if frames_sent else len(frames)
+                                        audio_frames_count += frames_sent if frames_sent else len(frames)
                                         last_audio_time = time.time()
                                         silence_padding_active = False
-                                        print(f"[LEGACY] Sent {len(frames)} frames to Twilio, total sent: {frames_sent_count}", flush=True)
+                                        print(f"[LEGACY] Sent {len(frames)} frames to Twilio, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
                                         
                                 except Exception as e:
                                     print(f"[EL->Twilio] ❌ Error processing legacy audio: {e}", flush=True)
@@ -604,7 +620,7 @@ async def twilio_stream(ws: WebSocket):
             finally:
                 buffer_processing = False
                 print(f"[STATS] Audio sent: {audio_sent_count}, failed: {audio_failed_count}, reconnection attempts: {reconnection_attempts}", flush=True)
-                print(f"[STATS] Total frames sent: {frames_sent_count}, silence padding was active: {silence_padding_active}", flush=True)
+                print(f"[STATS] Total frames sent: {frames_sent_count} (audio: {audio_frames_count}, silence: {silence_frames_count}), silence padding was active: {silence_padding_active}", flush=True)
                 
                 if 'buffer_task' in locals():
                     buffer_task.cancel()
@@ -650,7 +666,8 @@ async def twilio_stream(ws: WebSocket):
                     frame = pending_mulaw_frames.popleft()
                     frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame])
                     frames_sent_count += frames_sent if frames_sent else 1
-                    print(f"[BUFFER] Flushed buffered frame to Twilio, total sent: {frames_sent_count}", flush=True)
+                    audio_frames_count += frames_sent if frames_sent else 1
+                    print(f"[BUFFER] Flushed buffered frame to Twilio, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
 
             elif event == "media":
                 media_data = data.get("media", {})
