@@ -758,15 +758,13 @@ async def twilio_stream(ws: WebSocket):
 
                     if el_ws is not None and el_ready:
                         try:
-                            enhanced_pcm16k = enhance_voice_audio(pcm16k)
-                            
-                            audio_b64 = base64.b64encode(enhanced_pcm16k).decode('utf-8')
+                            audio_b64 = base64.b64encode(pcm16k).decode('utf-8')
                             el_message = {
                                 "user_audio_chunk": audio_b64
                             }
                             await el_ws.send(json.dumps(el_message))
-                            print(f"[Twilio->EL] Sent {len(enhanced_pcm16k)} bytes enhanced audio to ElevenLabs", flush=True)
-                            print(f"[DEBUG] Enhanced user audio sent to EL - expecting audio response", flush=True)
+                            print(f"[Twilio->EL] Sent {len(pcm16k)} bytes raw audio to ElevenLabs (enhancement removed for compatibility)", flush=True)
+                            print(f"[DEBUG] Raw user audio sent to EL - expecting audio response and audio_frames_count increment", flush=True)
                         except Exception as e:
                             print(f"[Twilio->EL] send error: {e}", flush=True)
                     elif el_ws is not None and not el_ready:
