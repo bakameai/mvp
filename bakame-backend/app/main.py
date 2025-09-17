@@ -23,7 +23,7 @@ from app.modules.math_module import math_module
 from app.modules.comprehension_module import comprehension_module
 from app.modules.debate_module import debate_module
 from app.modules.general_module import general_module
-from app.elevenlabs_client import open_el_ws
+from app.google_tts_client import open_google_tts
 
 SILENCE_THRESHOLD_MS = 250  # Reduced from 500ms for real-time conversation
 BUFFER_CHECK_INTERVAL_MS = 5  # Faster buffer processing
@@ -33,9 +33,8 @@ MAX_BUFFER_FRAMES = 150  # Increased from 100 for better buffering
 
 """
 ENV you must set in Fly (or locally):
-  ELEVENLABS_API_KEY   -> your 11Labs User API key
-  ELEVENLABS_AGENT_ID  -> your Agent ID (e.g., agent_0301k3y6dwrve6... )
-  ELEVENLABS_WS_SECRET -> workspace secret for ElevenLabs ConvAI authentication
+  GOOGLE_APPLICATION_CREDENTIALS -> path to service account JSON file
+  GOOGLE_CLOUD_PROJECT -> your Google Cloud project ID
 """
 
 MODULES = {
@@ -307,7 +306,7 @@ def log_audio_quality_metrics(pcm16k: bytes, frames: list[bytes], event_id: str 
               f"Dynamic Range={dynamic_range:.2f}, Frames={len(frames)}", flush=True)
 
 
-async def process_audio_buffer(audio_buffer: bytearray, phone_number: str, session_id: str, el_ws):
+async def process_audio_buffer(audio_buffer: bytearray, phone_number: str, session_id: str, google_tts_client):
     """Process accumulated audio through BAKAME AI pipeline"""
     try:
         if not phone_number:
@@ -366,9 +365,12 @@ async def process_audio_buffer(audio_buffer: bytearray, phone_number: str, sessi
         
         print(f"[BAKAME] AI Response: {ai_response}", flush=True)
         
+        return ai_response
+        
     except Exception as e:
         print(f"[BAKAME] Error processing audio: {e}", flush=True)
         await logging_service.log_error(f"Voice processing error for {phone_number}: {str(e)}")
+        return None
 
 
 @app.websocket("/twilio-stream")
@@ -388,33 +390,33 @@ async def twilio_stream(ws: WebSocket):
     audio_frames_count = 0
     silence_padding_active = False
 
-    el_ws: Optional[websockets.WebSocketClientProtocol] = None
-    el_to_twilio_task: Optional[asyncio.Task] = None
+    google_tts_client = None
+    google_tts_task: Optional[asyncio.Task] = None
+    tts_ready = False
+    audio_conversion_state = None
 
     try:
-        print("[EL] Connecting with proper authentication...", flush=True)
-        el_ws = await open_el_ws()
-        print("[EL] WS connected successfully with authentication!", flush=True)
+        print("[Google TTS] Connecting...", flush=True)
+        google_tts_client = await open_google_tts()
+        print("[Google TTS] Connected successfully!", flush=True)
         
-        el_ready = False
-        print("[EL] Waiting for conversation initiation...", flush=True)
+        tts_ready = True
+        print("[Google TTS] Ready for text synthesis...", flush=True)
 
-        async def pump_el_to_twilio():
-            """Read audio chunks from 11Labs and push back to Twilio with enhanced quality."""
+        async def pump_google_tts_monitoring():
+            """Monitor Google TTS and maintain frame rate statistics."""
             from collections import deque
             import traceback
             
             nonlocal stream_sid, last_audio_time, frames_sent_count, silence_padding_active, audio_frames_count, silence_frames_count
             
-            audio_conversion_state = None
-            audio_buffer = deque()
-            buffer_processing = True
             audio_sent_count = 0
             audio_failed_count = 0
             reconnection_attempts = 0
+            buffer_processing = True
             
             async def silence_padding_task():
-                """Send silence frames if ElevenLabs stalls to keep Twilio pipeline alive."""
+                """Send silence frames to keep Twilio pipeline alive."""
                 nonlocal stream_sid, last_audio_time, silence_padding_active, frames_sent_count, silence_frames_count
                 
                 while True:
@@ -423,7 +425,7 @@ async def twilio_stream(ws: WebSocket):
                     if stream_sid and time.time() - last_audio_time > 0.25:  # 250ms silence threshold for real-time
                         if not silence_padding_active:
                             silence_padding_active = True
-                            print("[SILENCE] ElevenLabs stalled, starting silence padding", flush=True)
+                            print("[SILENCE] Starting silence padding", flush=True)
                         
                         silence_frame = generate_silence_frame()
                         frames_sent = await send_twilio_media_frames(ws, stream_sid, [silence_frame])
@@ -542,142 +544,12 @@ async def twilio_stream(ws: WebSocket):
             buffer_task = asyncio.create_task(process_audio_buffer())
             
             try:
-                async for raw in el_ws:
-                    msg = None
-                    if isinstance(raw, (bytes, bytearray)):
-                        current_time = time.time()
-                        ws_state = ws.client_state.name
-                        print(f"[TIMING] Binary audio arrived at {current_time}, Twilio state: {ws_state}", flush=True)
-                        
-                        pcm16k = bytes(raw)
-                        frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k, audio_conversion_state)
-                        log_audio_quality_metrics(pcm16k, frames, "binary")
-                        print(f"[BINARY] {len(pcm16k)} bytes PCM → {len(frames)} frames (enhanced)", flush=True)
-                        
-                        if not stream_sid:
-                            pending_mulaw_frames.extend(frames)
-                            while len(pending_mulaw_frames) > MAX_BUFFER_FRAMES:
-                                pending_mulaw_frames.popleft()
-                                print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
-                            print(f"[BUFFER] Buffered {len(frames)} binary frames (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
-                        else:
-                            frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
-                            frames_sent_count += frames_sent if frames_sent else len(frames)
-                            audio_frames_count += frames_sent if frames_sent else len(frames)
-                            print(f"[DEBUG] Successfully incremented audio_frames_count to {audio_frames_count} (binary)", flush=True)
-                            last_audio_time = time.time()
-                            silence_padding_active = False
-                            print(f"[BINARY] Sent {len(frames)} frames to Twilio, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
-                        
-                    else:
-                        try:
-                            msg = json.loads(raw)
-                        except Exception as e:
-                            print(f"[EL->Twilio] Failed to parse JSON: {e}", flush=True)
-                            print(f"[EL->Twilio] Raw message: {raw[:200]}...", flush=True)
-                            msg = None
-
-                        if msg:
-                            msg_type = msg.get("type")
-                            print(f"[EL->Twilio] Received message type: {msg_type}", flush=True)
-                            
-                            if msg_type in ["audio", "conversation_initiation_metadata"]:
-                                print(f"[EL->Twilio] Full message: {json.dumps(msg, indent=2)[:500]}...", flush=True)
-                            
-                            if msg_type == "conversation_initiation_metadata":
-                                nonlocal el_ready
-                                el_ready = True
-                                print("[EL] Conversation initiated, ready to receive audio!", flush=True)
-                                print(f"[DEBUG] el_ready flag set to True at {time.time()}", flush=True)
-                            
-                            elif msg_type == "audio":
-                                audio_event = msg.get("audio_event", {})
-                                audio_base64 = audio_event.get("audio_base_64", "")
-                                event_id = audio_event.get("event_id", "unknown")
-                                
-                                print(f"[AUDIO] Event ID: {event_id}, Audio data length: {len(audio_base64)}", flush=True)
-                                print(f"[DEBUG] About to process audio event - will increment audio_frames_count if successful", flush=True)
-                                
-                                if audio_base64:
-                                    current_time = time.time()
-                                    ws_state = ws.client_state.name
-                                    print(f"[TIMING] Audio event #{event_id} arrived at {current_time}, Twilio state: {ws_state}", flush=True)
-                                    
-                                    try:
-                                        pcm16k = base64.b64decode(audio_base64)
-                                        frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k, audio_conversion_state)
-                                        log_audio_quality_metrics(pcm16k, frames, f"audio-{event_id}")
-                                        print(f"[AUDIO] Event #{event_id}: {len(pcm16k)} bytes PCM → {len(frames)} frames (enhanced)", flush=True)
-                                        
-                                        if not stream_sid:
-                                            pending_mulaw_frames.extend(frames)
-                                            while len(pending_mulaw_frames) > MAX_BUFFER_FRAMES:
-                                                pending_mulaw_frames.popleft()
-                                                print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
-                                            print(f"[BUFFER] Buffered {len(frames)} frames for event #{event_id} (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
-                                        else:
-                                            frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
-                                            frames_sent_count += frames_sent if frames_sent else len(frames)
-                                            audio_frames_count += frames_sent if frames_sent else len(frames)
-                                            print(f"[DEBUG] Successfully incremented audio_frames_count to {audio_frames_count}", flush=True)
-                                            last_audio_time = time.time()
-                                            silence_padding_active = False
-                                            print(f"[AUDIO] Sent {len(frames)} frames for event #{event_id}, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
-                                            
-                                    except Exception as e:
-                                        print(f"[EL->Twilio] ❌ Error processing audio event #{event_id}: {e}", flush=True)
-                                        print(f"[DEBUG] Audio processing error prevented audio_frames_count increment", flush=True)
-                                        import traceback
-                                        print(f"[EL->Twilio] Error traceback: {traceback.format_exc()}", flush=True)
-                                        print(f"[EL->Twilio] WebSocket state during error: {ws.client_state.name}", flush=True)
-                                else:
-                                    print(f"[EL->Twilio] Received audio message event #{event_id} but no audio_base_64 data", flush=True)
-                            
-                            elif msg_type == "ping":
-                                ping_event = msg.get("ping_event", {})
-                                event_id = ping_event.get("event_id")
-                                pong_message = {"type": "pong", "event_id": event_id}
-                                await el_ws.send(json.dumps(pong_message))
-                                print(f"[EL->Twilio] Sent pong response for event_id: {event_id}", flush=True)
-                            
-                            elif "audio" in msg and msg_type != "audio":
-                                current_time = time.time()
-                                ws_state = ws.client_state.name
-                                print(f"[TIMING] Legacy audio arrived at {current_time}, Twilio state: {ws_state}", flush=True)
-                                
-                                try:
-                                    pcm16k = base64.b64decode(msg["audio"])
-                                    frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(pcm16k, audio_conversion_state)
-                                    log_audio_quality_metrics(pcm16k, frames, "legacy")
-                                    print(f"[LEGACY] {len(pcm16k)} bytes PCM → {len(frames)} frames (enhanced)", flush=True)
-                                    
-                                    if not stream_sid:
-                                        pending_mulaw_frames.extend(frames)
-                                        while len(pending_mulaw_frames) > MAX_BUFFER_FRAMES:
-                                            pending_mulaw_frames.popleft()
-                                            print("[BUFFER] Dropped oldest frame to keep buffer size manageable", flush=True)
-                                        print(f"[BUFFER] Buffered {len(frames)} legacy frames (no streamSid yet), total: {len(pending_mulaw_frames)}", flush=True)
-                                    else:
-                                        frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
-                                        frames_sent_count += frames_sent if frames_sent else len(frames)
-                                        audio_frames_count += frames_sent if frames_sent else len(frames)
-                                        print(f"[DEBUG] Successfully incremented audio_frames_count to {audio_frames_count} (legacy)", flush=True)
-                                        last_audio_time = time.time()
-                                        silence_padding_active = False
-                                        print(f"[LEGACY] Sent {len(frames)} frames to Twilio, total sent: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
-                                        
-                                except Exception as e:
-                                    print(f"[EL->Twilio] ❌ Error processing legacy audio: {e}", flush=True)
-                                    print(f"[DEBUG] Legacy audio processing error prevented audio_frames_count increment", flush=True)
-                                    print(f"[EL->Twilio] Error traceback: {traceback.format_exc()}", flush=True)
-                                    print(f"[EL->Twilio] WebSocket state during legacy error: {ws.client_state.name}", flush=True)
-                            
-                            else:
-                                print(f"[EL->Twilio] Unhandled message type: {msg_type}", flush=True)
-                                
+                while buffer_processing:
+                    await asyncio.sleep(0.1)
+                    
             except Exception as e:
-                print(f"[EL->Twilio] pump error: {e}", flush=True)
-                print(f"[EL->Twilio] pump error traceback: {traceback.format_exc()}", flush=True)
+                print(f"[Google TTS] monitoring error: {e}", flush=True)
+                print(f"[Google TTS] monitoring error traceback: {traceback.format_exc()}", flush=True)
             finally:
                 buffer_processing = False
                 print(f"[STATS] Audio sent: {audio_sent_count}, failed: {audio_failed_count}, reconnection attempts: {reconnection_attempts}", flush=True)
@@ -702,8 +574,9 @@ async def twilio_stream(ws: WebSocket):
                     except asyncio.CancelledError:
                         pass
 
-        el_to_twilio_task = asyncio.create_task(pump_el_to_twilio())
-        print("[Bridge] Started enhanced EL->Twilio audio processing task", flush=True)
+        
+        google_tts_task = asyncio.create_task(pump_google_tts_monitoring())
+        print("[Bridge] Started Google TTS monitoring task", flush=True)
 
         while True:
             msg = await ws.receive_text()
@@ -752,25 +625,26 @@ async def twilio_stream(ws: WebSocket):
                         
                         if len(audio_buffer) > 0:
                             print(f"[Twilio] Processing audio buffer: {len(audio_buffer)} bytes", flush=True)
-                            await process_audio_buffer(audio_buffer, phone_number, session_id, el_ws)
+                            ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, google_tts_client)
                             audio_buffer.clear()
                             buffer_start_time = None
+                            
+                            if ai_response and ai_response.strip() and google_tts_client and tts_ready:
+                                try:
+                                    print(f"[Google TTS] Synthesizing response: {ai_response[:100]}...", flush=True)
+                                    async for audio_chunk in google_tts_client.synthesize_response(ai_response):
+                                        frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
+                                        if stream_sid:
+                                            frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
+                                            frames_sent_count += frames_sent if frames_sent else len(frames)
+                                            audio_frames_count += frames_sent if frames_sent else len(frames)
+                                            last_audio_time = time.time()
+                                            silence_padding_active = False
+                                            print(f"[Google TTS] Sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
+                                except Exception as e:
+                                    print(f"[Google TTS] Error synthesizing response: {e}", flush=True)
 
-                    if el_ws is not None and el_ready:
-                        try:
-                            audio_b64 = base64.b64encode(pcm16k).decode('utf-8')
-                            el_message = {
-                                "user_audio_chunk": audio_b64
-                            }
-                            await el_ws.send(json.dumps(el_message))
-                            print(f"[Twilio->EL] Sent {len(pcm16k)} bytes raw audio to ElevenLabs (enhancement removed for compatibility)", flush=True)
-                            print(f"[DEBUG] Raw user audio sent to EL - expecting audio response and audio_frames_count increment", flush=True)
-                        except Exception as e:
-                            print(f"[Twilio->EL] send error: {e}", flush=True)
-                    elif el_ws is not None and not el_ready:
-                        print("[Twilio->EL] Skipping audio - EL not ready yet", flush=True)
-                    else:
-                        print("[Twilio->EL] No ElevenLabs connection available", flush=True)
+                    print(f"[Twilio->Google TTS] Received {len(pcm16k)} bytes of audio data", flush=True)
                 else:
                     print("[Twilio] Received media event with no payload", flush=True)
 
@@ -778,7 +652,20 @@ async def twilio_stream(ws: WebSocket):
                 print(f"[Twilio] Media stop at {time.time()}, WS state: {ws.client_state.name}", flush=True)
                 if len(audio_buffer) > 0:
                     print(f"[Twilio] Processing final audio buffer: {len(audio_buffer)} bytes", flush=True)
-                    await process_audio_buffer(audio_buffer, phone_number, session_id, el_ws)
+                    ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, google_tts_client)
+                    
+                    if ai_response and ai_response.strip() and google_tts_client and tts_ready:
+                        try:
+                            print(f"[Google TTS] Synthesizing final response: {ai_response[:100]}...", flush=True)
+                            async for audio_chunk in google_tts_client.synthesize_response(ai_response):
+                                frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
+                                if stream_sid:
+                                    frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
+                                    frames_sent_count += frames_sent if frames_sent else len(frames)
+                                    audio_frames_count += frames_sent if frames_sent else len(frames)
+                                    print(f"[Google TTS] Final sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
+                        except Exception as e:
+                            print(f"[Google TTS] Error synthesizing final response: {e}", flush=True)
                 break
             
             else:
@@ -795,21 +682,21 @@ async def twilio_stream(ws: WebSocket):
     finally:
         print(f"[Bridge] Cleanup starting at {time.time()}", flush=True)
         try:
-            if el_to_twilio_task:
-                print("[Bridge] Cancelling EL->Twilio task", flush=True)
-                el_to_twilio_task.cancel()
+            if google_tts_task:
+                print("[Bridge] Cancelling Google TTS task", flush=True)
+                google_tts_task.cancel()
                 try:
-                    await el_to_twilio_task
+                    await google_tts_task
                 except asyncio.CancelledError:
-                    print("[Bridge] EL->Twilio task cancelled successfully", flush=True)
+                    print("[Bridge] Google TTS task cancelled successfully", flush=True)
         except Exception as e:
             print(f"[Bridge] Error cancelling task: {e}", flush=True)
         try:
-            if el_ws:
-                print("[Bridge] Closing ElevenLabs WebSocket", flush=True)
-                await el_ws.close()
+            if google_tts_client:
+                print("[Bridge] Closing Google TTS client", flush=True)
+                await google_tts_client.close()
         except Exception as e:
-            print(f"[Bridge] Error closing EL WebSocket: {e}", flush=True)
+            print(f"[Bridge] Error closing Google TTS client: {e}", flush=True)
         try:
             print(f"[Bridge] Closing Twilio WebSocket, state: {ws.client_state.name}", flush=True)
             await ws.close()

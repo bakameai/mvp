@@ -8,6 +8,8 @@ primary_region = "fra"
 
 [env]
   PORT = "8000"
+  GOOGLE_CLOUD_PROJECT = "bakameai"
+  GOOGLE_APPLICATION_CREDENTIALS = "/app/google_credentials.json"
 
 [http_service]
   internal_port = 8000
