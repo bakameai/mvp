@@ -24,7 +24,7 @@ class GoogleTTSClient:
                 sample_rate_hertz=16000
             )
             
-            credentials_path = "/home/ubuntu/repos/mvp/bakame-backend/google_credentials.json"
+            credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "/app/google_credentials.json")
             credentials = service_account.Credentials.from_service_account_file(credentials_path)
             
             credentials = credentials.with_quota_project("bakameai")

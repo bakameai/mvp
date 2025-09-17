@@ -8,7 +8,7 @@ import grpc
 
 class GoogleTTSService:
     def __init__(self):
-        credentials_path = "/home/ubuntu/repos/mvp/bakame-backend/google_credentials.json"
+        credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "/app/google_credentials.json")
         credentials = service_account.Credentials.from_service_account_file(credentials_path)
         
         credentials = credentials.with_quota_project("bakameai")
