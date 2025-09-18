@@ -445,6 +445,10 @@ async def twilio_stream(ws: WebSocket):
                     if not connection_active:
                         break
                     
+                    if ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                        print(f"[SILENCE] WebSocket closed during silence padding, state: {ws.client_state.name}", flush=True)
+                        break
+                    
                     if stream_sid and time.time() - last_audio_time > 0.25:  # 250ms silence threshold for real-time
                         if not silence_padding_active:
                             silence_padding_active = True
@@ -674,7 +678,11 @@ async def twilio_stream(ws: WebSocket):
                                     print(f"[Deepgram TTS] Synthesizing response: {ai_response[:100]}...", flush=True)
                                     async for audio_chunk in deepgram_tts_client.synthesize_response(ai_response):
                                         frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
-                                        if stream_sid:
+                                        if stream_sid and connection_active:
+                                            if ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                                                print(f"[Deepgram TTS] WebSocket closed during audio send, state: {ws.client_state.name}", flush=True)
+                                                break
+                                            
                                             frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
                                             frames_sent_count += frames_sent if frames_sent else len(frames)
                                             audio_frames_count += frames_sent if frames_sent else len(frames)
@@ -699,7 +707,11 @@ async def twilio_stream(ws: WebSocket):
                             print(f"[Deepgram TTS] Synthesizing final response: {ai_response[:100]}...", flush=True)
                             async for audio_chunk in deepgram_tts_client.synthesize_response(ai_response):
                                 frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
-                                if stream_sid:
+                                if stream_sid and connection_active:
+                                    if ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                                        print(f"[Deepgram TTS] WebSocket closed during final audio send, state: {ws.client_state.name}", flush=True)
+                                        break
+                                    
                                     frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
                                     frames_sent_count += frames_sent if frames_sent else len(frames)
                                     audio_frames_count += frames_sent if frames_sent else len(frames)
