@@ -643,6 +643,9 @@ async def twilio_stream(ws: WebSocket):
                 while pending_mulaw_frames:
                     frame = pending_mulaw_frames.popleft()
                     frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame])
+                    if frames_sent == 0:  # WebSocket error occurred
+                        print("[BUFFER] WebSocket error during buffer flush, stopping", flush=True)
+                        break
                     frames_sent_count += frames_sent if frames_sent else 1
                     audio_frames_count += frames_sent if frames_sent else 1
                     print(f"[DEBUG] Successfully incremented audio_frames_count to {audio_frames_count} (buffer flush)", flush=True)
@@ -684,6 +687,9 @@ async def twilio_stream(ws: WebSocket):
                                                 break
                                             
                                             frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
+                                            if frames_sent == 0:  # WebSocket error occurred
+                                                print("[Deepgram TTS] WebSocket error during audio send, stopping synthesis", flush=True)
+                                                break
                                             frames_sent_count += frames_sent if frames_sent else len(frames)
                                             audio_frames_count += frames_sent if frames_sent else len(frames)
                                             last_audio_time = time.time()
@@ -713,6 +719,9 @@ async def twilio_stream(ws: WebSocket):
                                         break
                                     
                                     frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
+                                    if frames_sent == 0:  # WebSocket error occurred
+                                        print("[Deepgram TTS] WebSocket error during final audio send, stopping synthesis", flush=True)
+                                        break
                                     frames_sent_count += frames_sent if frames_sent else len(frames)
                                     audio_frames_count += frames_sent if frames_sent else len(frames)
                                     print(f"[Deepgram TTS] Final sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
