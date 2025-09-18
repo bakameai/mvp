@@ -215,6 +215,14 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
     if not stream_sid:
         return 0
 
+    try:
+        if ws.client_state.name not in ["CONNECTED", "OPEN"]:
+            print(f"[FRAME] WebSocket not ready for sending, state: {ws.client_state.name}", flush=True)
+            return 0
+    except Exception as e:
+        print(f"[FRAME] Error checking WebSocket state: {e}", flush=True)
+        return 0
+
     frame_count = 0
     
     for frame in mulaw_frames:
@@ -239,15 +247,25 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
         
         while retry_count <= max_retries and not frame_sent:
             try:
+                if ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                    print(f"[FRAME] WebSocket closed during send, state: {ws.client_state.name}", flush=True)
+                    return frame_count
+                
                 await ws.send_text(json.dumps(msg))
                 frame_sent = True
                 if retry_count > 0:
                     print(f"[FRAME] Frame {frame_count} sent successfully after {retry_count} retries", flush=True)
             except Exception as e:
                 retry_count += 1
+                error_msg = str(e).lower()
+                
+                if any(keyword in error_msg for keyword in ["closed", "not connected", "accept first"]):
+                    print(f"[FRAME] WebSocket connection error, stopping frame send: {e}", flush=True)
+                    return frame_count
+                
                 if retry_count <= max_retries:
                     print(f"[FRAME] Frame {frame_count} send failed (attempt {retry_count}/{max_retries + 1}): {e}", flush=True)
-                    await asyncio.sleep(0.005)  # Brief retry delay
+                    await asyncio.sleep(0.005)
                 else:
                     print(f"[FRAME] Frame {frame_count} send failed permanently after {max_retries + 1} attempts: {e}", flush=True)
 
@@ -378,6 +396,8 @@ async def twilio_stream(ws: WebSocket):
     await ws.accept()
     print(f"[Twilio] WS connected at {time.time()}, state: {ws.client_state.name}", flush=True)
 
+    connection_active = True
+    
     audio_buffer = bytearray()
     buffer_start_time = None
     phone_number = None
@@ -417,10 +437,13 @@ async def twilio_stream(ws: WebSocket):
             
             async def silence_padding_task():
                 """Send silence frames to keep Twilio pipeline alive."""
-                nonlocal stream_sid, last_audio_time, silence_padding_active, frames_sent_count, silence_frames_count
+                nonlocal stream_sid, last_audio_time, silence_padding_active, frames_sent_count, silence_frames_count, connection_active
                 
-                while True:
+                while connection_active:
                     await asyncio.sleep(0.05)  # Check every 50ms for faster response
+                    
+                    if not connection_active:
+                        break
                     
                     if stream_sid and time.time() - last_audio_time > 0.25:  # 250ms silence threshold for real-time
                         if not silence_padding_active:
@@ -429,6 +452,9 @@ async def twilio_stream(ws: WebSocket):
                         
                         silence_frame = generate_silence_frame()
                         frames_sent = await send_twilio_media_frames(ws, stream_sid, [silence_frame])
+                        if frames_sent == 0:  # WebSocket closed
+                            print("[SILENCE] WebSocket closed, stopping silence padding", flush=True)
+                            break
                         frames_sent_count += frames_sent if frames_sent else 1
                         silence_frames_count += frames_sent if frames_sent else 1
                         print(f"[SILENCE] Sent silence frame, total sent: {frames_sent_count} (silence: {silence_frames_count})", flush=True)
@@ -437,13 +463,17 @@ async def twilio_stream(ws: WebSocket):
             
             async def frame_rate_monitor():
                 """Monitor and log frame rate every second with enhanced audio/silence breakdown."""
-                nonlocal frames_sent_count, silence_frames_count, audio_frames_count
+                nonlocal frames_sent_count, silence_frames_count, audio_frames_count, connection_active
                 last_total_count = 0
                 last_silence_count = 0
                 last_audio_count = 0
                 
-                while True:
+                while connection_active:
                     await asyncio.sleep(1.0)  # Every second
+                    
+                    if not connection_active:
+                        break
+                    
                     current_total = frames_sent_count
                     current_silence = silence_frames_count
                     current_audio = audio_frames_count
@@ -578,8 +608,18 @@ async def twilio_stream(ws: WebSocket):
         deepgram_tts_task = asyncio.create_task(pump_deepgram_tts_monitoring())
         print("[Bridge] Started Deepgram TTS monitoring task", flush=True)
 
-        while True:
-            msg = await ws.receive_text()
+        while connection_active:
+            try:
+                msg = await ws.receive_text()
+            except Exception as e:
+                error_msg = str(e).lower()
+                if any(keyword in error_msg for keyword in ["closed", "not connected", "accept first"]):
+                    print(f"[Twilio] WebSocket receive error, connection lost: {e}", flush=True)
+                    break
+                else:
+                    print(f"[Twilio] Unexpected receive error: {e}", flush=True)
+                    break
+            
             data = json.loads(msg)
 
             event = data.get("event")
@@ -681,25 +721,34 @@ async def twilio_stream(ws: WebSocket):
         print(f"[Bridge] error traceback: {traceback.format_exc()}", flush=True)
     finally:
         print(f"[Bridge] Cleanup starting at {time.time()}", flush=True)
+        
+        connection_active = False
+        
         try:
             if deepgram_tts_task:
                 print("[Bridge] Cancelling Deepgram TTS task", flush=True)
                 deepgram_tts_task.cancel()
                 try:
-                    await deepgram_tts_task
-                except asyncio.CancelledError:
+                    await asyncio.wait_for(deepgram_tts_task, timeout=2.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
                     print("[Bridge] Deepgram TTS task cancelled successfully", flush=True)
         except Exception as e:
             print(f"[Bridge] Error cancelling task: {e}", flush=True)
+        
         try:
             if deepgram_tts_client:
                 print("[Bridge] Closing Deepgram TTS client", flush=True)
                 await deepgram_tts_client.close()
         except Exception as e:
             print(f"[Bridge] Error closing Deepgram TTS client: {e}", flush=True)
+        
         try:
-            print(f"[Bridge] Closing Twilio WebSocket, state: {ws.client_state.name}", flush=True)
-            await ws.close()
+            if ws.client_state.name in ["CONNECTED", "OPEN"]:
+                print(f"[Bridge] Closing Twilio WebSocket, state: {ws.client_state.name}", flush=True)
+                await ws.close()
+            else:
+                print(f"[Bridge] Twilio WebSocket already closed, state: {ws.client_state.name}", flush=True)
         except Exception as e:
             print(f"[Bridge] Error closing Twilio WebSocket: {e}", flush=True)
+        
         print(f"[Bridge] Cleanup completed at {time.time()}", flush=True)

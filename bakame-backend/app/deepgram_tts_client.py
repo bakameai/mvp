@@ -46,7 +46,7 @@ class DeepgramTTSClient:
             
             while True:
                 try:
-                    response = await asyncio.wait_for(self.ws.recv(), timeout=5.0)
+                    response = await asyncio.wait_for(self.ws.recv(), timeout=2.5)
                     
                     if isinstance(response, bytes):
                         yield response
@@ -56,8 +56,14 @@ class DeepgramTTSClient:
                             break
                             
                 except asyncio.TimeoutError:
-                    print("[Deepgram TTS] Timeout waiting for audio", flush=True)
-                    break
+                    print("[Deepgram TTS] Timeout waiting for audio (2.5s), checking connection...", flush=True)
+                    try:
+                        await self.ws.ping()
+                        print("[Deepgram TTS] Connection alive, continuing synthesis...", flush=True)
+                        continue
+                    except Exception as ping_error:
+                        print(f"[Deepgram TTS] Connection lost during timeout: {ping_error}", flush=True)
+                        break
                 except Exception as e:
                     print(f"[Deepgram TTS] Error receiving audio: {e}", flush=True)
                     break
@@ -65,6 +71,16 @@ class DeepgramTTSClient:
         except Exception as e:
             print(f"[Deepgram TTS] Error synthesizing text: {e}", flush=True)
     
+    async def is_connected(self):
+        """Check if the WebSocket connection is still healthy."""
+        try:
+            if not self.ws or not self.ready:
+                return False
+            await self.ws.ping()
+            return True
+        except Exception:
+            return False
+
     async def close(self):
         """Close Deepgram TTS connection."""
         self.ready = False
