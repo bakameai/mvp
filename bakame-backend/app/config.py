@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     openai_api_key: str
     elevenlabs_agent_id: str = "agent_0301k3y6dwrve63sb37n6f4ffkrj"
     use_elevenlabs: bool = False
+    use_deepgram_tts: bool = True
+    use_google_tts: bool = False
+    google_cloud_project: str = "bakame-ai"
     llama_api_key: str
     use_llama: bool = True
     newsapi_key: str

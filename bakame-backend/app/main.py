@@ -23,7 +23,7 @@ from app.modules.math_module import math_module
 from app.modules.comprehension_module import comprehension_module
 from app.modules.debate_module import debate_module
 from app.modules.general_module import general_module
-from app.google_tts_client import open_google_tts
+from app.deepgram_tts_client import open_deepgram_tts
 
 SILENCE_THRESHOLD_MS = 250  # Reduced from 500ms for real-time conversation
 BUFFER_CHECK_INTERVAL_MS = 5  # Faster buffer processing
@@ -390,21 +390,21 @@ async def twilio_stream(ws: WebSocket):
     audio_frames_count = 0
     silence_padding_active = False
 
-    google_tts_client = None
-    google_tts_task: Optional[asyncio.Task] = None
+    deepgram_tts_client = None
+    deepgram_tts_task: Optional[asyncio.Task] = None
     tts_ready = False
     audio_conversion_state = None
 
     try:
-        print("[Google TTS] Connecting...", flush=True)
-        google_tts_client = await open_google_tts()
-        print("[Google TTS] Connected successfully!", flush=True)
+        print("[Deepgram TTS] Connecting...", flush=True)
+        deepgram_tts_client = await open_deepgram_tts()
+        print("[Deepgram TTS] Connected successfully!", flush=True)
         
         tts_ready = True
-        print("[Google TTS] Ready for text synthesis...", flush=True)
+        print("[Deepgram TTS] Ready for text synthesis...", flush=True)
 
-        async def pump_google_tts_monitoring():
-            """Monitor Google TTS and maintain frame rate statistics."""
+        async def pump_deepgram_tts_monitoring():
+            """Monitor Deepgram TTS and maintain frame rate statistics."""
             from collections import deque
             import traceback
             
@@ -575,8 +575,8 @@ async def twilio_stream(ws: WebSocket):
                         pass
 
         
-        google_tts_task = asyncio.create_task(pump_google_tts_monitoring())
-        print("[Bridge] Started Google TTS monitoring task", flush=True)
+        deepgram_tts_task = asyncio.create_task(pump_deepgram_tts_monitoring())
+        print("[Bridge] Started Deepgram TTS monitoring task", flush=True)
 
         while True:
             msg = await ws.receive_text()
@@ -625,14 +625,14 @@ async def twilio_stream(ws: WebSocket):
                         
                         if len(audio_buffer) > 0:
                             print(f"[Twilio] Processing audio buffer: {len(audio_buffer)} bytes", flush=True)
-                            ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, google_tts_client)
+                            ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, deepgram_tts_client)
                             audio_buffer.clear()
                             buffer_start_time = None
                             
-                            if ai_response and ai_response.strip() and google_tts_client and tts_ready:
+                            if ai_response and ai_response.strip() and deepgram_tts_client and tts_ready:
                                 try:
-                                    print(f"[Google TTS] Synthesizing response: {ai_response[:100]}...", flush=True)
-                                    async for audio_chunk in google_tts_client.synthesize_response(ai_response):
+                                    print(f"[Deepgram TTS] Synthesizing response: {ai_response[:100]}...", flush=True)
+                                    async for audio_chunk in deepgram_tts_client.synthesize_response(ai_response):
                                         frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
                                         if stream_sid:
                                             frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
@@ -640,11 +640,11 @@ async def twilio_stream(ws: WebSocket):
                                             audio_frames_count += frames_sent if frames_sent else len(frames)
                                             last_audio_time = time.time()
                                             silence_padding_active = False
-                                            print(f"[Google TTS] Sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
+                                            print(f"[Deepgram TTS] Sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
                                 except Exception as e:
-                                    print(f"[Google TTS] Error synthesizing response: {e}", flush=True)
+                                    print(f"[Deepgram TTS] Error synthesizing response: {e}", flush=True)
 
-                    print(f"[Twilio->Google TTS] Received {len(pcm16k)} bytes of audio data", flush=True)
+                    print(f"[Twilio->Deepgram TTS] Received {len(pcm16k)} bytes of audio data", flush=True)
                 else:
                     print("[Twilio] Received media event with no payload", flush=True)
 
@@ -652,20 +652,20 @@ async def twilio_stream(ws: WebSocket):
                 print(f"[Twilio] Media stop at {time.time()}, WS state: {ws.client_state.name}", flush=True)
                 if len(audio_buffer) > 0:
                     print(f"[Twilio] Processing final audio buffer: {len(audio_buffer)} bytes", flush=True)
-                    ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, google_tts_client)
+                    ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, deepgram_tts_client)
                     
-                    if ai_response and ai_response.strip() and google_tts_client and tts_ready:
+                    if ai_response and ai_response.strip() and deepgram_tts_client and tts_ready:
                         try:
-                            print(f"[Google TTS] Synthesizing final response: {ai_response[:100]}...", flush=True)
-                            async for audio_chunk in google_tts_client.synthesize_response(ai_response):
+                            print(f"[Deepgram TTS] Synthesizing final response: {ai_response[:100]}...", flush=True)
+                            async for audio_chunk in deepgram_tts_client.synthesize_response(ai_response):
                                 frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
                                 if stream_sid:
                                     frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
                                     frames_sent_count += frames_sent if frames_sent else len(frames)
                                     audio_frames_count += frames_sent if frames_sent else len(frames)
-                                    print(f"[Google TTS] Final sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
+                                    print(f"[Deepgram TTS] Final sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
                         except Exception as e:
-                            print(f"[Google TTS] Error synthesizing final response: {e}", flush=True)
+                            print(f"[Deepgram TTS] Error synthesizing final response: {e}", flush=True)
                 break
             
             else:
@@ -682,21 +682,21 @@ async def twilio_stream(ws: WebSocket):
     finally:
         print(f"[Bridge] Cleanup starting at {time.time()}", flush=True)
         try:
-            if google_tts_task:
-                print("[Bridge] Cancelling Google TTS task", flush=True)
-                google_tts_task.cancel()
+            if deepgram_tts_task:
+                print("[Bridge] Cancelling Deepgram TTS task", flush=True)
+                deepgram_tts_task.cancel()
                 try:
-                    await google_tts_task
+                    await deepgram_tts_task
                 except asyncio.CancelledError:
-                    print("[Bridge] Google TTS task cancelled successfully", flush=True)
+                    print("[Bridge] Deepgram TTS task cancelled successfully", flush=True)
         except Exception as e:
             print(f"[Bridge] Error cancelling task: {e}", flush=True)
         try:
-            if google_tts_client:
-                print("[Bridge] Closing Google TTS client", flush=True)
-                await google_tts_client.close()
+            if deepgram_tts_client:
+                print("[Bridge] Closing Deepgram TTS client", flush=True)
+                await deepgram_tts_client.close()
         except Exception as e:
-            print(f"[Bridge] Error closing Google TTS client: {e}", flush=True)
+            print(f"[Bridge] Error closing Deepgram TTS client: {e}", flush=True)
         try:
             print(f"[Bridge] Closing Twilio WebSocket, state: {ws.client_state.name}", flush=True)
             await ws.close()
