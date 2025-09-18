@@ -259,7 +259,7 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
                 retry_count += 1
                 error_msg = str(e).lower()
                 
-                if any(keyword in error_msg for keyword in ["closed", "not connected", "accept first"]):
+                if any(keyword in error_msg for keyword in ["cannot call \"send\" once a close message has been sent", "closed", "not connected", "accept first"]):
                     print(f"[FRAME] WebSocket connection error, stopping frame send: {e}", flush=True)
                     return frame_count
                 
