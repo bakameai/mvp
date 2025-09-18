@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     use_elevenlabs: bool = False
     use_deepgram_tts: bool = True
     use_google_tts: bool = False
-    use_openai_realtime: bool = True
+    use_openai_realtime: bool = False
     google_cloud_project: str = "bakame-ai"
     newsapi_key: str
     deepgram_api_key: str

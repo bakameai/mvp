@@ -16,7 +16,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Form
 from fastapi.responses import Response
 from app.services.redis_service import redis_service
 from app.services.openai_service import openai_service
-from app.services.openai_realtime_service import OpenAIRealtimeService
 from app.services.logging_service import logging_service
 from app.modules.english_module import english_module
 from app.modules.math_module import math_module
@@ -204,30 +203,6 @@ def pcm16_16k_to_mulaw8k_20ms_frames(pcm16k: bytes, state=None) -> tuple[list[by
     mulaw = audioop.lin2ulaw(pcm8k, 2)
     FRAME_BYTES = 160
     frames = [mulaw[i:i+FRAME_BYTES] for i in range(0, len(mulaw), FRAME_BYTES) if len(mulaw[i:i+FRAME_BYTES]) == FRAME_BYTES]
-    return frames, new_state
-
-def twilio_ulaw8k_to_openai_pcm24k(b64_payload: str) -> bytes:
-    """
-    Convert Twilio μ-law@8k to OpenAI Realtime API PCM16@24k format
-    """
-    ulaw = base64.b64decode(b64_payload)
-    pcm8k = audioop.ulaw2lin(ulaw, 2)
-    
-    pcm24k, _ = audioop.ratecv(pcm8k, 2, 1, 8000, 24000, None)
-    
-    return pcm24k
-
-def openai_pcm24k_to_twilio_ulaw8k_frames(pcm24k: bytes, state=None) -> tuple[list[bytes], any]:
-    """
-    Convert OpenAI Realtime API PCM16@24k to Twilio μ-law@8k 20ms frames
-    """
-    pcm8k, new_state = audioop.ratecv(pcm24k, 2, 1, 24000, 8000, state)
-    
-    mulaw = audioop.lin2ulaw(pcm8k, 2)
-    
-    FRAME_BYTES = 160
-    frames = [mulaw[i:i+FRAME_BYTES] for i in range(0, len(mulaw), FRAME_BYTES) if len(mulaw[i:i+FRAME_BYTES]) == FRAME_BYTES]
-    
     return frames, new_state
 
 async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes]):
@@ -421,126 +396,12 @@ async def twilio_stream(ws: WebSocket):
     print(f"[Twilio] WS connected at {time.time()}, state: {ws.client_state.name}", flush=True)
 
     connection_active = True
-    phone_number = None
-    session_id = None
-    stream_sid = None
-    audio_conversion_state = None
-    
-    from app.config import settings
-    
-    if settings.use_openai_realtime:
-        openai_realtime = OpenAIRealtimeService()
-        openai_connected = await openai_realtime.connect()
-        
-        if not openai_connected:
-            print("[Bridge] Failed to connect to OpenAI Realtime API", flush=True)
-            await ws.close()
-            return
-
-        try:
-            async def handle_openai_responses():
-                nonlocal audio_conversion_state
-                async for response in openai_realtime.listen_for_responses():
-                    if not connection_active:
-                        break
-                        
-                    event_type = response.get("type")
-                    
-                    if event_type == "response.audio.delta":
-                        audio_b64 = response.get("delta", "")
-                        if audio_b64 and stream_sid:
-                            try:
-                                audio_data = base64.b64decode(audio_b64)
-                                frames, audio_conversion_state = openai_pcm24k_to_twilio_ulaw8k_frames(audio_data, audio_conversion_state)
-                                
-                                if frames:
-                                    frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
-                                    print(f"[OpenAI→Twilio] Sent {len(frames)} audio frames", flush=True)
-                            except Exception as e:
-                                print(f"[OpenAI→Twilio] Audio conversion error: {e}", flush=True)
-                    
-                    elif event_type == "response.audio_transcript.delta":
-                        transcript = response.get("delta", "")
-                        if transcript:
-                            print(f"[OpenAI] Response transcript: {transcript}", flush=True)
-                    
-                    elif event_type == "input_audio_buffer.speech_started":
-                        print("[OpenAI] User started speaking", flush=True)
-                    
-                    elif event_type == "input_audio_buffer.speech_stopped":
-                        print("[OpenAI] User stopped speaking", flush=True)
-                        await openai_realtime.commit_audio_buffer()
-                    
-                    elif event_type == "error":
-                        error_msg = response.get("error", {}).get("message", "Unknown error")
-                        print(f"[OpenAI] Error: {error_msg}", flush=True)
-
-            openai_task = asyncio.create_task(handle_openai_responses())
-            
-            while connection_active:
-                try:
-                    msg = await asyncio.wait_for(ws.receive_text(), timeout=30.0)
-                except asyncio.TimeoutError:
-                    print("[Twilio] WebSocket receive timeout", flush=True)
-                    break
-                except Exception as e:
-                    print(f"[Twilio] WebSocket receive error: {e}", flush=True)
-                    break
-                
-                data = json.loads(msg)
-                event = data.get("event")
-                
-                if event == "start":
-                    start_data = data.get("start", {})
-                    phone_number = start_data.get("customParameters", {}).get("phone_number")
-                    session_id = start_data.get("streamSid")
-                    stream_sid = session_id
-                    
-                    print(f"[Twilio] Media start for {phone_number}, streamSid: {session_id}", flush=True)
-                    
-                    await openai_realtime.configure_session(phone_number)
-                
-                elif event == "media":
-                    media_data = data.get("media", {})
-                    payload_b64 = media_data.get("payload", "")
-                    
-                    if payload_b64:
-                        try:
-                            pcm24k = twilio_ulaw8k_to_openai_pcm24k(payload_b64)
-                            await openai_realtime.send_audio(pcm24k)
-                        except Exception as e:
-                            print(f"[Twilio→OpenAI] Audio conversion error: {e}", flush=True)
-                
-                elif event == "stop":
-                    print(f"[Twilio] Media stop at {time.time()}", flush=True)
-                    break
-
-        except Exception as e:
-            print(f"[Bridge] Error: {e}", flush=True)
-        finally:
-            print(f"[Bridge] Cleanup starting at {time.time()}", flush=True)
-            connection_active = False
-            
-            if 'openai_task' in locals():
-                openai_task.cancel()
-                try:
-                    await asyncio.wait_for(openai_task, timeout=2.0)
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    pass
-            
-            await openai_realtime.close()
-            
-            try:
-                if ws.client_state.name in ["CONNECTED", "OPEN"]:
-                    await ws.close()
-            except Exception as e:
-                print(f"[Bridge] Error closing Twilio WebSocket: {e}", flush=True)
-            
-            print(f"[Bridge] Cleanup completed at {time.time()}", flush=True)
-        return
     
     audio_buffer = bytearray()
     buffer_start_time = None
+    phone_number = None
+    session_id = None
+    stream_sid = None
     pending_mulaw_frames = deque()
     last_audio_time = time.time()
     frames_sent_count = 0
