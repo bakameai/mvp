@@ -23,7 +23,11 @@ class OpenAIService:
             
             return transcript.strip()
         except Exception as e:
-            print(f"Error transcribing audio: {e}")
+            error_msg = str(e).lower()
+            if "401" in error_msg or "invalid_api_key" in error_msg or "authentication" in error_msg:
+                print(f"[OpenAI STT] Authentication failed: {e}", flush=True)
+                return ""
+            print(f"[OpenAI STT] Transcription error: {e}", flush=True)
             return ""
     
     async def generate_response(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:

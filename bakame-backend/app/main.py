@@ -205,13 +205,13 @@ def pcm16_16k_to_mulaw8k_20ms_frames(pcm16k: bytes, state=None) -> tuple[list[by
     frames = [mulaw[i:i+FRAME_BYTES] for i in range(0, len(mulaw), FRAME_BYTES) if len(mulaw[i:i+FRAME_BYTES]) == FRAME_BYTES]
     return frames, new_state
 
-async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes]):
+async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes], connection_active=True):
     """
     Sends μ-law frames to Twilio with STRICT 50fps pacing (exactly 20ms intervals).
     Each frame must be exactly 160 bytes μ-law → ~214 base64 chars.
     Codec: G.711 μ-law, Sample rate: 8 kHz, Frame size: 20ms, Frame rate: 50fps exactly.
     """
-    if not stream_sid:
+    if not stream_sid or not connection_active:
         return 0
 
     try:
@@ -225,6 +225,9 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
     frame_count = 0
     
     for frame in mulaw_frames:
+        if not connection_active:
+            break
+            
         frame_count += 1
         
         if len(frame) != 160:
@@ -244,7 +247,7 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
         retry_count = 0
         frame_sent = False
         
-        while retry_count <= max_retries and not frame_sent:
+        while retry_count <= max_retries and not frame_sent and connection_active:
             try:
                 if ws.client_state.name not in ["CONNECTED", "OPEN"]:
                     print(f"[FRAME] WebSocket closed during send, state: {ws.client_state.name}", flush=True)
@@ -323,7 +326,7 @@ def log_audio_quality_metrics(pcm16k: bytes, frames: list[bytes], event_id: str 
               f"Dynamic Range={dynamic_range:.2f}, Frames={len(frames)}", flush=True)
 
 
-async def process_audio_buffer(audio_buffer: bytearray, phone_number: str, session_id: str, google_tts_client):
+async def process_audio_buffer(audio_buffer: deque, phone_number: str, session_id: str, google_tts_client):
     """Process accumulated audio through BAKAME AI pipeline"""
     try:
         if not phone_number:
@@ -335,7 +338,7 @@ async def process_audio_buffer(audio_buffer: bytearray, phone_number: str, sessi
             wav_file.setnchannels(1)  # mono
             wav_file.setsampwidth(2)  # 16-bit
             wav_file.setframerate(16000)  # 16kHz
-            wav_file.writeframes(bytes(audio_buffer))
+            wav_file.writeframes(b''.join(audio_buffer))
         
         wav_bytes = wav_buffer.getvalue()
         user_input = await openai_service.transcribe_audio(wav_bytes, "wav")
@@ -397,7 +400,7 @@ async def twilio_stream(ws: WebSocket):
 
     connection_active = True
     
-    audio_buffer = bytearray()
+    audio_buffer = deque()
     buffer_start_time = None
     phone_number = None
     session_id = None
@@ -666,7 +669,7 @@ async def twilio_stream(ws: WebSocket):
                 
                 while pending_mulaw_frames:
                     frame = pending_mulaw_frames.popleft()
-                    frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame])
+                    frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame], connection_active)
                     if frames_sent == 0:  # WebSocket error occurred
                         print("[BUFFER] WebSocket error during buffer flush, stopping", flush=True)
                         break
@@ -686,7 +689,7 @@ async def twilio_stream(ws: WebSocket):
                 if payload_b64:
                     pcm16k = twilio_ulaw8k_to_pcm16_16k(payload_b64)
 
-                    audio_buffer.extend(pcm16k)
+                    audio_buffer.append(pcm16k)
                     if buffer_start_time is None:
                         buffer_start_time = asyncio.get_event_loop().time()
 
@@ -695,7 +698,7 @@ async def twilio_stream(ws: WebSocket):
                         len(audio_buffer) > 32000):
                         
                         if len(audio_buffer) > 0:
-                            print(f"[Twilio] Processing audio buffer: {len(audio_buffer)} bytes", flush=True)
+                            print(f"[Twilio] Processing audio buffer: {len(audio_buffer)} chunks", flush=True)
                             ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, deepgram_tts_client)
                             audio_buffer.clear()
                             buffer_start_time = None
@@ -715,7 +718,7 @@ async def twilio_stream(ws: WebSocket):
                                                 print(f"[Deepgram TTS] WebSocket closed during audio send, state: {ws.client_state.name}", flush=True)
                                                 break
                                             
-                                            frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
+                                            frames_sent = await send_twilio_media_frames(ws, stream_sid, frames, connection_active)
                                             if frames_sent == 0:  # WebSocket error occurred
                                                 print("[Deepgram TTS] WebSocket error during audio send, stopping synthesis", flush=True)
                                                 break
@@ -727,14 +730,14 @@ async def twilio_stream(ws: WebSocket):
                                 except Exception as e:
                                     print(f"[Deepgram TTS] Error synthesizing response: {e}", flush=True)
 
-                    print(f"[Twilio->Deepgram TTS] Received {len(pcm16k)} bytes of audio data", flush=True)
+                    print(f"[Twilio→STT] Received {len(pcm16k)} bytes of audio data", flush=True)
                 else:
                     print("[Twilio] Received media event with no payload", flush=True)
 
             elif event == "stop":
                 print(f"[Twilio] Media stop at {time.time()}, WS state: {ws.client_state.name}", flush=True)
                 if len(audio_buffer) > 0:
-                    print(f"[Twilio] Processing final audio buffer: {len(audio_buffer)} bytes", flush=True)
+                    print(f"[Twilio] Processing final audio buffer: {len(audio_buffer)} chunks", flush=True)
                     ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, deepgram_tts_client)
                     
                     if ai_response and ai_response.strip() and deepgram_tts_client and tts_ready:
@@ -751,7 +754,7 @@ async def twilio_stream(ws: WebSocket):
                                             print(f"[Deepgram TTS] WebSocket closed during final audio send, state: {ws.client_state.name}", flush=True)
                                             break
                                         
-                                        frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
+                                        frames_sent = await send_twilio_media_frames(ws, stream_sid, frames, connection_active)
                                         if frames_sent == 0:  # WebSocket error occurred
                                             print("[Deepgram TTS] WebSocket error during final audio send, stopping synthesis", flush=True)
                                             break
@@ -775,11 +778,12 @@ async def twilio_stream(ws: WebSocket):
         print(f"[Bridge] error traceback: {traceback.format_exc()}", flush=True)
     finally:
         print(f"[Bridge] Cleanup starting at {time.time()}", flush=True)
+        connection_active = False
         
-        # Wait for any active audio synthesis to complete before setting connection_active = False
+        # Wait for any active audio synthesis to complete
         if deepgram_tts_client and hasattr(deepgram_tts_client, 'ready') and deepgram_tts_client.ready:
             print("[Bridge] Waiting for active audio synthesis to complete before cleanup...", flush=True)
-            max_wait_time = 5.0  # Maximum wait time for synthesis completion
+            max_wait_time = 5.0
             wait_start = time.time()
             
             while (deepgram_tts_client and hasattr(deepgram_tts_client, 'ready') and 
@@ -790,8 +794,6 @@ async def twilio_stream(ws: WebSocket):
                 print("[Bridge] Audio synthesis timeout reached, proceeding with cleanup", flush=True)
             else:
                 print("[Bridge] Audio synthesis completed, proceeding with cleanup", flush=True)
-        
-        connection_active = False
         
         try:
             if deepgram_tts_task:
