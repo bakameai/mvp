@@ -529,7 +529,13 @@ async def twilio_stream(ws: WebSocket):
                                 await asyncio.sleep(0.1 * (2 ** attempt))  # Exponential backoff
                             continue
                         
-                        msg_json = json.dumps(audio_data)
+                        # audio_data should already be a properly formatted message dict
+                        if isinstance(audio_data, dict):
+                            msg_json = json.dumps(audio_data)
+                        else:
+                            print(f"[RETRY] ERROR: audio_data is not a dict, type: {type(audio_data)}", flush=True)
+                            return False
+                            
                         await ws.send_text(msg_json)
                         audio_sent_count += 1
                         print(f"[RETRY] ✅ Audio sent successfully (attempt {attempt + 1}), total sent: {audio_sent_count}", flush=True)
@@ -566,11 +572,22 @@ async def twilio_stream(ws: WebSocket):
                             while audio_buffer and sent_count < max_batch:
                                 audio_data = audio_buffer.popleft()
                                 
-                                if await send_audio_with_retry(audio_data, max_retries=2):
-                                    sent_count += 1
+                                if isinstance(audio_data, bytes) and len(audio_data) == 160:
+                                    payload_b64 = base64.b64encode(audio_data).decode("ascii")
+                                    audio_msg = {
+                                        "event": "media",
+                                        "streamSid": stream_sid,
+                                        "media": {"payload": payload_b64}
+                                    }
+                                    
+                                    if await send_audio_with_retry(audio_msg, max_retries=2):
+                                        sent_count += 1
+                                    else:
+                                        audio_buffer.appendleft(audio_data)
+                                        break
                                 else:
-                                    audio_buffer.appendleft(audio_data)
-                                    break
+                                    print(f"[BUFFER] Invalid audio data format: type={type(audio_data)}, len={len(audio_data) if hasattr(audio_data, '__len__') else 'N/A'}", flush=True)
+                                    sent_count += 1  # Skip invalid data
                             
                             if sent_count > 0:
                                 print(f"[BUFFER] ✅ Sent {sent_count} buffered audio chunks, remaining: {len(audio_buffer)}", flush=True)
