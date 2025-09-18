@@ -76,8 +76,9 @@ def enhance_voice_audio(pcm16k: bytes) -> bytes:
     
     max_val = audioop.max(pcm16k, 2)
     if max_val > 0:
-        target_amplitude = int(32767 * 0.8)
+        target_amplitude = int(32767 * 0.3)  # Reduce from 0.8 to 0.3 to prevent extreme amplification
         scale_factor = target_amplitude / max_val
+        scale_factor = min(scale_factor, 3.0)  # Cap at 3x amplification
         if scale_factor != 1.0:
             pcm16k = audioop.mul(pcm16k, 2, scale_factor)
     
@@ -521,6 +522,10 @@ async def twilio_stream(ws: WebSocket):
                 """Send audio with retry logic and connection validation"""
                 nonlocal audio_sent_count, audio_failed_count, reconnection_attempts
                 
+                if not connection_active or ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                    print(f"[RETRY] Connection not ready: active={connection_active}, state={ws.client_state.name}", flush=True)
+                    return False
+                
                 for attempt in range(max_retries):
                     try:
                         if not await check_websocket_connection():
@@ -530,10 +535,10 @@ async def twilio_stream(ws: WebSocket):
                             continue
                         
                         # audio_data should already be a properly formatted message dict
-                        if isinstance(audio_data, dict):
+                        if isinstance(audio_data, dict) and "event" in audio_data and "media" in audio_data:
                             msg_json = json.dumps(audio_data)
                         else:
-                            print(f"[RETRY] ERROR: audio_data is not a dict, type: {type(audio_data)}", flush=True)
+                            print(f"[RETRY] ERROR: Invalid audio message format, type: {type(audio_data)}", flush=True)
                             return False
                             
                         await ws.send_text(msg_json)
@@ -592,7 +597,7 @@ async def twilio_stream(ws: WebSocket):
                             if sent_count > 0:
                                 print(f"[BUFFER] ✅ Sent {sent_count} buffered audio chunks, remaining: {len(audio_buffer)}", flush=True)
                             
-                        await asyncio.sleep(0.005)  # 5ms for faster buffer processing
+                        await asyncio.sleep(0.002)  # Reduce from 5ms to 2ms for faster processing
                     except Exception as e:
                         audio_failed_count += 1
                         print(f"[BUFFER] ❌ Error #{audio_failed_count} processing buffered audio: {e}", flush=True)
