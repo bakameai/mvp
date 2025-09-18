@@ -44,9 +44,13 @@ class DeepgramTTSClient:
             message = {"type": "Speak", "text": text}
             await self.ws.send(json.dumps(message))
             
+            flush_message = {"type": "Flush"}
+            await self.ws.send(json.dumps(flush_message))
+            print(f"[Deepgram TTS] Sent text and flush command for synthesis", flush=True)
+            
             while True:
                 try:
-                    response = await asyncio.wait_for(self.ws.recv(), timeout=2.5)
+                    response = await asyncio.wait_for(self.ws.recv(), timeout=15.0)
                     
                     if isinstance(response, bytes):
                         yield response
@@ -56,10 +60,10 @@ class DeepgramTTSClient:
                             break
                             
                 except asyncio.TimeoutError:
-                    print("[Deepgram TTS] Timeout waiting for audio (2.5s), checking connection...", flush=True)
+                    print("[Deepgram TTS] Timeout waiting for audio (15s), retrying...", flush=True)
                     try:
                         await self.ws.ping()
-                        print("[Deepgram TTS] Connection alive, continuing synthesis...", flush=True)
+                        print("[Deepgram TTS] Connection still alive, continuing...", flush=True)
                         continue
                     except Exception as ping_error:
                         print(f"[Deepgram TTS] Connection lost during timeout: {ping_error}", flush=True)
