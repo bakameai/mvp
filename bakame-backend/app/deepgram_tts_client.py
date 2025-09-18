@@ -21,9 +21,11 @@ class DeepgramTTSClient:
                 return False
             
             url = "wss://api.deepgram.com/v1/speak?encoding=linear16&sample_rate=16000"
-            headers = {"Authorization": f"Token {api_key}"}
             
-            self.ws = await websockets.connect(url, extra_headers=headers)
+            self.ws = await websockets.connect(
+                url,
+                additional_headers={"Authorization": f"Token {api_key}"}
+            )
             print("[Deepgram TTS] ✅ Connection successful", flush=True)
             self.ready = True
             return True
