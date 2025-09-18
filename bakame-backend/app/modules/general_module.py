@@ -1,6 +1,5 @@
 from typing import Dict, Any
 from app.services.openai_service import openai_service
-from app.services.llama_service import llama_service
 from app.services.emotional_intelligence_service import emotional_intelligence_service
 from app.services.gamification_service import gamification_service
 from app.services.wellness_service import wellness_service
@@ -41,10 +40,7 @@ class GeneralModule:
         if "english" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "english"
             messages = [{"role": "user", "content": "Welcome me to English practice briefly. Say 'Muraho' and ask what I'd like to work on."}]
-            if settings.use_llama:
-                base_response = await llama_service.generate_response(messages, "english")
-            else:
-                base_response = await openai_service.generate_response(messages, "english")
+            base_response = await openai_service.generate_response(messages, "english")
             return await emotional_intelligence_service.generate_emotionally_aware_response(
                 user_input, base_response, emotion_data, "english"
             )
@@ -52,10 +48,7 @@ class GeneralModule:
         elif "math" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "math"
             messages = [{"role": "user", "content": "Welcome me to math practice briefly. Say 'Muraho' and mention RWF examples."}]
-            if settings.use_llama:
-                base_response = await llama_service.generate_response(messages, "math")
-            else:
-                base_response = await openai_service.generate_response(messages, "math")
+            base_response = await openai_service.generate_response(messages, "math")
             return await emotional_intelligence_service.generate_emotionally_aware_response(
                 user_input, base_response, emotion_data, "math"
             )
@@ -63,18 +56,12 @@ class GeneralModule:
         elif "comprehension" in user_input_lower or "reading" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "comprehension"
             messages = [{"role": "user", "content": "Welcome me to reading practice briefly. Say 'Muraho' and mention Rwandan stories."}]
-            if settings.use_llama:
-                return await llama_service.generate_response(messages, "comprehension")
-            else:
-                return await openai_service.generate_response(messages, "comprehension")
+            return await openai_service.generate_response(messages, "comprehension")
         
         elif "debate" in user_input_lower:
             user_context.setdefault("user_state", {})["requested_module"] = "debate"
             messages = [{"role": "user", "content": "Welcome me to debate practice briefly. Say 'Muraho' and mention respectful dialogue."}]
-            if settings.use_llama:
-                return await llama_service.generate_response(messages, "debate")
-            else:
-                return await openai_service.generate_response(messages, "debate")
+            return await openai_service.generate_response(messages, "debate")
         
         elif any(word in user_input_lower for word in ["wellness", "health", "mood", "nutrition"]):
             if "mood" in user_input_lower:
@@ -104,10 +91,7 @@ class GeneralModule:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
-        if settings.use_llama:
-            response = await llama_service.generate_response(messages, self.module_name)
-        else:
-            response = await openai_service.generate_response(messages, self.module_name)
+        response = await openai_service.generate_response(messages, self.module_name)
         
         if len(user_context.get("conversation_history", [])) % 3 == 0:
             response += "\n\nMurabona, I can also help you with English, Math, Reading Comprehension, or Debate practice. Just say what you'd like to try!"
@@ -120,10 +104,7 @@ class GeneralModule:
             {"role": "user", "content": "Please explain what learning modules you offer and how you can help me learn, using Kinyarwanda phrases naturally and referencing Rwanda culture."}
         ]
         
-        if settings.use_llama:
-            response = await llama_service.generate_response(messages, self.module_name)
-        else:
-            response = await openai_service.generate_response(messages, self.module_name)
+        response = await openai_service.generate_response(messages, self.module_name)
         
         return response + "\n\nJust say what you'd like to try, like 'English' or 'Math'. Ni iki gikureba uyu munsi? (What interests you today?)"
     

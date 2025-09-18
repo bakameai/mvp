@@ -155,12 +155,10 @@ async def create_session(db: Session = Depends(get_db)):
 async def handle_ivr_message(request: IVRMessageRequest, db: Session = Depends(get_db)):
     """Handle IVR chat messages"""
     try:
-        from app.services.llama_service import LlamaService
-        
-        llama_service = LlamaService()
+        from app.services.openai_service import openai_service
         
         messages = [{"role": "user", "content": request.message}]
-        response = await llama_service.generate_response(messages, "english")
+        response = await openai_service.generate_response(messages, "english")
         
         return {
             "success": True,

@@ -1,6 +1,5 @@
 from typing import Dict, Any
 from app.services.openai_service import openai_service
-from app.services.llama_service import llama_service
 from app.services.emotional_intelligence_service import emotional_intelligence_service
 from app.services.gamification_service import gamification_service
 from app.services.multimodal_service import multimodal_service
@@ -55,10 +54,7 @@ class EnglishModule:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
-        if settings.use_llama:
-            response = await llama_service.generate_response(messages, self.module_name)
-        else:
-            response = await openai_service.generate_response(messages, self.module_name)
+        response = await openai_service.generate_response(messages, self.module_name)
         return response
     
     async def _repeat_practice(self, user_input: str, user_context: Dict[str, Any]) -> str:
@@ -67,10 +63,7 @@ class EnglishModule:
             {"role": "user", "content": f"Help me practice pronunciation. Give me feedback on how I said: '{user_input}' and provide a similar sentence to practice."}
         ]
         
-        if settings.use_llama:
-            response = await llama_service.generate_response(messages, self.module_name)
-        else:
-            response = await openai_service.generate_response(messages, self.module_name)
+        response = await openai_service.generate_response(messages, self.module_name)
         return response
     
     async def _english_tutoring(self, user_input: str, user_context: Dict[str, Any]) -> str:
@@ -83,10 +76,7 @@ class EnglishModule:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
-        if settings.use_llama:
-            response = await llama_service.generate_response(messages, self.module_name)
-        else:
-            response = await openai_service.generate_response(messages, self.module_name)
+        response = await openai_service.generate_response(messages, self.module_name)
         return response
     
     def get_welcome_message(self) -> str:

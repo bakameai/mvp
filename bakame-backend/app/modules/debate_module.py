@@ -1,7 +1,6 @@
 import random
 from typing import Dict, Any
 from app.services.openai_service import openai_service
-from app.services.llama_service import llama_service
 from app.services.emotional_intelligence_service import emotional_intelligence_service
 from app.services.gamification_service import gamification_service
 from app.config import settings
@@ -86,10 +85,7 @@ class DebateModule:
             messages.insert(-1, {"role": "user", "content": interaction["user"]})
             messages.insert(-1, {"role": "assistant", "content": interaction["ai"]})
         
-        if settings.use_llama:
-            base_response = await llama_service.generate_response(messages, self.module_name)
-        else:
-            base_response = await openai_service.generate_response(messages, self.module_name)
+        base_response = await openai_service.generate_response(messages, self.module_name)
         
         user_stats["debate_round"] = debate_round + 1
         

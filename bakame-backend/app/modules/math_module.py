@@ -1,7 +1,6 @@
 import random
 from typing import Dict, Any
 from app.services.openai_service import openai_service
-from app.services.llama_service import llama_service
 from app.services.emotional_intelligence_service import emotional_intelligence_service
 from app.services.gamification_service import gamification_service
 from app.services.multimodal_service import multimodal_service
@@ -159,10 +158,7 @@ class MathModule:
                     {"role": "user", "content": f"The user answered {user_answer} for the problem {current_problem['question']}, but the correct answer is {correct_answer}. Give them a helpful hint to solve it correctly."}
                 ]
                 
-                if settings.use_llama:
-                    hint = await llama_service.generate_response(messages, self.module_name)
-                else:
-                    hint = await openai_service.generate_response(messages, self.module_name)
+                hint = await openai_service.generate_response(messages, self.module_name)
                 
                 base_response = f"Not quite right. {hint} Try again: What is {current_problem['question']}?"
                 
@@ -215,10 +211,7 @@ class MathModule:
                 {"role": "user", "content": f"Create a {difficulty}-level math problem about {context} in Rwanda. Include:\n\n1. A realistic scenario with Rwandan context\n2. A clear math question\n3. The correct numerical answer\n\nFormat as JSON: {{'question': 'A farmer in Musanze...', 'answer': 150, 'context': 'agricultural'}}"}
             ]
             
-            if settings.use_llama:
-                response = await llama_service.generate_response(messages, self.module_name)
-            else:
-                response = await openai_service.generate_response(messages, self.module_name)
+            response = await openai_service.generate_response(messages, self.module_name)
             
             import json
             try:

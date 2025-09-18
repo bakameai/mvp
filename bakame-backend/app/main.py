@@ -16,7 +16,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Form
 from fastapi.responses import Response
 from app.services.redis_service import redis_service
 from app.services.openai_service import openai_service
-from app.services.llama_service import llama_service
 from app.services.logging_service import logging_service
 from app.modules.english_module import english_module
 from app.modules.math_module import math_module

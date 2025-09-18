@@ -11,8 +11,6 @@ class Settings(BaseSettings):
     use_deepgram_tts: bool = True
     use_google_tts: bool = False
     google_cloud_project: str = "bakame-ai"
-    llama_api_key: str
-    use_llama: bool = True
     newsapi_key: str
     deepgram_api_key: str
     redis_url: str = "redis://localhost:6379/0"

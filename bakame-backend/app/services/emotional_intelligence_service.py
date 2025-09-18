@@ -1,7 +1,6 @@
 import re
 from datetime import datetime
 from typing import Dict, Any, List, Tuple
-from app.services.llama_service import llama_service
 from app.services.openai_service import openai_service
 from app.config import settings
 

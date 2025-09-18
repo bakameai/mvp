@@ -1,7 +1,6 @@
 import random
 from typing import Dict, Any
 from app.services.openai_service import openai_service
-from app.services.llama_service import llama_service
 from app.services.emotional_intelligence_service import emotional_intelligence_service
 from app.services.gamification_service import gamification_service
 from app.config import settings
@@ -115,10 +114,7 @@ class ComprehensionModule:
             {"role": "user", "content": f"Question: {question}\nCorrect answer: {correct_answer}\nUser's answer: {user_input}\n\nIs the user's answer correct? Consider variations in wording. Respond with 'CORRECT' or 'INCORRECT' followed by brief feedback."}
         ]
         
-        if settings.use_llama:
-            evaluation = await llama_service.generate_response(messages, self.module_name)
-        else:
-            evaluation = await openai_service.generate_response(messages, self.module_name)
+        evaluation = await openai_service.generate_response(messages, self.module_name)
         is_correct = "CORRECT" in evaluation.upper()
         
         user_stats = user_context.get("user_state", {})
@@ -207,10 +203,7 @@ class ComprehensionModule:
                 {"role": "user", "content": f"Create a {difficulty}-level comprehension story about {theme} set in Rwanda. Include:\n\n1. A compelling title\n2. A 150-200 word story featuring Rwandan characters, places (like Kigali, Butare, Musanze), and cultural elements\n3. Exactly 3 comprehension questions that test understanding\n4. Clear answers for each question\n\nFormat as JSON: {{'title': 'Story Title', 'content': 'Story text...', 'questions': ['Q1', 'Q2', 'Q3'], 'answers': ['A1', 'A2', 'A3']}}"}
             ]
             
-            if settings.use_llama:
-                response = await llama_service.generate_response(messages, self.module_name)
-            else:
-                response = await openai_service.generate_response(messages, self.module_name)
+            response = await openai_service.generate_response(messages, self.module_name)
             
             import json
             try:
