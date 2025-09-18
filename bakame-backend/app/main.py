@@ -29,6 +29,8 @@ BUFFER_CHECK_INTERVAL_MS = 5  # Faster buffer processing
 SILENCE_CHECK_INTERVAL_MS = 50  # More responsive silence detection
 FRAME_RATE_TARGET = 50  # Target 50fps
 MAX_BUFFER_FRAMES = 150  # Increased from 100 for better buffering
+VAD_RMS_THRESHOLD = 500  # RMS threshold for voice activity detection
+VAD_ENERGY_THRESHOLD = 0.01  # Energy threshold for voice activity
 
 """
 ENV you must set in Fly (or locally):
@@ -325,6 +327,23 @@ def log_audio_quality_metrics(pcm16k: bytes, frames: list[bytes], event_id: str 
         
         print(f"[QUALITY] Event {event_id}: RMS={rms_level}, Max={max_level}, "
               f"Dynamic Range={dynamic_range:.2f}, Frames={len(frames)}", flush=True)
+def detect_voice_activity(pcm16k: bytes) -> bool:
+    """Detect voice activity using RMS and energy thresholds."""
+    if not pcm16k or len(pcm16k) < 2:
+        return False
+    
+    try:
+        rms_level = audioop.rms(pcm16k, 2)
+        max_level = audioop.max(pcm16k, 2)
+        energy_ratio = rms_level / max(max_level, 1)
+        
+        has_voice = rms_level > VAD_RMS_THRESHOLD and energy_ratio > VAD_ENERGY_THRESHOLD
+        return has_voice
+    except Exception as e:
+        print(f"[VAD] Error detecting voice activity: {e}", flush=True)
+        return False
+
+
 
 
 async def process_audio_buffer(audio_buffer: deque, phone_number: str, session_id: str, google_tts_client):
@@ -443,7 +462,7 @@ async def twilio_stream(ws: WebSocket):
                 nonlocal stream_sid, last_audio_time, silence_padding_active, frames_sent_count, silence_frames_count, connection_active
                 
                 while connection_active:
-                    await asyncio.sleep(0.05)  # Check every 50ms for faster response
+                    await asyncio.sleep(0.02)  # 20ms intervals for 50fps consistency
                     
                     if not connection_active:
                         break
@@ -457,10 +476,10 @@ async def twilio_stream(ws: WebSocket):
                         print(f"[SILENCE] Error checking WebSocket state: {e}", flush=True)
                         break
                     
-                    if stream_sid and time.time() - last_audio_time > 0.25:  # 250ms silence threshold for real-time
+                    if stream_sid and time.time() - last_audio_time > 0.2:  # 200ms threshold for real-time
                         if not silence_padding_active:
                             silence_padding_active = True
-                            print("[SILENCE] Starting silence padding", flush=True)
+                            print("[SILENCE] Starting silence keepalives for pipeline health", flush=True)
                         
                         silence_frame = generate_silence_frame()
                         frames_sent = await send_twilio_media_frames(ws, stream_sid, [silence_frame])
@@ -469,7 +488,7 @@ async def twilio_stream(ws: WebSocket):
                             break
                         frames_sent_count += frames_sent if frames_sent else 1
                         silence_frames_count += frames_sent if frames_sent else 1
-                        print(f"[SILENCE] Sent silence frame, total sent: {frames_sent_count} (silence: {silence_frames_count})", flush=True)
+                        print(f"[SILENCE] Sent keepalive frame, total sent: {frames_sent_count} (silence: {silence_frames_count})", flush=True)
                         
                         last_audio_time = time.time()
             
@@ -597,7 +616,7 @@ async def twilio_stream(ws: WebSocket):
                             if sent_count > 0:
                                 print(f"[BUFFER] ✅ Sent {sent_count} buffered audio chunks, remaining: {len(audio_buffer)}", flush=True)
                             
-                        await asyncio.sleep(0.002)  # Reduce from 5ms to 2ms for faster processing
+                        await asyncio.sleep(0.02)  # Exactly 20ms for 50fps target
                     except Exception as e:
                         audio_failed_count += 1
                         print(f"[BUFFER] ❌ Error #{audio_failed_count} processing buffered audio: {e}", flush=True)
@@ -710,11 +729,17 @@ async def twilio_stream(ws: WebSocket):
                 
                 if payload_b64:
                     pcm16k = twilio_ulaw8k_to_pcm16_16k(payload_b64)
-
-                    audio_buffer.append(pcm16k)
-                    if buffer_start_time is None:
-                        buffer_start_time = asyncio.get_event_loop().time()
-
+                    
+                    has_voice = detect_voice_activity(pcm16k)
+                    if has_voice:
+                        print(f"[VAD] Voice activity detected, buffering audio", flush=True)
+                        audio_buffer.append(pcm16k)
+                        if buffer_start_time is None:
+                            buffer_start_time = asyncio.get_event_loop().time()
+                    else:
+                        print(f"[VAD] No voice activity, skipping audio chunk", flush=True)
+                        continue
+                    
                     current_time = asyncio.get_event_loop().time()
                     if (current_time - buffer_start_time >= AUDIO_BUFFER_DURATION or 
                         len(audio_buffer) > 32000):

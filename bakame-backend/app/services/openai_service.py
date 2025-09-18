@@ -1,4 +1,5 @@
 import openai
+import asyncio
 from typing import List, Dict, Any
 import io
 from app.config import settings
@@ -9,26 +10,45 @@ class OpenAIService:
     def __init__(self):
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
     
-    async def transcribe_audio(self, audio_data: bytes, audio_format: str = "wav") -> str:
-        """Transcribe audio using OpenAI Whisper"""
-        try:
-            audio_file = io.BytesIO(audio_data)
-            audio_file.name = f"audio.{audio_format}"
-            
-            transcript = self.client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                response_format="text"
-            )
-            
-            return transcript.strip()
-        except Exception as e:
-            error_msg = str(e).lower()
-            if "401" in error_msg or "invalid_api_key" in error_msg or "authentication" in error_msg:
-                print(f"[OpenAI STT] Authentication failed", flush=True)
-                return ""
-            print(f"[OpenAI STT] Transcription error occurred", flush=True)
-            return ""
+    async def transcribe_audio(self, audio_data: bytes, audio_format: str = "wav", max_retries: int = 3) -> str:
+        """Transcribe audio using OpenAI Whisper with auth retry and backoff"""
+        for attempt in range(max_retries):
+            try:
+                audio_file = io.BytesIO(audio_data)
+                audio_file.name = f"audio.{audio_format}"
+                
+                transcript = self.client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    response_format="text"
+                )
+                
+                return transcript.strip()
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "401" in error_msg or "invalid_api_key" in error_msg or "authentication" in error_msg:
+                    print(f"[OpenAI STT] Authentication failed (attempt {attempt + 1}/{max_retries})", flush=True)
+                    if attempt < max_retries - 1:
+                        backoff_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                        print(f"[OpenAI STT] Retrying in {backoff_time}s...", flush=True)
+                        await asyncio.sleep(backoff_time)
+                        continue
+                    else:
+                        print("[OpenAI STT] All authentication attempts failed", flush=True)
+                        return ""
+                elif "rate_limit" in error_msg or "429" in error_msg:
+                    print(f"[OpenAI STT] Rate limit hit (attempt {attempt + 1}/{max_retries})", flush=True)
+                    if attempt < max_retries - 1:
+                        backoff_time = 5 * (2 ** attempt)  # Longer backoff for rate limits
+                        await asyncio.sleep(backoff_time)
+                        continue
+                else:
+                    print(f"[OpenAI STT] Transcription error occurred (attempt {attempt + 1}/{max_retries}): {error_msg}", flush=True)
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(1)
+                        continue
+                
+        return ""
     
     async def generate_response(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:
         """Generate response using GPT-4 with conversational intelligence"""
