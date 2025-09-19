@@ -471,7 +471,7 @@ async def twilio_stream(ws: WebSocket):
 
         async def tts_synthesis_worker():
             """Separate task for TTS synthesis to avoid blocking receive loop."""
-            nonlocal ws_state, deepgram_tts_client, tts_ready, audio_conversion_state, current_audio_queue, tts_synthesize_func
+            nonlocal ws_state, deepgram_tts_client, tts_ready, audio_conversion_state, current_audio_queue
             
             synthesis_queue = asyncio.Queue()
             
@@ -497,14 +497,8 @@ async def twilio_stream(ws: WebSocket):
                 except Exception as e:
                     print(f"[TTS] Error synthesizing {context}: {e}", flush=True)
             
-            async def queue_synthesis(text: str, context: str = "response"):
-                """Queue text for synthesis."""
-                try:
-                    await synthesis_queue.put((text, context))
-                except Exception as e:
-                    print(f"[TTS] Error queuing synthesis: {e}", flush=True)
-            
-            tts_synthesize_func = queue_synthesis
+            nonlocal tts_synthesize_func
+            tts_synthesize_func = synthesize_text
             
             print("[TTS] Synthesis worker started", flush=True)
             
@@ -514,7 +508,7 @@ async def twilio_stream(ws: WebSocket):
                         text, context = await asyncio.wait_for(synthesis_queue.get(), timeout=1.0)
                         await synthesize_text(text, context)
                     except asyncio.TimeoutError:
-                        continue
+                        continue  # Check state and continue
                     except Exception as e:
                         print(f"[TTS] Synthesis worker error: {e}", flush=True)
                         break
@@ -836,14 +830,10 @@ async def twilio_stream(ws: WebSocket):
                 deepgram_tts_task = asyncio.create_task(pump_deepgram_tts_monitoring())
                 print("[Twilio] Started dedicated 50fps sender, TTS synthesis, and monitoring tasks", flush=True)
                 
-                if deepgram_tts_client and tts_ready and tts_synthesize_func:
+                if deepgram_tts_client and tts_ready:
                     greeting_text = "Muraho! Welcome to BAKAME, your AI learning companion. I'm ready to help you learn!"
                     print(f"[GREETING] Queuing welcome message for synthesis", flush=True)
-                    try:
-                        await tts_synthesize_func(greeting_text, "greeting")
-                        print("[GREETING] First frame sent - greeting queued successfully", flush=True)
-                    except Exception as e:
-                        print(f"[GREETING] Error queuing welcome message: {e}", flush=True)
+                    await tts_synthesize_func(greeting_text, "greeting")
                 
                 while pending_mulaw_frames:
                     frame = pending_mulaw_frames.popleft()
