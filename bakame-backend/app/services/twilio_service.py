@@ -5,7 +5,6 @@ from twilio.twiml.messaging_response import MessagingResponse
 import requests
 import os
 from app.config import settings
-from app.services.deepgram_service import deepgram_service
 from app.services.openai_service import openai_service
 
 class TwilioService:

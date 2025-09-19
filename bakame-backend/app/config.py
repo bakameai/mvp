@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     openai_api_key: str
     elevenlabs_agent_id: str = "agent_0301k3y6dwrve63sb37n6f4ffkrj"
     use_elevenlabs: bool = False
-    use_deepgram_tts: bool = True
+    use_deepgram_tts: bool = False
     use_google_tts: bool = False
     use_openai_realtime: bool = False
     google_cloud_project: str = "bakame-ai"
