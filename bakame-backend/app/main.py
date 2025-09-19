@@ -441,31 +441,13 @@ async def twilio_stream(ws: WebSocket):
                     frame_type = "silence"
                     silence_frames_count += 1
                 
-                try:
-                    if len(frame) != 160:
-                        print(f"[50FPS] Invalid frame size {len(frame)}, skipping", flush=True)
-                        continue
-                        
-                    payload_b64 = base64.b64encode(frame).decode("ascii")
-                    msg = {
-                        "event": "media",
-                        "streamSid": stream_sid,
-                        "media": {"payload": payload_b64}
-                    }
-                    
-                    await ws.send_text(json.dumps(msg))
-                    frames_sent_count += 1
-                    
-                except Exception as e:
-                    error_msg = str(e).lower()
-                    if any(keyword in error_msg for keyword in ["once a close message", "closed", "not connected"]):
-                        print(f"[50FPS] WebSocket send error (connection closed), stopping immediately: {e}", flush=True)
-                        connection_active = False
-                        break
-                    else:
-                        print(f"[50FPS] Unexpected send error, stopping: {e}", flush=True)
-                        connection_active = False
-                        break
+                frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame], connection_active)
+                if frames_sent == 0:  # WebSocket error occurred
+                    print(f"[50FPS] WebSocket error during {frame_type} send, stopping immediately", flush=True)
+                    connection_active = False
+                    break
+                
+                frames_sent_count += 1
                 
                 elapsed = asyncio.get_event_loop().time() - frame_start_time
                 inter_frame_delta = frame_start_time - last_frame_time
