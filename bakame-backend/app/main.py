@@ -827,13 +827,18 @@ async def twilio_stream(ws: WebSocket):
                 # Start all tasks after "start" event
                 sender_task = asyncio.create_task(dedicated_50fps_sender())
                 tts_synthesis_task = asyncio.create_task(tts_synthesis_worker())
+                
+                await asyncio.sleep(0.2)
+                
                 deepgram_tts_task = asyncio.create_task(pump_deepgram_tts_monitoring())
                 print("[Twilio] Started dedicated 50fps sender, TTS synthesis, and monitoring tasks", flush=True)
                 
-                if deepgram_tts_client and tts_ready:
+                if deepgram_tts_client and tts_ready and tts_synthesize_func:
                     greeting_text = "Muraho! Welcome to BAKAME, your AI learning companion. I'm ready to help you learn!"
                     print(f"[GREETING] Queuing welcome message for synthesis", flush=True)
                     await tts_synthesize_func(greeting_text, "greeting")
+                else:
+                    print(f"[GREETING] TTS not ready - client: {bool(deepgram_tts_client)}, ready: {tts_ready}, func: {bool(tts_synthesize_func)}", flush=True)
                 
                 while pending_mulaw_frames:
                     frame = pending_mulaw_frames.popleft()
