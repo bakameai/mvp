@@ -88,82 +88,29 @@ def enhance_voice_audio(pcm16k: bytes) -> bytes:
 
 def apply_voice_frequency_emphasis(pcm16k: bytes) -> bytes:
     """
-    Advanced audio reconstruction for ElevenLabs compatibility.
-    Applies aggressive μ-law artifact removal and spectral enhancement.
+    Lightweight voice enhancement without blocking scipy operations.
+    Applies basic frequency emphasis for voice clarity.
     """
+    if not pcm16k:
+        return pcm16k
+    
     try:
-        import numpy as np
-        from scipy import signal
-        
-        audio_data = np.frombuffer(pcm16k, dtype=np.int16).astype(np.float32)
-        original_rms = np.sqrt(np.mean(audio_data**2))
-        
-        noise_threshold = np.std(audio_data) * 0.08
-        audio_data = np.where(np.abs(audio_data) < noise_threshold, 0, audio_data)
-        
-        nyquist = 8000  # 16kHz / 2
-        low_freq = 300 / nyquist
-        high_freq = 3400 / nyquist
-        
-        b_band, a_band = signal.butter(6, [low_freq, high_freq], btype='band')
-        filtered_audio = signal.filtfilt(b_band, a_band, audio_data)
-        
-        hf_restore_freq = 2000 / nyquist
-        b_hf, a_hf = signal.butter(2, hf_restore_freq, btype='high')
-        hf_enhanced = signal.lfilter(b_hf, a_hf, filtered_audio)
-        
-        fundamental_freq = 150 / nyquist  # Typical voice fundamental
-        b_fund, a_fund = signal.butter(2, fundamental_freq, btype='high')
-        harmonic_enhanced = signal.lfilter(b_fund, a_fund, filtered_audio)
-        
-        enhanced_audio = (0.5 * filtered_audio + 
-                         0.3 * hf_enhanced + 
-                         0.2 * harmonic_enhanced)
-        
-        # Step 5: Dynamic range restoration with soft compression
-        current_rms = np.sqrt(np.mean(enhanced_audio**2))
-        if current_rms > 0:
-            signal_peak = np.max(np.abs(enhanced_audio))
-            dynamic_range = signal_peak / (current_rms + 1e-6)
-            
-            if dynamic_range > 3:  # High dynamic range - preserve
-                target_rms = min(9000, original_rms * 2.2)
-            else:  # Low dynamic range - boost aggressively
-                target_rms = min(12000, original_rms * 3.8)
-            
-            compression_ratio = target_rms / current_rms
-            enhanced_audio *= min(compression_ratio, 4.0)
-        
-        enhanced_audio = np.tanh(enhanced_audio / 20000) * 20000
-        
-        # Final processing
-        final_rms = np.sqrt(np.mean(enhanced_audio**2))
-        enhanced_audio = np.clip(enhanced_audio, -32768, 32767).astype(np.int16)
-        
-        print(f"[VOICE] Advanced reconstruction: RMS {int(original_rms)} → {int(final_rms)}, μ-law artifacts removed", flush=True)
-        return enhanced_audio.tobytes()
-        
-    except ImportError:
-        print("[VOICE] Scipy not available, using enhanced basic filtering", flush=True)
-        try:
-            # Enhanced fallback processing
-            max_val = audioop.max(pcm16k, 2)
-            if max_val > 0:
-                target_amplitude = int(32767 * 0.9)
-                scale_factor = min(4.0, target_amplitude / max_val)
-                enhanced = audioop.mul(pcm16k, 2, scale_factor)
-                return enhanced
-            return pcm16k
-        except:
-            return pcm16k
+        max_val = audioop.max(pcm16k, 2)
+        if max_val > 0:
+            target_amplitude = int(32767 * 0.6)
+            scale_factor = min(2.0, target_amplitude / max_val)  # Max 2x gain
+            enhanced = audioop.mul(pcm16k, 2, scale_factor)
+            print(f"[VOICE] Light enhancement: {scale_factor:.1f}x gain", flush=True)
+            return enhanced
+        return pcm16k
     except Exception as e:
-        print(f"[AUDIO] Advanced voice reconstruction failed: {e}", flush=True)
+        print(f"[VOICE] Enhancement failed, using original: {e}", flush=True)
         return pcm16k
 
 def twilio_ulaw8k_to_pcm16_16k(b64_payload: str) -> bytes:
     """
     Twilio sends 8k μ-law audio in base64. Convert -> 16kHz signed 16-bit PCM.
-    Enhanced for ElevenLabs compatibility with improved quality preservation.
+    Enhanced with light AGC targeting -18 dBFS RMS for optimal voice processing.
     """
     ulaw = base64.b64decode(b64_payload)
     pcm8k = audioop.ulaw2lin(ulaw, 2)  # width=2 bytes/sample
@@ -174,22 +121,25 @@ def twilio_ulaw8k_to_pcm16_16k(b64_payload: str) -> bytes:
         import struct
         samples = struct.unpack(f'<{len(pcm16k)//2}h', pcm16k)
         
-        max_amplitude = max(abs(s) for s in samples) if samples else 1
-        if max_amplitude > 0:
-            target_amplitude = int(32767 * 0.7)  # 70% of max 16-bit range
-            scale_factor = target_amplitude / max_amplitude
+        if samples:
+            # Light AGC targeting -18 dBFS RMS with moderate compression
+            rms_level = (sum(s*s for s in samples) / len(samples)) ** 0.5
+            target_rms = int(32767 * 0.18)  # -18 dBFS target
             
-            normalized_samples = []
-            for sample in samples:
-                scaled = int(sample * scale_factor)
-                clamped = max(-32768, min(32767, scaled))
-                normalized_samples.append(clamped)
-            
-            pcm16k = struct.pack(f'<{len(normalized_samples)}h', *normalized_samples)
-            print(f"[AUDIO] Enhanced Twilio audio: normalized amplitude by {scale_factor:.2f}x for ElevenLabs", flush=True)
+            if rms_level > 0:
+                gain_factor = min(4.0, target_rms / rms_level)  # Max 12 dB gain
+                
+                normalized_samples = []
+                for sample in samples:
+                    scaled = int(sample * gain_factor)
+                    clamped = max(-28000, min(28000, scaled))
+                    normalized_samples.append(clamped)
+                
+                pcm16k = struct.pack(f'<{len(normalized_samples)}h', *normalized_samples)
+                print(f"[AUDIO] Light AGC applied: gain {gain_factor:.1f}x, target -18 dBFS", flush=True)
         
     except Exception as e:
-        print(f"[AUDIO] Audio normalization failed, using original: {e}", flush=True)
+        print(f"[AUDIO] AGC failed, using original: {e}", flush=True)
     
     return pcm16k
 
@@ -218,11 +168,13 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
         return 0
 
     try:
-        if ws.client_state.name not in ["CONNECTED", "OPEN"]:
-            print(f"[FRAME] WebSocket not ready for sending, state: {ws.client_state.name}", flush=True)
+        if not ws or ws.client_state.name not in ["CONNECTED", "OPEN"]:
+            print(f"[FRAME] WebSocket not ready for sending, state: {getattr(ws, 'client_state', {}).get('name', 'unknown')}", flush=True)
             return 0
+        
+        await ws.ping()
     except Exception as e:
-        print(f"[FRAME] Error checking WebSocket state: {e}", flush=True)
+        print(f"[FRAME] WebSocket connection validation failed: {e}", flush=True)
         return 0
 
     frame_count = 0
@@ -553,11 +505,15 @@ async def twilio_stream(ws: WebSocket):
                                 await asyncio.sleep(0.1 * (2 ** attempt))  # Exponential backoff
                             continue
                         
-                        # audio_data should already be a properly formatted message dict
                         if isinstance(audio_data, dict) and "event" in audio_data and "media" in audio_data:
+                            media_payload = audio_data.get("media", {}).get("payload", "")
+                            if isinstance(media_payload, bytes):
+                                print(f"[RETRY] Converting bytes payload to base64", flush=True)
+                                audio_data["media"]["payload"] = base64.b64encode(media_payload).decode("ascii")
+                            
                             msg_json = json.dumps(audio_data)
                         else:
-                            print(f"[RETRY] ERROR: Invalid audio message format, type: {type(audio_data)}", flush=True)
+                            print(f"[RETRY] ERROR: Invalid audio message format, type: {type(audio_data)}, keys: {list(audio_data.keys()) if isinstance(audio_data, dict) else 'N/A'}", flush=True)
                             return False
                             
                         await ws.send_text(msg_json)
@@ -703,10 +659,22 @@ async def twilio_stream(ws: WebSocket):
                 print(f"[Twilio] Media start for {phone_number}, streamSid: {session_id}, WS state: {ws.client_state.name}", flush=True)
                 print(f"[Twilio] Start data: {json.dumps(start_data, indent=2)}", flush=True)
                 
-                # print(f"[TEST] Sending 30s test tone ({len(test_frames)} frames) for pipeline validation", flush=True)
-                # await send_twilio_media_frames(ws, stream_sid, test_frames)
-                # frames_sent_count += len(test_frames)
-                # print(f"[TEST] Test tone sent successfully, total frames: {frames_sent_count}", flush=True)
+                if deepgram_tts_client and tts_ready:
+                    try:
+                        greeting_text = "Muraho! Welcome to BAKAME, your AI learning companion. I'm ready to help you learn!"
+                        print(f"[GREETING] Synthesizing welcome message for immediate audio test", flush=True)
+                        
+                        async for audio_chunk in deepgram_tts_client.synthesize_response(greeting_text):
+                            frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
+                            if stream_sid and connection_active:
+                                frames_sent = await send_twilio_media_frames(ws, stream_sid, frames, connection_active)
+                                if frames_sent > 0:
+                                    frames_sent_count += frames_sent
+                                    audio_frames_count += frames_sent
+                                    last_audio_time = time.time()
+                                    print(f"[GREETING] Sent {frames_sent} greeting frames", flush=True)
+                    except Exception as e:
+                        print(f"[GREETING] Error sending welcome message: {e}", flush=True)
                 
                 while pending_mulaw_frames:
                     frame = pending_mulaw_frames.popleft()
