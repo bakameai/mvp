@@ -62,19 +62,6 @@ class TwilioService:
         
         return str(response)
     
-    def _enhance_message_with_natural_punctuation(self, message: str) -> str:
-        """Enhance message with natural punctuation for better speech flow"""
-        enhanced = message
-        
-        enhanced = enhanced.replace("Muraho!", "Muraho!... ")
-        enhanced = enhanced.replace("Welcome to BAKAME", "Welcome to BAKAME...")
-        enhanced = enhanced.replace("Nice to meet you", "Nice to meet you...")
-        enhanced = enhanced.replace("Great question", "Great question...")
-        
-        if not enhanced.endswith(('.', '!', '?')):
-            enhanced += '.'
-        
-        return enhanced
     
     def create_sms_response(self, message: str) -> str:
         """Create TwiML SMS response"""
