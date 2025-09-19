@@ -171,8 +171,6 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
         if not ws or ws.client_state.name not in ["CONNECTED", "OPEN"]:
             print(f"[FRAME] WebSocket not ready for sending, state: {getattr(ws, 'client_state', {}).get('name', 'unknown')}", flush=True)
             return 0
-        
-        await ws.ping()
     except Exception as e:
         print(f"[FRAME] WebSocket connection validation failed: {e}", flush=True)
         return 0
@@ -418,8 +416,8 @@ async def twilio_stream(ws: WebSocket):
                 frame_start_time = asyncio.get_event_loop().time()
                 
                 try:
-                    if ws.client_state.name not in ["CONNECTED", "OPEN"]:
-                        print(f"[50FPS] WebSocket closed, stopping sender: {ws.client_state.name}", flush=True)
+                    if not ws or ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                        print(f"[50FPS] WebSocket closed, stopping sender: {getattr(ws, 'client_state', {}).get('name', 'unknown')}", flush=True)
                         break
                 except Exception as e:
                     print(f"[50FPS] Error checking WebSocket state: {e}", flush=True)
