@@ -762,8 +762,8 @@ async def twilio_stream(ws: WebSocket):
             ws_state = WS_STATE_CLOSED
             print(f"[CLEANUP] Completed cleanup due to: {reason}", flush=True)
 
-        deepgram_tts_task = asyncio.create_task(pump_deepgram_tts_monitoring())
-        print("[Bridge] Started Deepgram TTS monitoring task", flush=True)
+        # Don't start monitoring task immediately - wait for "start" event
+        print("[Bridge] WebSocket connected, waiting for Twilio 'start' event", flush=True)
 
         while ws_state in [WS_STATE_INACTIVE, WS_STATE_ACTIVE]:
             try:
@@ -822,9 +822,19 @@ async def twilio_stream(ws: WebSocket):
                     except asyncio.CancelledError:
                         pass
                 
+                if deepgram_tts_task:
+                    print("[Twilio] Cancelling previous monitoring task", flush=True)
+                    deepgram_tts_task.cancel()
+                    try:
+                        await deepgram_tts_task
+                    except asyncio.CancelledError:
+                        pass
+                
+                # Start all tasks after "start" event
                 sender_task = asyncio.create_task(dedicated_50fps_sender())
                 tts_synthesis_task = asyncio.create_task(tts_synthesis_worker())
-                print("[Twilio] Started dedicated 50fps sender and TTS synthesis tasks", flush=True)
+                deepgram_tts_task = asyncio.create_task(pump_deepgram_tts_monitoring())
+                print("[Twilio] Started dedicated 50fps sender, TTS synthesis, and monitoring tasks", flush=True)
                 
                 if deepgram_tts_client and tts_ready and tts_synthesize_func:
                     greeting_text = "Muraho! Welcome to BAKAME, your AI learning companion. I'm ready to help you learn!"
