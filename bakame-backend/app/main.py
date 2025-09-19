@@ -207,8 +207,8 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
         
         while retry_count <= max_retries and not frame_sent and connection_active:
             try:
-                if ws.client_state.name not in ["CONNECTED", "OPEN"]:
-                    print(f"[FRAME] WebSocket closed during send, state: {ws.client_state.name}", flush=True)
+                if not ws or ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                    print(f"[FRAME] WebSocket closed during send, state: {getattr(ws, 'client_state', {}).get('name', 'unknown')}", flush=True)
                     return frame_count
                 
                 await ws.send_text(json.dumps(msg))
@@ -221,7 +221,7 @@ async def send_twilio_media_frames(ws, stream_sid: str, mulaw_frames: list[bytes
                 
                 if any(keyword in error_msg for keyword in ["once a close message", "closed", "not connected", "accept first"]):
                     print(f"[FRAME] WebSocket connection error, stopping frame send: {e}", flush=True)
-                    return frame_count
+                    return 0  # Return 0 to signal WebSocket error to caller
                 
                 if retry_count <= max_retries:
                     print(f"[FRAME] Frame {frame_count} send failed (attempt {retry_count}/{max_retries + 1}): {e}", flush=True)
