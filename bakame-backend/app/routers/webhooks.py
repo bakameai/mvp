@@ -31,7 +31,16 @@ async def handle_voice_call(From: str = Form(...), To: str = Form(...)):
     """Handle incoming voice calls from Twilio using TwiML gather/say"""
     phone_number = From
     
-    welcome_message = "Muraho! Welcome to BAKAME, your AI learning companion. Please tell me what you'd like to learn about today."
+    user_context = redis_service.get_user_context(phone_number)
+    user_name = user_context.get("user_name")
+    learning_preferences = user_context.get("learning_preferences")
+    
+    if user_name and learning_preferences:
+        welcome_message = f"Muraho {user_name}! Welcome back to BAKAME. I remember you're interested in {learning_preferences}. What would you like to work on today?"
+    elif user_name:
+        welcome_message = f"Muraho {user_name}! Welcome back to BAKAME. What would you like to learn about today?"
+    else:
+        welcome_message = "Muraho! Welcome to BAKAME, your AI learning companion. Please tell me your name first."
     
     twiml_response = await twilio_service.create_voice_response(
         message=welcome_message,

@@ -26,7 +26,13 @@ class GeneralModule:
             user_context["user_name"] = user_input.strip()
             from app.services.redis_service import redis_service
             redis_service.set_user_context(user_context.get("phone_number", ""), user_context)
-            return f"Nice to meet you, {user_input.strip()}! I can help with English, Math, Reading, and Debate. What would you like to try?"
+            return f"Nice to meet you, {user_input.strip()}! Before we start learning, tell me: what subjects interest you most? For example, you could say 'I love math and want to practice calculations' or 'I need help with English conversation'."
+        
+        if not user_context.get("learning_preferences") and not any(word in user_input.lower() for word in ["english", "math", "reading", "debate", "help", "menu"]):
+            user_context["learning_preferences"] = user_input.strip()
+            from app.services.redis_service import redis_service
+            redis_service.set_user_context(user_context.get("phone_number", ""), user_context)
+            return f"Perfect! I understand you're interested in {user_input.strip()}. I can help with English, Math, Reading, and Debate. Based on what you told me, which would you like to start with today?"
         
         if any(word in user_input_lower for word in ["bye", "goodbye", "stop", "quit", "done"]):
             return f"Want to keep learning or stop for now? You did great today, {user_context.get('user_name', 'friend')}. I'll be here next time you call."
