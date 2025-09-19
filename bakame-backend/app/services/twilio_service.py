@@ -13,7 +13,7 @@ class TwilioService:
         self.phone_number = settings.twilio_phone_number
     
     async def create_voice_response(self, message: str, gather_input: bool = True, end_call: bool = False) -> str:
-        """Create TwiML voice response with enhanced natural speech"""
+        """Create TwiML voice response with premium neural voice"""
         response = VoiceResponse()
         
         try:
@@ -23,10 +23,10 @@ class TwilioService:
                 'rate': 'medium',  # Natural speaking pace
             }
             
-            enhanced_message = self._enhance_message_with_ssml(message)
+            clean_message = message
             
             if end_call:
-                response.say(enhanced_message, **voice_settings)
+                response.say(clean_message, **voice_settings)
                 response.hangup()
             elif gather_input:
                 gather = response.gather(
@@ -38,15 +38,13 @@ class TwilioService:
                     language='en-US',
                     hints='math, english, reading, debate, help, goodbye'  # Speech recognition hints
                 )
-                gather.say(enhanced_message, **voice_settings)
+                gather.say(clean_message, **voice_settings)
                 
-                fallback_msg = self._enhance_message_with_ssml(
-                    "I didn't catch that. Could you please repeat what you'd like to learn about? Or say goodbye to end our session."
-                )
+                fallback_msg = "I didn't catch that. Could you please repeat what you'd like to learn about? Or say goodbye to end our session."
                 response.say(fallback_msg, **voice_settings)
                 response.redirect('/webhook/voice/process')
             else:
-                response.say(enhanced_message, **voice_settings)
+                response.say(clean_message, **voice_settings)
                 response.redirect('/webhook/voice/process')
                     
         except Exception as e:
@@ -64,25 +62,19 @@ class TwilioService:
         
         return str(response)
     
-    def _enhance_message_with_ssml(self, message: str) -> str:
-        """Add SSML markup for more natural speech patterns"""
+    def _enhance_message_with_natural_punctuation(self, message: str) -> str:
+        """Enhance message with natural punctuation for better speech flow"""
         enhanced = message
         
-        enhanced = enhanced.replace("Muraho!", "Muraho! <break time='0.5s'/>")
-        enhanced = enhanced.replace("Welcome to BAKAME", "<prosody rate='medium'>Welcome to BAKAME</prosody>")
-        enhanced = enhanced.replace("?", "? <break time='0.3s'/>")
-        enhanced = enhanced.replace("!", "! <break time='0.3s'/>")
+        enhanced = enhanced.replace("Muraho!", "Muraho!... ")
+        enhanced = enhanced.replace("Welcome to BAKAME", "Welcome to BAKAME...")
+        enhanced = enhanced.replace("Nice to meet you", "Nice to meet you...")
+        enhanced = enhanced.replace("Great question", "Great question...")
         
-        learning_terms = ["math", "english", "reading", "debate", "learn", "practice", "study"]
-        for term in learning_terms:
-            enhanced = enhanced.replace(term, f"<emphasis level='moderate'>{term}</emphasis>")
-            enhanced = enhanced.replace(term.capitalize(), f"<emphasis level='moderate'>{term.capitalize()}</emphasis>")
+        if not enhanced.endswith(('.', '!', '?')):
+            enhanced += '.'
         
-        enhanced = enhanced.replace("Let me help", "<prosody rate='medium' pitch='medium'>Let me help</prosody>")
-        enhanced = enhanced.replace("Great question", "<prosody pitch='+5%'>Great question</prosody>")
-        enhanced = enhanced.replace("Nice to meet you", "<prosody pitch='+3%'>Nice to meet you</prosody>")
-        
-        return f"<speak>{enhanced}</speak>"
+        return enhanced
     
     def create_sms_response(self, message: str) -> str:
         """Create TwiML SMS response"""
