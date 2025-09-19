@@ -13,42 +13,43 @@ class TwilioService:
         self.client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
         self.phone_number = settings.twilio_phone_number
     
-    async def create_voice_response(self, message: str, gather_input: bool = True) -> str:
+    async def create_voice_response(self, message: str, gather_input: bool = True, end_call: bool = False) -> str:
         """Create TwiML voice response using Twilio Say verb"""
         response = VoiceResponse()
         
         try:
-            if gather_input:
+            if end_call:
+                response.say(message, voice='man', language='en-US')
+                response.hangup()
+            elif gather_input:
                 gather = response.gather(
                     input='speech',
                     timeout=10,
                     speech_timeout='auto',
                     action='/webhook/voice/process',
-                    method='POST'
+                    method='POST',
+                    language='en-US'
                 )
                 gather.say(message, voice='man', language='en-US')
-                response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
+                
+                response.say("I didn't hear anything. Please try again or say goodbye to end the call.", voice='man', language='en-US')
                 response.redirect('/webhook/voice/process')
             else:
                 response.say(message, voice='man', language='en-US')
-                response.hangup()
+                response.redirect('/webhook/voice/process')
                     
         except Exception as e:
             print(f"Error in voice response generation: {e}")
-            if gather_input:
-                gather = response.gather(
-                    input='speech',
-                    timeout=10,
-                    speech_timeout='auto',
-                    action='/webhook/voice/process',
-                    method='POST'
-                )
-                gather.say("Welcome to BAKAME learning assistant. Please say what you need help with.", voice='man', language='en-US')
-                response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
-                response.redirect('/webhook/voice/process')
-            else:
-                response.say("Thank you for using BAKAME. Goodbye!", voice='man', language='en-US')
-                response.hangup()
+            gather = response.gather(
+                input='speech',
+                timeout=10,
+                speech_timeout='auto',
+                action='/webhook/voice/process',
+                method='POST'
+            )
+            gather.say("Welcome to BAKAME learning assistant. Please say what you need help with.", voice='man', language='en-US')
+            response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
+            response.redirect('/webhook/voice/process')
         
         return str(response)
     

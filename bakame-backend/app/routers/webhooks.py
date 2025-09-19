@@ -27,19 +27,18 @@ MODULES = {
 }
 
 @router.post("/call")
-def handle_voice_call():
-    """Handle incoming voice calls from Twilio - Connect to ElevenLabs WebSocket stream"""
+async def handle_voice_call(From: str = Form(...), To: str = Form(...)):
+    """Handle incoming voice calls from Twilio using TwiML gather/say"""
+    phone_number = From
     
-    WS_URL = "wss://bakame-elevenlabs-mcp.fly.dev/twilio-stream"
+    welcome_message = "Muraho! Welcome to BAKAME, your AI learning companion. Please tell me what you'd like to learn about today."
     
-    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Connect>
-    <Stream url="{WS_URL}"/>
-  </Connect>
-</Response>"""
+    twiml_response = await twilio_service.create_voice_response(
+        message=welcome_message,
+        gather_input=True
+    )
     
-    return Response(content=twiml, media_type="application/xml")
+    return Response(content=twiml_response, media_type="application/xml")
 
 @router.post("/sms")
 async def handle_sms(
@@ -115,9 +114,92 @@ async def handle_sms(
             )
 
 @router.post("/voice/process")
-def handle_voice_process():
-    """Handle continued voice interactions from Twilio"""
-    return handle_voice_call()
+async def handle_voice_process(
+    request: Request,
+    From: str = Form(...),
+    To: str = Form(...),
+    CallSid: str = Form(...),
+    SpeechResult: Optional[str] = Form(None),
+    RecordingUrl: Optional[str] = Form(None)
+):
+    """Handle voice processing using Twilio's speech recognition"""
+    phone_number = From
+    session_id = CallSid
+    user_input = SpeechResult
+    
+    try:
+        if not user_input or len(user_input.strip()) < 2:
+            retry_message = "I didn't hear anything. Please tell me what you'd like to learn about."
+            twiml_response = await twilio_service.create_voice_response(
+                message=retry_message,
+                gather_input=True
+            )
+            return Response(content=twiml_response, media_type="application/xml")
+        
+        print(f"[BAKAME] Voice input from {phone_number}: {user_input}", flush=True)
+        
+        if user_input and any(word in user_input.lower() for word in ["goodbye", "bye", "end", "stop", "quit", "exit"]):
+            goodbye_message = "Murakoze for using BAKAME! Keep learning and growing. Goodbye!"
+            twiml_response = await twilio_service.create_voice_response(
+                message=goodbye_message,
+                gather_input=False,
+                end_call=True
+            )
+            return Response(content=twiml_response, media_type="application/xml")
+        
+        if user_input.lower().strip() == "reset" or any(word in user_input.lower() for word in ["hello", "hi", "hey", "start", "new", "help", "menu", "general"]):
+            redis_service.clear_user_context(phone_number)
+            user_context = redis_service.get_user_context(phone_number)
+            current_module_name = "general"
+            redis_service.set_current_module(phone_number, current_module_name)
+        else:
+            user_context = redis_service.get_user_context(phone_number)
+        
+        user_context["phone_number"] = phone_number
+        current_module_name = redis_service.get_current_module(phone_number) or "general"
+        
+        requested_module = user_context.get("user_state", {}).get("requested_module")
+        if requested_module and requested_module in MODULES:
+            current_module_name = requested_module
+            redis_service.set_current_module(phone_number, current_module_name)
+            user_context["user_state"]["requested_module"] = None
+            redis_service.set_user_context(phone_number, user_context)
+        
+        current_module = MODULES.get(current_module_name, general_module)
+        
+        ai_response = await current_module.process_input(user_input, user_context)
+        
+        redis_service.add_to_conversation_history(phone_number, user_input, ai_response)
+        
+        await logging_service.log_interaction(
+            phone_number=phone_number,
+            session_id=session_id,
+            module_name=current_module_name,
+            interaction_type="voice",
+            user_input=user_input,
+            ai_response=ai_response
+        )
+        
+        print(f"[BAKAME] AI Response: {ai_response}", flush=True)
+        
+        twiml_response = await twilio_service.create_voice_response(
+            message=ai_response,
+            gather_input=True
+        )
+        
+        return Response(content=twiml_response, media_type="application/xml")
+        
+    except Exception as e:
+        print(f"Error in voice processing: {e}")
+        await logging_service.log_error(f"Voice processing error for {phone_number}: {str(e)}")
+        
+        fallback_message = "I'm sorry, I'm having trouble processing your request. Please try again or say 'help' for assistance."
+        twiml_response = await twilio_service.create_voice_response(
+            message=fallback_message,
+            gather_input=True
+        )
+        
+        return Response(content=twiml_response, media_type="application/xml")
 
 @router.get("/health")
 async def health_check():
