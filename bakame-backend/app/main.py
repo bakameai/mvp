@@ -24,6 +24,11 @@ from app.modules.debate_module import debate_module
 from app.modules.general_module import general_module
 from app.deepgram_tts_client import open_deepgram_tts
 
+WS_STATE_INACTIVE = "INACTIVE"
+WS_STATE_ACTIVE = "ACTIVE" 
+WS_STATE_CLOSING = "CLOSING"
+WS_STATE_CLOSED = "CLOSED"
+
 SILENCE_THRESHOLD_MS = 250  # Reduced from 500ms for real-time conversation
 BUFFER_CHECK_INTERVAL_MS = 5  # Faster buffer processing
 SILENCE_CHECK_INTERVAL_MS = 50  # More responsive silence detection
@@ -368,7 +373,8 @@ async def twilio_stream(ws: WebSocket):
     await ws.accept()
     print(f"[Twilio] WS connected at {time.time()}, state: {ws.client_state.name}", flush=True)
 
-    connection_active = False  # Start as False, set True only on "start" event
+    ws_state = WS_STATE_INACTIVE  # Start as INACTIVE, set ACTIVE only on "start" event
+    cleanup_in_progress = False
     
     audio_buffer = deque()
     buffer_start_time = None
@@ -380,13 +386,14 @@ async def twilio_stream(ws: WebSocket):
     frames_sent_count = 0
     silence_frames_count = 0
     audio_frames_count = 0
-    silence_padding_active = False
 
     deepgram_tts_client = None
     deepgram_tts_task: Optional[asyncio.Task] = None
+    tts_synthesis_task: Optional[asyncio.Task] = None
     tts_ready = False
     audio_conversion_state = None
     sender_task = None
+    tts_synthesize_func = None
     AUDIO_BUFFER_DURATION = 3.0
 
     try:
@@ -409,7 +416,7 @@ async def twilio_stream(ws: WebSocket):
 
         async def dedicated_50fps_sender():
             """Send exactly one frame every 20ms - either audio or silence."""
-            nonlocal stream_sid, frames_sent_count, silence_frames_count, audio_frames_count, connection_active, current_audio_queue
+            nonlocal stream_sid, frames_sent_count, silence_frames_count, audio_frames_count, ws_state, current_audio_queue
             
             audio_frame_queue = deque()
             current_audio_queue = audio_frame_queue
@@ -417,11 +424,11 @@ async def twilio_stream(ws: WebSocket):
             
             print("[50FPS] Dedicated sender started", flush=True)
             
-            while connection_active and stream_sid:
+            while ws_state == WS_STATE_ACTIVE and stream_sid:
                 frame_start_time = asyncio.get_event_loop().time()
                 
-                if not connection_active or not stream_sid:
-                    print("[50FPS] Connection inactive or streamSid cleared, stopping", flush=True)
+                if ws_state != WS_STATE_ACTIVE or not stream_sid:
+                    print(f"[50FPS] State changed to {ws_state}, stopping sender", flush=True)
                     break
                 
                 try:
@@ -441,10 +448,10 @@ async def twilio_stream(ws: WebSocket):
                     frame_type = "silence"
                     silence_frames_count += 1
                 
-                frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame], connection_active)
+                frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame], ws_state == WS_STATE_ACTIVE)
                 if frames_sent == 0:  # WebSocket error occurred
                     print(f"[50FPS] WebSocket error during {frame_type} send, stopping immediately", flush=True)
-                    connection_active = False
+                    ws_state = WS_STATE_CLOSING
                     break
                 
                 frames_sent_count += 1
@@ -462,12 +469,66 @@ async def twilio_stream(ws: WebSocket):
             print("[50FPS] Dedicated sender stopped", flush=True)
             return audio_frame_queue
 
+        async def tts_synthesis_worker():
+            """Separate task for TTS synthesis to avoid blocking receive loop."""
+            nonlocal ws_state, deepgram_tts_client, tts_ready, audio_conversion_state, current_audio_queue, tts_synthesize_func
+            
+            synthesis_queue = asyncio.Queue()
+            
+            async def synthesize_text(text: str, context: str = "response"):
+                """Synthesize text and enqueue audio frames."""
+                nonlocal audio_conversion_state
+                if not deepgram_tts_client or not tts_ready or ws_state != WS_STATE_ACTIVE:
+                    print(f"[TTS] Skipping synthesis - TTS ready: {tts_ready}, state: {ws_state}", flush=True)
+                    return
+                
+                try:
+                    print(f"[TTS] Synthesizing {context}: {text[:100]}...", flush=True)
+                    
+                    async for audio_chunk in deepgram_tts_client.synthesize_response(text):
+                        if ws_state != WS_STATE_ACTIVE:
+                            print(f"[TTS] State changed during synthesis, stopping", flush=True)
+                            break
+                        
+                        frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
+                        if frames and current_audio_queue is not None:
+                            enqueue_audio_frames(frames)
+                            print(f"[TTS] Enqueued {len(frames)} {context} frames", flush=True)
+                except Exception as e:
+                    print(f"[TTS] Error synthesizing {context}: {e}", flush=True)
+            
+            async def queue_synthesis(text: str, context: str = "response"):
+                """Queue text for synthesis."""
+                try:
+                    await synthesis_queue.put((text, context))
+                except Exception as e:
+                    print(f"[TTS] Error queuing synthesis: {e}", flush=True)
+            
+            tts_synthesize_func = queue_synthesis
+            
+            print("[TTS] Synthesis worker started", flush=True)
+            
+            try:
+                while ws_state in [WS_STATE_INACTIVE, WS_STATE_ACTIVE]:
+                    try:
+                        text, context = await asyncio.wait_for(synthesis_queue.get(), timeout=1.0)
+                        await synthesize_text(text, context)
+                    except asyncio.TimeoutError:
+                        continue
+                    except Exception as e:
+                        print(f"[TTS] Synthesis worker error: {e}", flush=True)
+                        break
+            finally:
+                print("[TTS] Synthesis worker stopped", flush=True)
+            
+            return synthesis_queue
+
         async def pump_deepgram_tts_monitoring():
             """Monitor Deepgram TTS and maintain frame rate statistics."""
             from collections import deque
             import traceback
             
-            nonlocal stream_sid, last_audio_time, frames_sent_count, silence_padding_active, audio_frames_count, silence_frames_count, current_audio_queue
+            nonlocal stream_sid, last_audio_time, frames_sent_count, audio_frames_count, silence_frames_count, current_audio_queue
             
             audio_sent_count = 0
             audio_failed_count = 0
@@ -476,15 +537,15 @@ async def twilio_stream(ws: WebSocket):
             
             async def frame_rate_monitor():
                 """Monitor and log frame rate every second with enhanced audio/silence breakdown."""
-                nonlocal frames_sent_count, silence_frames_count, audio_frames_count, connection_active
+                nonlocal frames_sent_count, silence_frames_count, audio_frames_count, ws_state
                 last_total_count = 0
                 last_silence_count = 0
                 last_audio_count = 0
                 
-                while connection_active:
+                while ws_state == WS_STATE_ACTIVE:
                     await asyncio.sleep(1.0)  # Every second
                     
-                    if not connection_active:
+                    if ws_state != WS_STATE_ACTIVE:
                         break
                     
                     current_total = frames_sent_count
@@ -523,8 +584,8 @@ async def twilio_stream(ws: WebSocket):
                 """Send audio with retry logic and connection validation"""
                 nonlocal audio_sent_count, audio_failed_count, reconnection_attempts
                 
-                if not connection_active or ws.client_state.name not in ["CONNECTED", "OPEN"]:
-                    print(f"[RETRY] Connection not ready: active={connection_active}, state={ws.client_state.name}", flush=True)
+                if ws_state != WS_STATE_ACTIVE or ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                    print(f"[RETRY] Connection not ready: state={ws_state}, ws_state={ws.client_state.name}", flush=True)
                     return False
                 
                 for attempt in range(max_retries):
@@ -621,7 +682,7 @@ async def twilio_stream(ws: WebSocket):
             finally:
                 buffer_processing = False
                 print(f"[STATS] Audio sent: {audio_sent_count}, failed: {audio_failed_count}, reconnection attempts: {reconnection_attempts}", flush=True)
-                print(f"[STATS] Total frames sent: {frames_sent_count} (audio: {audio_frames_count}, silence: {silence_frames_count}), silence padding was active: {silence_padding_active}", flush=True)
+                print(f"[STATS] Total frames sent: {frames_sent_count} (audio: {audio_frames_count}, silence: {silence_frames_count})", flush=True)
                 
                 if 'buffer_task' in locals():
                     buffer_task.cancel()
@@ -645,39 +706,85 @@ async def twilio_stream(ws: WebSocket):
                         pass
 
         
+        async def perform_cleanup(reason: str):
+            """Centralized cleanup with guard against double execution."""
+            nonlocal cleanup_in_progress, ws_state, sender_task, tts_synthesis_task, deepgram_tts_task, deepgram_tts_client, stream_sid
+            
+            if cleanup_in_progress:
+                print(f"[CLEANUP] Already in progress, skipping ({reason})", flush=True)
+                return
+            
+            cleanup_in_progress = True
+            ws_state = WS_STATE_CLOSING
+            
+            print(f"[CLEANUP] Starting cleanup due to: {reason}", flush=True)
+            
+            # Stop frame sending immediately
+            stream_sid = None
+            
+            # Cancel sender task
+            if sender_task:
+                print("[CLEANUP] Cancelling sender task", flush=True)
+                sender_task.cancel()
+                try:
+                    remaining_queue = await asyncio.wait_for(sender_task, timeout=2.0)
+                    print(f"[CLEANUP] Sender cancelled, {len(remaining_queue) if remaining_queue else 0} frames remaining", flush=True)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    print("[CLEANUP] Sender task cancellation completed", flush=True)
+                sender_task = None
+            
+            if tts_synthesis_task:
+                print("[CLEANUP] Cancelling TTS synthesis task", flush=True)
+                tts_synthesis_task.cancel()
+                try:
+                    await asyncio.wait_for(tts_synthesis_task, timeout=2.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    print("[CLEANUP] TTS synthesis task cancelled", flush=True)
+                tts_synthesis_task = None
+            
+            if deepgram_tts_task:
+                print("[CLEANUP] Cancelling Deepgram TTS monitoring task", flush=True)
+                deepgram_tts_task.cancel()
+                try:
+                    await asyncio.wait_for(deepgram_tts_task, timeout=3.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    print("[CLEANUP] Deepgram TTS monitoring cancelled", flush=True)
+                deepgram_tts_task = None
+            
+            if deepgram_tts_client:
+                try:
+                    print("[CLEANUP] Closing Deepgram TTS client", flush=True)
+                    await deepgram_tts_client.close()
+                except Exception as e:
+                    print(f"[CLEANUP] Error closing Deepgram TTS client: {e}", flush=True)
+                deepgram_tts_client = None
+            
+            ws_state = WS_STATE_CLOSED
+            print(f"[CLEANUP] Completed cleanup due to: {reason}", flush=True)
+
         deepgram_tts_task = asyncio.create_task(pump_deepgram_tts_monitoring())
         print("[Bridge] Started Deepgram TTS monitoring task", flush=True)
 
-        while connection_active:
+        while ws_state in [WS_STATE_INACTIVE, WS_STATE_ACTIVE]:
             try:
                 msg = await asyncio.wait_for(ws.receive_text(), timeout=30.0)
             except asyncio.TimeoutError:
-                if deepgram_tts_client and hasattr(deepgram_tts_client, 'ready') and deepgram_tts_client.ready:
+                if ws_state == WS_STATE_ACTIVE and deepgram_tts_client and hasattr(deepgram_tts_client, 'ready') and deepgram_tts_client.ready:
                     print("[Twilio] WebSocket receive timeout during active synthesis, continuing...", flush=True)
                     continue
                 else:
                     print("[Twilio] WebSocket receive timeout, no active synthesis, closing connection", flush=True)
+                    await perform_cleanup("receive_timeout")
                     break
             except Exception as e:
                 error_msg = str(e).lower()
-                
-                is_synthesizing = deepgram_tts_client and hasattr(deepgram_tts_client, 'ready') and deepgram_tts_client.ready
-                
                 if any(keyword in error_msg for keyword in ["closed", "not connected", "accept first"]):
-                    if is_synthesizing:
-                        print(f"[Twilio] WebSocket receive error during active synthesis, waiting for completion: {e}", flush=True)
-                        await asyncio.sleep(2.0)
-                        if deepgram_tts_client and hasattr(deepgram_tts_client, 'ready') and deepgram_tts_client.ready:
-                            print("[Twilio] Audio synthesis still active, continuing receive loop", flush=True)
-                            continue
-                        else:
-                            print("[Twilio] Audio synthesis completed, now closing connection", flush=True)
-                            break
-                    else:
-                        print(f"[Twilio] WebSocket receive error, connection lost: {e}", flush=True)
-                        break
+                    print(f"[Twilio] WebSocket receive error, connection lost: {e}", flush=True)
+                    await perform_cleanup("websocket_error")
+                    break
                 else:
                     print(f"[Twilio] Unexpected receive error: {e}", flush=True)
+                    await perform_cleanup("unexpected_error")
                     break
             
             data = json.loads(msg)
@@ -688,8 +795,10 @@ async def twilio_stream(ws: WebSocket):
                 phone_number = start_data.get("customParameters", {}).get("phone_number")
                 session_id = start_data.get("streamSid")
                 
+                print(f"[Twilio] Start received for {phone_number}, streamSid: {session_id}", flush=True)
+                
                 stream_sid = session_id
-                connection_active = True
+                ws_state = WS_STATE_ACTIVE
                 frames_sent_count = 0
                 silence_frames_count = 0
                 audio_frames_count = 0
@@ -705,25 +814,30 @@ async def twilio_stream(ws: WebSocket):
                     except asyncio.CancelledError:
                         pass
                 
-                sender_task = asyncio.create_task(dedicated_50fps_sender())
-                print("[Twilio] Started dedicated 50fps sender task", flush=True)
-                
-                if deepgram_tts_client and tts_ready:
+                if tts_synthesis_task:
+                    print("[Twilio] Cancelling previous TTS synthesis task", flush=True)
+                    tts_synthesis_task.cancel()
                     try:
-                        greeting_text = "Muraho! Welcome to BAKAME, your AI learning companion. I'm ready to help you learn!"
-                        print(f"[GREETING] Synthesizing welcome message for immediate audio test", flush=True)
-                        
-                        async for audio_chunk in deepgram_tts_client.synthesize_response(greeting_text):
-                            frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
-                            if stream_sid and connection_active:
-                                enqueue_audio_frames(frames)
-                                print(f"[GREETING] Enqueued {len(frames)} greeting frames", flush=True)
+                        await tts_synthesis_task
+                    except asyncio.CancelledError:
+                        pass
+                
+                sender_task = asyncio.create_task(dedicated_50fps_sender())
+                tts_synthesis_task = asyncio.create_task(tts_synthesis_worker())
+                print("[Twilio] Started dedicated 50fps sender and TTS synthesis tasks", flush=True)
+                
+                if deepgram_tts_client and tts_ready and tts_synthesize_func:
+                    greeting_text = "Muraho! Welcome to BAKAME, your AI learning companion. I'm ready to help you learn!"
+                    print(f"[GREETING] Queuing welcome message for synthesis", flush=True)
+                    try:
+                        await tts_synthesize_func(greeting_text, "greeting")
+                        print("[GREETING] First frame sent - greeting queued successfully", flush=True)
                     except Exception as e:
-                        print(f"[GREETING] Error sending welcome message: {e}", flush=True)
+                        print(f"[GREETING] Error queuing welcome message: {e}", flush=True)
                 
                 while pending_mulaw_frames:
                     frame = pending_mulaw_frames.popleft()
-                    frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame], connection_active)
+                    frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame], ws_state == WS_STATE_ACTIVE)
                     if frames_sent == 0:  # WebSocket error occurred
                         print("[BUFFER] WebSocket error during buffer flush, stopping", flush=True)
                         break
@@ -763,60 +877,29 @@ async def twilio_stream(ws: WebSocket):
                             audio_buffer.clear()
                             buffer_start_time = None
                             
-                            if ai_response and ai_response.strip() and deepgram_tts_client and tts_ready:
+                            if ai_response and ai_response.strip() and deepgram_tts_client and tts_ready and tts_synthesize_func:
                                 try:
-                                    print(f"[Deepgram TTS] Synthesizing response: {ai_response[:100]}...", flush=True)
+                                    print(f"[Deepgram TTS] Queuing response for synthesis: {ai_response[:100]}...", flush=True)
                                     
-                                    if not connection_active or ws.client_state.name not in ["CONNECTED", "OPEN"]:
-                                        print(f"[Deepgram TTS] WebSocket not ready for synthesis, state: {ws.client_state.name}, active: {connection_active}", flush=True)
+                                    if ws_state != WS_STATE_ACTIVE or ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                                        print(f"[Deepgram TTS] WebSocket not ready for synthesis, state: {ws.client_state.name}, ws_state: {ws_state}", flush=True)
                                         continue
                                     
-                                    async for audio_chunk in deepgram_tts_client.synthesize_response(ai_response):
-                                        frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
-                                        if stream_sid and connection_active:
-                                            enqueue_audio_frames(frames)
-                                            print(f"[Deepgram TTS] Enqueued {len(frames)} frames", flush=True)
+                                    await tts_synthesize_func(ai_response, "response")
+                                    print("[TTS] Response queued for synthesis", flush=True)
                                 except Exception as e:
-                                    print(f"[Deepgram TTS] Error synthesizing response: {e}", flush=True)
+                                    print(f"[Deepgram TTS] Error queuing response: {e}", flush=True)
 
                     print(f"[Twilio→STT] Received {len(pcm16k)} bytes of audio data", flush=True)
                 else:
                     print("[Twilio] Received media event with no payload", flush=True)
 
             elif event == "stop":
-                print(f"[Twilio] Media stop at {time.time()}, WS state: {ws.client_state.name}", flush=True)
+                print(f"[Twilio] Stop received at {time.time()}, WS state: {ws.client_state.name}", flush=True)
                 
-                connection_active = False
-                stream_sid = None
+                ws_state = WS_STATE_CLOSING
                 
-                # Cancel sender task immediately
-                if sender_task:
-                    print("[Twilio] Cancelling sender task on stop", flush=True)
-                    sender_task.cancel()
-                    try:
-                        await sender_task
-                        print("[Twilio] Sender task cancelled successfully", flush=True)
-                    except asyncio.CancelledError:
-                        print("[Twilio] Sender task cancellation completed", flush=True)
-                    sender_task = None
-                if len(audio_buffer) > 0:
-                    print(f"[Twilio] Processing final audio buffer: {len(audio_buffer)} chunks", flush=True)
-                    ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, deepgram_tts_client)
-                    
-                    if ai_response and ai_response.strip() and deepgram_tts_client and tts_ready:
-                        try:
-                            print(f"[Deepgram TTS] Synthesizing final response: {ai_response[:100]}...", flush=True)
-                            
-                            if not connection_active or ws.client_state.name not in ["CONNECTED", "OPEN"]:
-                                print(f"[Deepgram TTS] WebSocket not ready for final synthesis, state: {ws.client_state.name}, active: {connection_active}", flush=True)
-                            else:
-                                async for audio_chunk in deepgram_tts_client.synthesize_response(ai_response):
-                                    frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
-                                    if stream_sid and connection_active:
-                                        enqueue_audio_frames(frames)
-                                        print(f"[Deepgram TTS] Final enqueued {len(frames)} frames", flush=True)
-                        except Exception as e:
-                            print(f"[Deepgram TTS] Error synthesizing final response: {e}", flush=True)
+                await perform_cleanup("stop_event")
                 break
             
             else:
@@ -826,51 +909,19 @@ async def twilio_stream(ws: WebSocket):
 
     except WebSocketDisconnect:
         print(f"[Twilio] WS disconnected at {time.time()}", flush=True)
+        if ws_state != WS_STATE_CLOSED:
+            await perform_cleanup("websocket_disconnect")
     except Exception as e:
         print(f"[Bridge] error: {e}", flush=True)
         import traceback
         print(f"[Bridge] error traceback: {traceback.format_exc()}", flush=True)
+        if ws_state != WS_STATE_CLOSED:
+            await perform_cleanup("exception")
     finally:
-        print(f"[Bridge] Cleanup starting at {time.time()}", flush=True)
-        
-        connection_active = False
-        stream_sid = None
-        
-        if sender_task:
-            print("[Bridge] Cancelling sender task in cleanup", flush=True)
-            sender_task.cancel()
-            try:
-                await asyncio.wait_for(sender_task, timeout=2.0)
-                print("[Bridge] Sender task cancelled successfully", flush=True)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                print("[Bridge] Sender task cancellation completed", flush=True)
-        
-        try:
-            if deepgram_tts_task:
-                print("[Bridge] Cancelling Deepgram TTS task", flush=True)
-                deepgram_tts_task.cancel()
-                try:
-                    await asyncio.wait_for(deepgram_tts_task, timeout=3.0)
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    print("[Bridge] Deepgram TTS task cancelled successfully", flush=True)
-        except Exception as e:
-            print(f"[Bridge] Error cancelling TTS task: {e}", flush=True)
-        
-        try:
-            if deepgram_tts_client:
-                print("[Bridge] Closing Deepgram TTS client", flush=True)
-                await deepgram_tts_client.close()
-        except Exception as e:
-            print(f"[Bridge] Error closing Deepgram TTS client: {e}", flush=True)
-        
         try:
             if ws and ws.client_state.name in ["CONNECTED", "OPEN"]:
                 print(f"[Bridge] Closing Twilio WebSocket, state: {ws.client_state.name}", flush=True)
                 await ws.close()
-            else:
-                print(f"[Bridge] Twilio WebSocket already closed, state: {getattr(ws, 'client_state', {}).get('name', 'unknown')}", flush=True)
         except Exception as e:
             if "close message" not in str(e).lower():
                 print(f"[Bridge] Error closing Twilio WebSocket: {e}", flush=True)
-        
-        print(f"[Bridge] Cleanup completed at {time.time()}", flush=True)

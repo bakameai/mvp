@@ -1,5 +1,6 @@
 import redis
 import json
+import os
 from typing import Dict, Any, Optional
 from datetime import datetime
 from app.config import settings
@@ -7,10 +8,19 @@ from app.config import settings
 class RedisService:
     def __init__(self):
         try:
-            self.redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+            redis_host = os.getenv('REDIS_HOST', 'localhost')
+            redis_port = int(os.getenv('REDIS_PORT', '6379'))
+            redis_db = int(os.getenv('REDIS_DB', '0'))
+            
+            if os.getenv('REDIS_URL'):
+                redis_url = os.getenv('REDIS_URL')
+            else:
+                redis_url = f"redis://{redis_host}:{redis_port}/{redis_db}"
+            
+            self.redis_client = redis.from_url(redis_url, decode_responses=True)
             self.redis_client.ping()
             self.redis_available = True
-            print("Redis connection successful")
+            print(f"Redis connection successful to {redis_url}")
         except Exception as e:
             print(f"Redis connection failed: {e}. Using in-memory fallback.")
             self.redis_client = None
