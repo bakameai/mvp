@@ -469,53 +469,41 @@ async def twilio_stream(ws: WebSocket):
             print("[50FPS] Dedicated sender stopped", flush=True)
             return audio_frame_queue
 
+        async def synthesize_text(text: str, context: str = "response"):
+            """Synthesize text and enqueue audio frames."""
+            nonlocal audio_conversion_state
+            if not deepgram_tts_client or not tts_ready or ws_state != WS_STATE_ACTIVE:
+                print(f"[TTS] Skipping synthesis - TTS ready: {tts_ready}, state: {ws_state}", flush=True)
+                return
+            
+            try:
+                print(f"[TTS] Synthesizing {context}: {text[:100]}...", flush=True)
+                
+                async for audio_chunk in deepgram_tts_client.synthesize_response(text):
+                    if ws_state != WS_STATE_ACTIVE:
+                        print(f"[TTS] State changed during synthesis, stopping", flush=True)
+                        break
+                    
+                    frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
+                    if frames and current_audio_queue is not None:
+                        enqueue_audio_frames(frames)
+                        print(f"[TTS] Enqueued {len(frames)} {context} frames", flush=True)
+            except Exception as e:
+                print(f"[TTS] Error synthesizing {context}: {e}", flush=True)
+
+        tts_synthesize_func = synthesize_text
+
         async def tts_synthesis_worker():
             """Separate task for TTS synthesis to avoid blocking receive loop."""
-            nonlocal ws_state, deepgram_tts_client, tts_ready, audio_conversion_state, current_audio_queue
-            
-            synthesis_queue = asyncio.Queue()
-            
-            async def synthesize_text(text: str, context: str = "response"):
-                """Synthesize text and enqueue audio frames."""
-                nonlocal audio_conversion_state
-                if not deepgram_tts_client or not tts_ready or ws_state != WS_STATE_ACTIVE:
-                    print(f"[TTS] Skipping synthesis - TTS ready: {tts_ready}, state: {ws_state}", flush=True)
-                    return
-                
-                try:
-                    print(f"[TTS] Synthesizing {context}: {text[:100]}...", flush=True)
-                    
-                    async for audio_chunk in deepgram_tts_client.synthesize_response(text):
-                        if ws_state != WS_STATE_ACTIVE:
-                            print(f"[TTS] State changed during synthesis, stopping", flush=True)
-                            break
-                        
-                        frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
-                        if frames and current_audio_queue is not None:
-                            enqueue_audio_frames(frames)
-                            print(f"[TTS] Enqueued {len(frames)} {context} frames", flush=True)
-                except Exception as e:
-                    print(f"[TTS] Error synthesizing {context}: {e}", flush=True)
-            
-            nonlocal tts_synthesize_func
-            tts_synthesize_func = synthesize_text
+            nonlocal ws_state
             
             print("[TTS] Synthesis worker started", flush=True)
             
             try:
                 while ws_state in [WS_STATE_INACTIVE, WS_STATE_ACTIVE]:
-                    try:
-                        text, context = await asyncio.wait_for(synthesis_queue.get(), timeout=1.0)
-                        await synthesize_text(text, context)
-                    except asyncio.TimeoutError:
-                        continue  # Check state and continue
-                    except Exception as e:
-                        print(f"[TTS] Synthesis worker error: {e}", flush=True)
-                        break
+                    await asyncio.sleep(1.0)  # Keep worker alive
             finally:
                 print("[TTS] Synthesis worker stopped", flush=True)
-            
-            return synthesis_queue
 
         async def pump_deepgram_tts_monitoring():
             """Monitor Deepgram TTS and maintain frame rate statistics."""
@@ -828,7 +816,6 @@ async def twilio_stream(ws: WebSocket):
                 sender_task = asyncio.create_task(dedicated_50fps_sender())
                 tts_synthesis_task = asyncio.create_task(tts_synthesis_worker())
                 
-                await asyncio.sleep(0.2)
                 
                 deepgram_tts_task = asyncio.create_task(pump_deepgram_tts_monitoring())
                 print("[Twilio] Started dedicated 50fps sender, TTS synthesis, and monitoring tasks", flush=True)
