@@ -397,52 +397,68 @@ async def twilio_stream(ws: WebSocket):
         tts_ready = True
         print("[Deepgram TTS] Ready for text synthesis...", flush=True)
 
+        current_audio_queue = None
+        
+        def enqueue_audio_frames(frames: list[bytes]):
+            """Enqueue audio frames for the 50fps sender."""
+            nonlocal current_audio_queue
+            if current_audio_queue is not None:
+                for frame in frames:
+                    current_audio_queue.append(frame)
+                print(f"[QUEUE] Enqueued {len(frames)} audio frames", flush=True)
+
+        async def dedicated_50fps_sender():
+            """Send exactly one frame every 20ms - either audio or silence."""
+            nonlocal stream_sid, frames_sent_count, silence_frames_count, audio_frames_count, connection_active, current_audio_queue
+            
+            audio_frame_queue = deque()
+            current_audio_queue = audio_frame_queue
+            
+            while connection_active and stream_sid:
+                frame_start_time = asyncio.get_event_loop().time()
+                
+                try:
+                    if ws.client_state.name not in ["CONNECTED", "OPEN"]:
+                        print(f"[50FPS] WebSocket closed, stopping sender: {ws.client_state.name}", flush=True)
+                        break
+                except Exception as e:
+                    print(f"[50FPS] Error checking WebSocket state: {e}", flush=True)
+                    break
+                
+                if audio_frame_queue:
+                    frame = audio_frame_queue.popleft()
+                    frame_type = "audio"
+                    audio_frames_count += 1
+                else:
+                    frame = generate_silence_frame()
+                    frame_type = "silence"
+                    silence_frames_count += 1
+                
+                frames_sent = await send_twilio_media_frames(ws, stream_sid, [frame], connection_active)
+                if frames_sent == 0:  # WebSocket error occurred
+                    print(f"[50FPS] WebSocket error during {frame_type} send, stopping", flush=True)
+                    break
+                
+                frames_sent_count += 1
+                
+                elapsed = asyncio.get_event_loop().time() - frame_start_time
+                sleep_time = max(0, 0.02 - elapsed)  # 20ms target
+                await asyncio.sleep(sleep_time)
+            
+            print("[50FPS] Dedicated sender stopped", flush=True)
+            return audio_frame_queue  # Return queue for cleanup
+
         async def pump_deepgram_tts_monitoring():
             """Monitor Deepgram TTS and maintain frame rate statistics."""
             from collections import deque
             import traceback
             
-            nonlocal stream_sid, last_audio_time, frames_sent_count, silence_padding_active, audio_frames_count, silence_frames_count
+            nonlocal stream_sid, last_audio_time, frames_sent_count, silence_padding_active, audio_frames_count, silence_frames_count, current_audio_queue
             
             audio_sent_count = 0
             audio_failed_count = 0
             reconnection_attempts = 0
             buffer_processing = True
-            
-            async def silence_padding_task():
-                """Send silence frames to keep Twilio pipeline alive."""
-                nonlocal stream_sid, last_audio_time, silence_padding_active, frames_sent_count, silence_frames_count, connection_active
-                
-                while connection_active:
-                    await asyncio.sleep(0.02)  # 20ms intervals for 50fps consistency
-                    
-                    if not connection_active:
-                        break
-                    
-                    # Enhanced connection state validation
-                    try:
-                        if ws.client_state.name not in ["CONNECTED", "OPEN"]:
-                            print(f"[SILENCE] WebSocket closed during silence padding, state: {ws.client_state.name}", flush=True)
-                            break
-                    except Exception as e:
-                        print(f"[SILENCE] Error checking WebSocket state: {e}", flush=True)
-                        break
-                    
-                    if stream_sid and time.time() - last_audio_time > 0.2:  # 200ms threshold for real-time
-                        if not silence_padding_active:
-                            silence_padding_active = True
-                            print("[SILENCE] Starting silence keepalives for pipeline health", flush=True)
-                        
-                        silence_frame = generate_silence_frame()
-                        frames_sent = await send_twilio_media_frames(ws, stream_sid, [silence_frame])
-                        if frames_sent == 0:  # WebSocket error occurred
-                            print("[SILENCE] WebSocket error during silence padding, stopping", flush=True)
-                            break
-                        frames_sent_count += frames_sent if frames_sent else 1
-                        silence_frames_count += frames_sent if frames_sent else 1
-                        print(f"[SILENCE] Sent keepalive frame, total sent: {frames_sent_count} (silence: {silence_frames_count})", flush=True)
-                        
-                        last_audio_time = time.time()
             
             async def frame_rate_monitor():
                 """Monitor and log frame rate every second with enhanced audio/silence breakdown."""
@@ -473,7 +489,7 @@ async def twilio_stream(ws: WebSocket):
                         performance_status = "✅ OPTIMAL" if audio_fps >= 45 else "⚠️ DEGRADED" if audio_fps >= 30 else "❌ POOR" if audio_fps > 0 else "🔇 SILENCE"
                         print(f"[MONITOR] Frame rate: {total_fps} fps (audio: {audio_fps}, silence: {silence_fps}) | target: {FRAME_RATE_TARGET} fps | {performance_status}, total: {current_total}", flush=True)
             
-            silence_task = asyncio.create_task(silence_padding_task())
+            sender_task = None
             monitor_task = asyncio.create_task(frame_rate_monitor())
             
             async def check_websocket_connection():
@@ -599,12 +615,14 @@ async def twilio_stream(ws: WebSocket):
                         await buffer_task
                     except asyncio.CancelledError:
                         pass
-                if 'silence_task' in locals():
-                    silence_task.cancel()
+                if 'sender_task' in locals() and sender_task:
+                    sender_task.cancel()
                     try:
-                        await silence_task
+                        remaining_queue = await sender_task
+                        print(f"[CLEANUP] 50fps sender cancelled, {len(remaining_queue) if remaining_queue else 0} frames remaining", flush=True)
                     except asyncio.CancelledError:
                         pass
+                current_audio_queue = None
                 if 'monitor_task' in locals():
                     monitor_task.cancel()
                     try:
@@ -659,6 +677,9 @@ async def twilio_stream(ws: WebSocket):
                 print(f"[Twilio] Media start for {phone_number}, streamSid: {session_id}, WS state: {ws.client_state.name}", flush=True)
                 print(f"[Twilio] Start data: {json.dumps(start_data, indent=2)}", flush=True)
                 
+                sender_task = asyncio.create_task(dedicated_50fps_sender())
+                print("[Twilio] Started dedicated 50fps sender task", flush=True)
+                
                 if deepgram_tts_client and tts_ready:
                     try:
                         greeting_text = "Muraho! Welcome to BAKAME, your AI learning companion. I'm ready to help you learn!"
@@ -667,12 +688,8 @@ async def twilio_stream(ws: WebSocket):
                         async for audio_chunk in deepgram_tts_client.synthesize_response(greeting_text):
                             frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
                             if stream_sid and connection_active:
-                                frames_sent = await send_twilio_media_frames(ws, stream_sid, frames, connection_active)
-                                if frames_sent > 0:
-                                    frames_sent_count += frames_sent
-                                    audio_frames_count += frames_sent
-                                    last_audio_time = time.time()
-                                    print(f"[GREETING] Sent {frames_sent} greeting frames", flush=True)
+                                enqueue_audio_frames(frames)
+                                print(f"[GREETING] Enqueued {len(frames)} greeting frames", flush=True)
                     except Exception as e:
                         print(f"[GREETING] Error sending welcome message: {e}", flush=True)
                 
@@ -729,19 +746,8 @@ async def twilio_stream(ws: WebSocket):
                                     async for audio_chunk in deepgram_tts_client.synthesize_response(ai_response):
                                         frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
                                         if stream_sid and connection_active:
-                                            if ws.client_state.name not in ["CONNECTED", "OPEN"]:
-                                                print(f"[Deepgram TTS] WebSocket closed during audio send, state: {ws.client_state.name}", flush=True)
-                                                break
-                                            
-                                            frames_sent = await send_twilio_media_frames(ws, stream_sid, frames, connection_active)
-                                            if frames_sent == 0:  # WebSocket error occurred
-                                                print("[Deepgram TTS] WebSocket error during audio send, stopping synthesis", flush=True)
-                                                break
-                                            frames_sent_count += frames_sent if frames_sent else len(frames)
-                                            audio_frames_count += frames_sent if frames_sent else len(frames)
-                                            last_audio_time = time.time()
-                                            silence_padding_active = False
-                                            print(f"[Deepgram TTS] Sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
+                                            enqueue_audio_frames(frames)
+                                            print(f"[Deepgram TTS] Enqueued {len(frames)} frames", flush=True)
                                 except Exception as e:
                                     print(f"[Deepgram TTS] Error synthesizing response: {e}", flush=True)
 
@@ -751,6 +757,7 @@ async def twilio_stream(ws: WebSocket):
 
             elif event == "stop":
                 print(f"[Twilio] Media stop at {time.time()}, WS state: {ws.client_state.name}", flush=True)
+                connection_active = False  # This will stop the 50fps sender immediately
                 if len(audio_buffer) > 0:
                     print(f"[Twilio] Processing final audio buffer: {len(audio_buffer)} chunks", flush=True)
                     ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, deepgram_tts_client)
@@ -765,17 +772,8 @@ async def twilio_stream(ws: WebSocket):
                                 async for audio_chunk in deepgram_tts_client.synthesize_response(ai_response):
                                     frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
                                     if stream_sid and connection_active:
-                                        if ws.client_state.name not in ["CONNECTED", "OPEN"]:
-                                            print(f"[Deepgram TTS] WebSocket closed during final audio send, state: {ws.client_state.name}", flush=True)
-                                            break
-                                        
-                                        frames_sent = await send_twilio_media_frames(ws, stream_sid, frames, connection_active)
-                                        if frames_sent == 0:  # WebSocket error occurred
-                                            print("[Deepgram TTS] WebSocket error during final audio send, stopping synthesis", flush=True)
-                                            break
-                                        frames_sent_count += frames_sent if frames_sent else len(frames)
-                                        audio_frames_count += frames_sent if frames_sent else len(frames)
-                                        print(f"[Deepgram TTS] Final sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
+                                        enqueue_audio_frames(frames)
+                                        print(f"[Deepgram TTS] Final enqueued {len(frames)} frames", flush=True)
                         except Exception as e:
                             print(f"[Deepgram TTS] Error synthesizing final response: {e}", flush=True)
                 break
