@@ -23,7 +23,7 @@ class TwilioService:
                 'rate': 'medium',  # Natural speaking pace
             }
             
-            clean_message = message
+            clean_message = self._enhance_message_with_natural_punctuation(message)
             
             if end_call:
                 response.say(clean_message, **voice_settings)
@@ -62,6 +62,25 @@ class TwilioService:
         
         return str(response)
     
+    def _enhance_message_with_natural_punctuation(self, message: str) -> str:
+        """Enhance message with natural punctuation for better speech flow (NO SSML)"""
+        enhanced = message.strip()
+        
+        enhanced = enhanced.replace("Muraho!", "Muraho!... ")
+        enhanced = enhanced.replace("Welcome to BAKAME", "Welcome to BAKAME...")
+        enhanced = enhanced.replace("Nice to meet you", "Nice to meet you...")
+        enhanced = enhanced.replace("Great question", "Great question...")
+        enhanced = enhanced.replace("Let me help", "Let me help...")
+        enhanced = enhanced.replace("Thank you", "Thank you...")
+        
+        if not enhanced.endswith(('.', '!', '?')):
+            enhanced += '.'
+        
+        import re
+        enhanced = re.sub(r'<[^>]*>', '', enhanced)  # Remove any XML/HTML tags
+        enhanced = re.sub(r'&lt;[^&]*&gt;', '', enhanced)  # Remove HTML-encoded tags
+        
+        return enhanced
     
     def create_sms_response(self, message: str) -> str:
         """Create TwiML SMS response"""
