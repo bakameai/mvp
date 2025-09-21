@@ -3,47 +3,71 @@
 ## Problem-Solution Framework
 
 ```mermaid
-mindmap
-  root((BAKAME AI Education))
-    Problem
-      Limited Internet Access
-        Rural Areas
-        Economic Constraints
-        Infrastructure Gaps
-      Educational Barriers
-        Language Barriers
-        Lack of Teachers
-        Outdated Materials
-      Technology Gaps
-        No Smartphones
-        Basic Feature Phones Only
-        Limited Digital Literacy
-    Solution
-      Voice-First Learning
-        Natural Language Processing
-        Speech Recognition
-        Conversational AI
-      SMS Accessibility
-        Text-based Learning
-        No Internet Required
-        Works on Any Phone
-      AI-Powered Personalization
-        Adaptive Difficulty
-        Individual Progress Tracking
-        Personalized Feedback
-    Value
-      Educational Access
-        24/7 Availability
-        Curriculum Aligned
-        Multiple Subjects
-      Cost Effective
-        No Hardware Requirements
-        Scalable Infrastructure
-        Automated Teaching
-      Measurable Impact
-        Progress Tracking
-        Analytics Dashboard
-        Learning Outcomes
+flowchart TD
+    subgraph Problem ["PROBLEMS" ]
+        subgraph P1 ["Limited Internet Access"]
+            P1A[Rural Areas]
+            P1B[Economic Constraints]
+            P1C[Infrastructure Gaps]
+        end
+        subgraph P2 ["Educational Barriers"]
+            P2A[Language Barriers]
+            P2B[Lack of Teachers]
+            P2C[Outdated Materials]
+        end
+        subgraph P3 ["Technology Gaps"]
+            P3A[No Smartphones]
+            P3B[Basic Feature Phones Only]
+            P3C[Limited Digital Literacy]
+        end
+    end
+    
+    subgraph Solution ["SOLUTIONS"]
+        subgraph S1 ["Voice-First Learning"]
+            S1A[Natural Language Processing]
+            S1B[Speech Recognition]
+            S1C[Conversational AI]
+        end
+        subgraph S2 ["SMS Accessibility"]
+            S2A[Text-based Learning]
+            S2B[No Internet Required]
+            S2C[Works on Any Phone]
+        end
+        subgraph S3 ["AI-Powered Personalization"]
+            S3A[Adaptive Difficulty]
+            S3B[Individual Progress Tracking]
+            S3C[Personalized Feedback]
+        end
+    end
+    
+    subgraph Value ["VALUE DELIVERED"]
+        subgraph V1 ["Educational Access"]
+            V1A[24/7 Availability]
+            V1B[Curriculum Aligned]
+            V1C[Multiple Subjects]
+        end
+        subgraph V2 ["Cost Effective"]
+            V2A[No Hardware Requirements]
+            V2B[Scalable Infrastructure]
+            V2C[Automated Teaching]
+        end
+        subgraph V3 ["Measurable Impact"]
+            V3A[Progress Tracking]
+            V3B[Analytics Dashboard]
+            V3C[Learning Outcomes]
+        end
+    end
+    
+    Problem --> Solution
+    Solution --> Value
+    
+    classDef problemStyle fill:#ffeb3b,stroke:#f57f17,stroke-width:2px,color:#000
+    classDef solutionStyle fill:#4caf50,stroke:#2e7d32,stroke-width:2px,color:#fff
+    classDef valueStyle fill:#2196f3,stroke:#1565c0,stroke-width:2px,color:#fff
+    
+    class Problem,P1,P2,P3 problemStyle
+    class Solution,S1,S2,S3 solutionStyle
+    class Value,V1,V2,V3 valueStyle
 ```
 
 ## Stakeholder Value Map
