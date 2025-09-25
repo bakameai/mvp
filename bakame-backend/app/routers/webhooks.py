@@ -81,14 +81,9 @@ async def handle_voice_call(
         
         current_module_name = redis_service.get_current_module(phone_number) or "general"
         
-        requested_module = user_context.get("user_state", {}).get("requested_module")
-        if requested_module and requested_module in MODULES:
-            current_module_name = requested_module
-            redis_service.set_current_module(phone_number, current_module_name)
-            user_context["user_state"]["requested_module"] = None
-            redis_service.set_user_context(phone_number, user_context)
+        current_module_name = "general"
         
-        current_module = MODULES.get(current_module_name, general_module)
+        current_module = general_module
         
         ai_response = await current_module.process_input(user_input, user_context)
         
@@ -146,14 +141,9 @@ async def handle_sms(
         
         current_module_name = redis_service.get_current_module(phone_number) or "general"
         
-        requested_module = user_context.get("user_state", {}).get("requested_module")
-        if requested_module and requested_module in MODULES:
-            current_module_name = requested_module
-            redis_service.set_current_module(phone_number, current_module_name)
-            user_context["user_state"]["requested_module"] = None
-            redis_service.set_user_context(phone_number, user_context)
+        current_module_name = "general"
         
-        current_module = MODULES.get(current_module_name, general_module)
+        current_module = general_module
         
         ai_response = await current_module.process_input(user_input, user_context)
         

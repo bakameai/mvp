@@ -22,6 +22,8 @@ class TwilioService:
                 speech_timeout='auto',
                 action='/webhook/call',
                 method='POST'
+                # Note: If you see hardcoded hints in Twilio logs, check Twilio console configuration
+                # No hints should be specified here to allow natural speech recognition
             )
             gather.say(message, voice='man', language='en-KE')
             
