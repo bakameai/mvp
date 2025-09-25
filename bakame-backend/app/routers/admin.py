@@ -38,44 +38,22 @@ async def export_csv():
 
 @router.get("/curriculum")
 async def get_curriculum_alignment():
-    """Get curriculum alignment data (placeholder for now)"""
+    """Get curriculum alignment data (simplified for GPT-only system)"""
     return {
         "curriculum_standards": [
             {
-                "subject": "English Language Arts",
-                "grade_level": "Elementary",
-                "standards": [
-                    "Grammar and Usage",
-                    "Vocabulary Development",
-                    "Reading Comprehension",
-                    "Oral Communication"
-                ],
-                "bakame_modules": ["english", "comprehension", "debate"]
-            },
-            {
-                "subject": "Mathematics",
-                "grade_level": "Elementary",
-                "standards": [
-                    "Number Operations",
-                    "Mental Math",
-                    "Problem Solving",
-                    "Mathematical Reasoning"
-                ],
-                "bakame_modules": ["math"]
-            },
-            {
-                "subject": "Critical Thinking",
+                "subject": "General Education",
                 "grade_level": "All Levels",
                 "standards": [
-                    "Argumentation",
-                    "Analysis and Evaluation",
-                    "Perspective Taking",
-                    "Evidence-Based Reasoning"
+                    "Critical Thinking",
+                    "Problem Solving",
+                    "Communication Skills",
+                    "Knowledge Acquisition"
                 ],
-                "bakame_modules": ["debate", "general"]
+                "bakame_approach": "AI-powered conversational learning across all subjects"
             }
         ],
-        "alignment_notes": "BAKAME modules are designed to support core educational standards through interactive voice and SMS learning experiences."
+        "alignment_notes": "BAKAME provides AI-powered educational support through natural conversation, covering all subjects as requested by students."
     }
 
 @router.post("/curriculum/upload")

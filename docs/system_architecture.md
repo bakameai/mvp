@@ -28,12 +28,8 @@ graph TB
         Supabase[Supabase PostgreSQL<br/>Persistent Storage]
     end
     
-    subgraph "Learning Modules"
-        English[English Module<br/>Grammar & Pronunciation]
-        Math[Math Module<br/>Adaptive Arithmetic]
-        Comprehension[Reading Comprehension<br/>Story-based Learning]
-        Debate[Debate Module<br/>Critical Thinking]
-        General[General Module<br/>Q&A & Routing]
+    subgraph "AI Processing"
+        GPTAssistant[AI Learning Assistant<br/>Natural Conversation<br/>All Subjects]
     end
     
     Phone -->|Voice Calls| Twilio
@@ -43,11 +39,7 @@ graph TB
     Backend -->|API Calls| GPT
     Backend -->|Session Data| Redis
     Backend -->|Analytics| Supabase
-    Backend -->|Module Logic| English
-    Backend -->|Module Logic| Math
-    Backend -->|Module Logic| Comprehension
-    Backend -->|Module Logic| Debate
-    Backend -->|Module Logic| General
+    Backend -->|AI Processing| GPTAssistant
     Admin -->|HTTP/HTTPS| Frontend
     Frontend -->|API Calls| Backend
 ```
@@ -91,12 +83,10 @@ sequenceDiagram
 - **Redis Cache**: Real-time session context and conversation memory
 - **Supabase PostgreSQL**: Persistent storage for user sessions and analytics
 
-### Learning Modules
-- **English Module**: Grammar correction and pronunciation practice
-- **Math Module**: Progressive difficulty arithmetic with adaptive leveling
-- **Comprehension Module**: Story-based reading comprehension
-- **Debate Module**: Structured debates for critical thinking
-- **General Module**: Module routing and general Q&A
+### AI Processing
+- **AI Learning Assistant**: Natural conversational AI for educational support across all subjects
+- **Fresh Sessions**: Each call starts new without persistent memory
+- **Simplified Architecture**: Direct GPT processing without module routing
 
 ### Deployment Infrastructure
 - **Backend Hosting**: Fly.io cloud deployment

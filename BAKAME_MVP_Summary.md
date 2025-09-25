@@ -44,11 +44,11 @@ BAKAME (Building African Knowledge through Accessible Mobile Education) is a voi
 - Structured argumentation practice
 - Perspective-taking and evidence evaluation
 
-### 5. Ask Me Anything (General Knowledge)
+### AI Learning Assistant
 - Open-ended Q&A on any educational topic
-- Curriculum-aligned responses
+- Natural conversational responses
 - Curiosity-driven learning support
-- Fallback for unspecified learning needs
+- Fresh session for each interaction
 
 ---
 
@@ -79,10 +79,10 @@ BAKAME (Building African Knowledge through Accessible Mobile Education) is a voi
 - Geographic usage patterns
 - Learning outcome tracking
 
-### Curriculum Alignment
-- Mapping to national education standards
-- Progress tracking against learning objectives
-- Customizable content for different curricula
+### AI-Powered Learning
+- Natural conversation across all subjects
+- Adaptive responses to student questions
+- Educational support without rigid structure
 - Assessment and reporting capabilities
 
 ### Data Export & Insights
@@ -119,7 +119,7 @@ BAKAME (Building African Knowledge through Accessible Mobile Education) is a voi
 
 ### Cost Structure
 - **Technology:** Cloud infrastructure and AI API costs
-- **Content:** Curriculum development and localization
+- **Content:** AI model optimization and educational prompting
 - **Operations:** Customer support and system maintenance
 - **Partnerships:** Telecom integration and revenue sharing
 
@@ -171,7 +171,7 @@ BAKAME (Building African Knowledge through Accessible Mobile Education) is a voi
 1. **No Internet Required:** Works with existing infrastructure
 2. **AI-Powered Personalization:** Adaptive learning experiences
 3. **Voice-First Design:** Natural interaction for all literacy levels
-4. **Curriculum Aligned:** Meets formal education standards
+4. **AI Powered:** Natural conversational learning experience
 5. **Cost Effective:** Minimal technology barriers to entry
 
 ### Market Differentiation

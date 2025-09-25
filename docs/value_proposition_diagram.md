@@ -43,7 +43,7 @@ flowchart TD
     subgraph Value ["VALUE DELIVERED"]
         subgraph V1 ["Educational Access"]
             V1A[24/7 Availability]
-            V1B[Curriculum Aligned]
+            V1B[AI Powered Learning]
             V1C[Multiple Subjects]
         end
         subgraph V2 ["Cost Effective"]
@@ -83,7 +83,7 @@ graph TB
     
     subgraph "Educators"
         E1[Teaching Analytics<br/>Student Progress Insights]
-        E2[Curriculum Support<br/>Aligned Learning Modules]
+        E2[AI Support<br/>Natural Learning Conversations]
         E3[Scalable Reach<br/>Serve More Students]
         E4[Resource Efficiency<br/>Automated Instruction]
     end
@@ -136,7 +136,7 @@ flowchart LR
         B1[Voice-First AI Learning]
         B2[Automated Personalized Teaching]
         B3[24/7 Availability]
-        B4[Adaptive Learning Paths]
+        B4[Natural AI Conversations]
         B5[Universal Phone Access]
     end
     

@@ -5,28 +5,15 @@
 ```mermaid
 flowchart TD
     Start([User Dials BAKAME Number]) --> Welcome[Welcome Message<br/>Language Selection]
-    Welcome --> ModuleSelect[Module Selection<br/>1. English 2. Math 3. Reading<br/>4. Debate 5. General]
+    Welcome --> AIAssistant[AI Learning Assistant<br/>Natural Conversation<br/>Any Subject]
     
-    ModuleSelect --> English{English Module}
-    ModuleSelect --> Math{Math Module}
-    ModuleSelect --> Reading{Reading Module}
-    ModuleSelect --> Debate{Debate Module}
-    ModuleSelect --> General{General Module}
+    AIAssistant --> Learning[Educational Support<br/>Questions & Answers<br/>Fresh Session Each Call]
+    Learning --> ConversationFlow[Natural AI Conversation<br/>Educational Support<br/>Any Subject]
     
-    English --> EnglishFlow[Grammar Practice<br/>Pronunciation Check<br/>Conversation]
-    Math --> MathFlow[Arithmetic Problems<br/>Adaptive Difficulty<br/>Progress Tracking]
-    Reading --> ReadingFlow[Story Presentation<br/>Comprehension Questions<br/>Discussion]
-    Debate --> DebateFlow[Topic Introduction<br/>Argument Building<br/>Counter-arguments]
-    General --> GeneralFlow[Open Questions<br/>Knowledge Queries<br/>Module Routing]
-    
-    EnglishFlow --> Feedback[AI Feedback<br/>Corrections & Encouragement]
-    MathFlow --> Feedback
-    ReadingFlow --> Feedback
-    DebateFlow --> Feedback
-    GeneralFlow --> Feedback
+    ConversationFlow --> Feedback[AI Feedback<br/>Natural Educational Support]
     
     Feedback --> Continue{Continue Learning?}
-    Continue -->|Yes| ModuleSelect
+    Continue -->|Yes| AIAssistant
     Continue -->|No| Summary[Session Summary<br/>Progress Report]
     Summary --> End([Call Ends])
 ```
@@ -43,8 +30,7 @@ flowchart TD
     SMSCommand --> Help[HELP - Get Instructions]
     SMSCommand --> Question[Direct Question]
     
-    Learn --> SMSModuleSelect[Reply with Module Number<br/>1-English 2-Math 3-Reading<br/>4-Debate 5-General]
-    SMSModuleSelect --> SMSLearning[Text-based Learning<br/>Questions & Responses]
+    Learn --> SMSLearning[AI Assistant<br/>Natural Conversation<br/>Educational Support]
     
     Status --> SMSProgress[Progress Summary<br/>Recent Activities]
     Help --> SMSInstructions[Command List<br/>Usage Examples]
@@ -55,7 +41,7 @@ flowchart TD
     SMSInstructions --> SMSEnd
     SMSAnswer --> SMSEnd
     SMSFeedback --> SMSContinue{Continue?}
-    SMSContinue -->|Yes| SMSModuleSelect
+    SMSContinue -->|Yes| SMSLearning
     SMSContinue -->|No| SMSEnd
 ```
 
@@ -95,27 +81,21 @@ flowchart TD
     UserManagement --> Dashboard
 ```
 
-## Learning Module Interaction Flow
+## AI Learning Interaction Flow
 
 ```mermaid
 flowchart TD
-    ModuleEntry([User Enters Learning Module]) --> ContextLoad[Load User Context<br/>Previous Progress, Preferences]
-    ContextLoad --> LevelAssess[Assess Current Level<br/>Adaptive Difficulty]
+    AIEntry([User Starts AI Conversation]) --> FreshSession[Fresh Session<br/>No Previous Context]
+    FreshSession --> UserInput[User Input<br/>Voice/SMS Question]
     
-    LevelAssess --> ContentGen[Generate Learning Content<br/>Personalized to User Level]
-    ContentGen --> Presentation[Present Content<br/>Voice/Text Format]
+    UserInput --> SpeechRecognition[Twilio Speech Recognition<br/>Convert to Text]
+    SpeechRecognition --> GPTProcessing[GPT Processing<br/>Generate Educational Response]
     
-    Presentation --> UserResponse[User Response<br/>Voice/SMS Input]
-    UserResponse --> AIProcess[AI Processing<br/>Speech-to-Text, Analysis]
+    GPTProcessing --> Response[AI Response<br/>Natural Educational Support]
+    Response --> TTS[Twilio TTS<br/>Convert to Voice]
     
-    AIProcess --> Evaluation[Evaluate Response<br/>Correctness, Understanding]
-    Evaluation --> Feedback[Provide Feedback<br/>Corrections, Encouragement]
-    
-    Feedback --> Progress[Update Progress<br/>Adjust Difficulty Level]
-    Progress --> Continue{Continue Module?}
-    
-    Continue -->|Yes| ContentGen
-    Continue -->|No| ModuleSummary[Module Summary<br/>Achievements, Next Steps]
-    ModuleSummary --> ContextSave[Save User Context<br/>Progress, Preferences]
-    ContextSave --> ModuleExit([Exit Module])
+    TTS --> Continue{Continue Conversation?}
+    Continue -->|Yes| UserInput
+    Continue -->|No| SessionEnd[Session Ends<br/>No Context Saved]
+    SessionEnd --> AIExit([Exit Conversation])
 ```

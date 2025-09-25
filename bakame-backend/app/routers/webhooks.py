@@ -6,21 +6,9 @@ from app.services.twilio_service import twilio_service
 from app.services.openai_service import openai_service
 from app.services.redis_service import redis_service
 from app.services.logging_service import logging_service
-from app.modules.english_module import english_module
-from app.modules.math_module import math_module
-from app.modules.comprehension_module import comprehension_module
-from app.modules.debate_module import debate_module
 from app.modules.general_module import general_module
 
 router = APIRouter()
-
-MODULES = {
-    "english": english_module,
-    "math": math_module,
-    "comprehension": comprehension_module,
-    "debate": debate_module,
-    "general": general_module
-}
 
 @router.post("/call")
 async def handle_voice_call(
@@ -37,11 +25,11 @@ async def handle_voice_call(
     session_id = CallSid
     
     try:
+        redis_service.clear_user_context(phone_number)
         user_context = redis_service.get_user_context(phone_number)
         
         if not SpeechResult and not RecordingUrl:
-            welcome_msg = general_module.get_welcome_message()
-            redis_service.set_current_module(phone_number, "general")
+            welcome_msg = "Hello! I'm BAKAME, your AI learning assistant. What would you like to learn about today?"
             
             await logging_service.log_interaction(
                 phone_number=phone_number,
@@ -60,10 +48,6 @@ async def handle_voice_call(
         user_input = ""
         if SpeechResult:
             user_input = SpeechResult
-        elif RecordingUrl:
-            audio_data = await twilio_service.download_recording(RecordingUrl)
-            if audio_data:
-                user_input = await openai_service.transcribe_audio(audio_data)
         
         if not user_input:
             return Response(
@@ -71,28 +55,13 @@ async def handle_voice_call(
                 media_type="application/xml"
             )
         
-        if user_input and (user_input.lower().strip() == "reset" or any(word in user_input.lower() for word in ["hello", "hi", "hey", "start", "new", "help", "menu", "general"])):
-            redis_service.clear_user_context(phone_number)
-            user_context = redis_service.get_user_context(phone_number)
-            current_module_name = "general"
-            redis_service.set_current_module(phone_number, current_module_name)
-        else:
-            user_context = redis_service.get_user_context(phone_number)
-        
-        current_module_name = redis_service.get_current_module(phone_number) or "general"
-        
-        current_module_name = "general"
-        
-        current_module = general_module
-        
-        ai_response = await current_module.process_input(user_input, user_context)
-        
-        redis_service.add_to_conversation_history(phone_number, user_input, ai_response)
+        messages = [{"role": "user", "content": user_input}]
+        ai_response = await openai_service.generate_response(messages, "general")
         
         await logging_service.log_interaction(
             phone_number=phone_number,
             session_id=session_id,
-            module_name=current_module_name,
+            module_name="general",
             interaction_type="voice",
             user_input=user_input,
             ai_response=ai_response
@@ -131,28 +100,16 @@ async def handle_sms(
     user_input = Body.strip()
     
     try:
-        if user_input.lower().strip() == "reset" or any(word in user_input.lower() for word in ["hello", "hi", "hey", "start", "new", "help", "menu", "general"]):
-            redis_service.clear_user_context(phone_number)
-            user_context = redis_service.get_user_context(phone_number)
-            current_module_name = "general"
-            redis_service.set_current_module(phone_number, current_module_name)
-        else:
-            user_context = redis_service.get_user_context(phone_number)
+        redis_service.clear_user_context(phone_number)
+        user_context = redis_service.get_user_context(phone_number)
         
-        current_module_name = redis_service.get_current_module(phone_number) or "general"
-        
-        current_module_name = "general"
-        
-        current_module = general_module
-        
-        ai_response = await current_module.process_input(user_input, user_context)
-        
-        redis_service.add_to_conversation_history(phone_number, user_input, ai_response)
+        messages = [{"role": "user", "content": user_input}]
+        ai_response = await openai_service.generate_response(messages, "general")
         
         await logging_service.log_interaction(
             phone_number=phone_number,
             session_id=session_id,
-            module_name=current_module_name,
+            module_name="general",
             interaction_type="sms",
             user_input=user_input,
             ai_response=ai_response

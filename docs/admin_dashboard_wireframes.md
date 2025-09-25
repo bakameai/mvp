@@ -14,13 +14,13 @@ graph TB
         subgraph "Key Metrics Row"
             Metric1[Active Users<br/>Today: 245]
             Metric2[Total Sessions<br/>This Week: 1,847]
-            Metric3[Popular Module<br/>Math: 34%]
+            Metric3[Session Type<br/>Voice: 67%]
             Metric4[Avg Session<br/>Duration: 8.5m]
         end
         
         subgraph "Charts Section"
             Chart1[Daily Active Users<br/>Line Chart]
-            Chart2[Module Usage<br/>Pie Chart]
+            Chart2[Session Types<br/>Pie Chart]
         end
         
         subgraph "Recent Activity"
@@ -41,7 +41,7 @@ flowchart TD
     subgraph "Analytics Page Layout"
         subgraph "Filter Controls"
             DateRange[Date Range Picker]
-            ModuleFilter[Module Filter]
+            TypeFilter[Session Type Filter]
             RegionFilter[Region Filter]
             ExportBtn[Export Data]
         end
@@ -49,7 +49,7 @@ flowchart TD
         subgraph "Performance Metrics"
             UserGrowth[User Growth Chart<br/>Monthly Trend]
             Engagement[Engagement Metrics<br/>Session Duration, Frequency]
-            Completion[Completion Rates<br/>By Module]
+            Completion[Session Completion<br/>By Type]
         end
         
         subgraph "Usage Analytics"
@@ -72,21 +72,21 @@ flowchart TD
 graph TB
     subgraph "Session Management Page"
         subgraph "Session List Controls"
-            Search[Search Sessions<br/>Phone, Module, Date]
+            Search[Search Sessions<br/>Phone, Type, Date]
             Filter[Filter Options<br/>Active, Completed, Failed]
-            Sort[Sort Options<br/>Time, Duration, Module]
+            Sort[Sort Options<br/>Time, Duration, Type]
         end
         
         subgraph "Session Table"
-            Headers[Phone | Module | Type | Duration | Status | Actions]
-            Row1[+1234567890 | Math | Voice | 12:34 | Active | View Details]
-            Row2[+1234567891 | English | SMS | 08:45 | Completed | View Details]
-            Row3[+1234567892 | Reading | Voice | 15:22 | Completed | View Details]
+            Headers[Phone | Type | Duration | Status | Actions]
+            Row1[+1234567890 | Voice | 12:34 | Active | View Details]
+            Row2[+1234567891 | SMS | 08:45 | Completed | View Details]
+            Row3[+1234567892 | Voice | 15:22 | Completed | View Details]
             Pagination[← Previous | 1 2 3 4 5 | Next →]
         end
         
         subgraph "Session Details Modal"
-            SessionInfo[Session Information<br/>Start Time, End Time, Module]
+            SessionInfo[Session Information<br/>Start Time, End Time, Type]
             Conversation[Conversation History<br/>User Input → AI Response]
             Metadata[Session Metadata<br/>Device Info, Location, Performance]
         end
@@ -99,10 +99,10 @@ graph TB
 flowchart TD
     subgraph "Export Page Layout"
         subgraph "Export Configuration"
-            DataType[Data Type Selection<br/>☑ User Sessions<br/>☑ Module Usage<br/>☐ System Logs]
+            DataType[Data Type Selection<br/>☑ User Sessions<br/>☑ Session Types<br/>☐ System Logs]
             DateRange2[Date Range<br/>From: [Date Picker]<br/>To: [Date Picker]]
             Format[Export Format<br/>○ CSV ● Excel ○ JSON]
-            Filters[Additional Filters<br/>Module, Region, User Type]
+            Filters[Additional Filters<br/>Session Type, Region, User Type]
         end
         
         subgraph "Export Options"
@@ -136,7 +136,7 @@ graph TB
         end
         
         subgraph "Application Settings"
-            ModuleConfig[Module Configuration<br/>Enable/Disable Modules<br/>Difficulty Settings]
+            AIConfig[AI Configuration<br/>Model Settings<br/>Response Parameters]
             LanguageSettings[Language Settings<br/>Supported Languages<br/>Default Language]
             SessionSettings[Session Settings<br/>Timeout Duration<br/>Max Session Length]
         end
@@ -222,11 +222,11 @@ journey
 ### Data Tables
 ```
 ┌─────────────┬──────────┬──────────┬─────────┐
-│ Phone       │ Module   │ Duration │ Status  │
+│ Phone       │ Type     │ Duration │ Status  │
 ├─────────────┼──────────┼──────────┼─────────┤
-│ +1234567890 │ Math     │ 12:34    │ Active  │
-│ +1234567891 │ English  │ 08:45    │ Done    │
-│ +1234567892 │ Reading  │ 15:22    │ Done    │
+│ +1234567890 │ Voice    │ 12:34    │ Active  │
+│ +1234567891 │ SMS      │ 08:45    │ Done    │
+│ +1234567892 │ Voice    │ 15:22    │ Done    │
 └─────────────┴──────────┴──────────┴─────────┘
 ```
 
@@ -250,7 +250,7 @@ journey
 │ Session Details                    ✕    │
 ├─────────────────────────────────────────┤
 │ Phone: +1234567890                      │
-│ Module: Math                            │
+│ Type: Voice Call                        │
 │ Duration: 12:34                         │
 │ ─────────────────────────────────────── │
 │ Conversation History:                   │

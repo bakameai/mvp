@@ -82,10 +82,10 @@
 
 ## Demo Variations
 
-### For Educators (Focus on Curriculum Alignment)
-- Emphasize how modules align with educational standards
-- Highlight assessment and progress tracking capabilities
-- Demonstrate multilingual awareness features
+### For Educators (Focus on AI Learning)
+- Emphasize natural conversational learning approach
+- Highlight fresh session design for each interaction
+- Demonstrate AI's ability to support any subject
 
 ### For Investors (Focus on Market Potential)
 - Emphasize accessibility for underserved populations
