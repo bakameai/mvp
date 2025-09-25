@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { Users, Phone, MessageSquare, BookOpen, Calculator, MessageCircle, Brain, HelpCircle, Download } from 'lucide-react'
+import { Users, Phone, MessageSquare, HelpCircle, Download } from 'lucide-react'
 import './App.css'
 
 interface UsageStats {
