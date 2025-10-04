@@ -20,13 +20,15 @@ class TwilioService:
                 input='speech',
                 timeout=10,
                 speech_timeout='auto',
-                action='/voice/process',
+                action='/webhook/call',
                 method='POST'
+                # Note: If you see hardcoded hints in Twilio logs, check Twilio console configuration
+                # No hints should be specified here to allow natural speech recognition
             )
             gather.say(message, voice='man', language='en-KE')
             
             response.say("I didn't hear anything. Please try again.", voice='man', language='en-KE')
-            response.redirect('/voice/process')
+            response.redirect('/webhook/call')
         else:
             response.say(message, voice='man', language='en-KE')
             response.hangup()

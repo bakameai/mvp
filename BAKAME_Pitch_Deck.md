@@ -30,7 +30,7 @@ BAKAME delivers personalized AI tutoring through basic voice calls and SMS - no 
 
 **How It Works:**
 1. **Student calls** our phone number from any basic phone
-2. **AI tutor** responds with personalized lessons using voice
+2. **AI tutor** responds with natural conversation using voice
 3. **Learning happens** through natural conversation
 4. **Progress tracked** automatically for continuous improvement
 
@@ -96,7 +96,7 @@ BAKAME delivers personalized AI tutoring through basic voice calls and SMS - no 
 
 **Early Validation:**
 - **Technical Proof:** Sub-3-second response times achieved
-- **Educational Value:** All modules align with curriculum standards
+- **Educational Value:** AI provides natural learning conversations
 - **Market Interest:** Government and NGO inquiries received
 
 ---

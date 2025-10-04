@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { Users, Phone, MessageSquare, BookOpen, Calculator, MessageCircle, Brain, HelpCircle, Download } from 'lucide-react'
+import { Users, Phone, MessageSquare, HelpCircle, Download } from 'lucide-react'
 import './App.css'
 
 interface UsageStats {
@@ -27,18 +27,11 @@ interface CurriculumStandard {
   subject: string
   grade_level: string
   standards: string[]
-  bakame_modules: string[]
+  bakame_approach: string
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
 
-const MODULE_ICONS = {
-  english: BookOpen,
-  math: Calculator,
-  comprehension: BookOpen,
-  debate: MessageCircle,
-  general: Brain
-}
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -350,17 +343,12 @@ function App() {
                         </ul>
                       </div>
                       <div>
-                        <h5 className="text-sm font-medium text-gray-700 mb-2">BAKAME Modules</h5>
+                        <h5 className="text-sm font-medium text-gray-700 mb-2">BAKAME Approach</h5>
                         <div className="flex flex-wrap gap-2">
-                          {standard.bakame_modules.map((module: string, idx: number) => {
-                            const IconComponent = MODULE_ICONS[module as keyof typeof MODULE_ICONS] || HelpCircle
-                            return (
-                              <span key={idx} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                <IconComponent className="w-3 h-3 mr-1" />
-                                {module.charAt(0).toUpperCase() + module.slice(1)}
-                              </span>
-                            )
-                          })}
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                            <HelpCircle className="w-3 h-3 mr-1" />
+                            {standard.bakame_approach}
+                          </span>
                         </div>
                       </div>
                     </div>

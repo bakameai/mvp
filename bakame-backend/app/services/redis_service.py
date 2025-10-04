@@ -51,18 +51,8 @@ class RedisService:
             self.memory_store[f"user_context:{phone_number}"] = context
     
     def add_to_conversation_history(self, phone_number: str, user_input: str, ai_response: str):
-        """Add interaction to user's conversation history"""
-        context = self.get_user_context(phone_number)
-        context["conversation_history"].append({
-            "user": user_input,
-            "ai": ai_response,
-            "timestamp": str(datetime.utcnow())
-        })
-        
-        if len(context["conversation_history"]) > 10:
-            context["conversation_history"] = context["conversation_history"][-10:]
-        
-        self.set_user_context(phone_number, context)
+        """Add interaction to conversation history - disabled for fresh sessions"""
+        pass
     
     def set_current_module(self, phone_number: str, module_name: str):
         """Set the current active module for a user"""
