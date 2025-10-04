@@ -18,7 +18,8 @@ class LoggingService:
                 writer = csv.writer(file)
                 writer.writerow([
                     'timestamp', 'phone_number', 'session_id', 'module_name',
-                    'interaction_type', 'user_input', 'ai_response', 'session_duration'
+                    'interaction_type', 'user_input', 'ai_response', 'session_duration',
+                    'emotional_data', 'gamification_data'
                 ])
     
     async def log_interaction(self, 
@@ -28,7 +29,9 @@ class LoggingService:
                             interaction_type: str,
                             user_input: str,
                             ai_response: str,
-                            session_duration: float = None):
+                            session_duration: float = None,
+                            emotional_data: Dict[str, Any] = None,
+                            gamification_data: Dict[str, Any] = None):
         """Log user interaction to both PostgreSQL and CSV"""
         
         timestamp = datetime.utcnow()
@@ -86,7 +89,9 @@ class LoggingService:
                     interaction_type,
                     user_input,
                     ai_response,
-                    session_duration
+                    session_duration,
+                    str(emotional_data) if emotional_data else "",
+                    str(gamification_data) if gamification_data else ""
                 ])
         except Exception as e:
             print(f"Error logging to CSV: {e}")

@@ -1,0 +1,152 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Light mode colors */
+    --background: 0 0% 100%;      /* White background */
+    --foreground: 0 0% 3.9%;      /* Dark text */
+
+    --card: 0 0% 100%;            /* White cards */
+    --card-foreground: 0 0% 3.9%; /* Dark text on cards */
+
+    --popover: 0 0% 100%;         /* White popovers */
+    --popover-foreground: 0 0% 3.9%; /* Dark text on popovers */
+
+    --primary: 0 0% 9%;           /* Dark primary */
+    --primary-foreground: 0 0% 98%; /* Light text on primary */
+
+    --secondary: 0 0% 96.1%;      /* Light gray secondary */
+    --secondary-foreground: 0 0% 9%; /* Dark text on secondary */
+
+    --muted: 0 0% 96.1%;          /* Light muted */
+    --muted-foreground: 0 0% 45.1%; /* Medium gray text */
+
+    --accent: 0 0% 96.1%;         /* Light accent */
+    --accent-foreground: 0 0% 9%; /* Dark text on accent */
+
+    --destructive: 0 84.2% 60.2%; /* Red for destructive actions */
+    --destructive-foreground: 0 0% 98%; /* Light text on red */
+
+    --border: 0 0% 89.8%;         /* Light borders */
+    --input: 0 0% 89.8%;          /* Light input backgrounds */
+    --ring: 0 0% 3.9%;            /* Dark focus rings */
+
+    --radius: 0.5rem;
+
+    /* Light mode sidebar */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 3.9%;
+    --sidebar-primary: 0 0% 9%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 96.1%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 89.8%;
+    --sidebar-ring: 0 0% 3.9%;
+  }
+
+  .dark {
+    /* Dark mode: Black background, white text */
+    --background: 0 0% 0%;    /* Black background */
+    --foreground: 0 0% 100%;  /* White text */
+
+    --card: 214 58% 11%;      /* Dark blue cards (#081a2e) */
+    --card-foreground: 0 0% 100%; /* White text on cards */
+
+    --popover: 214 58% 11%;   /* Dark blue popovers */
+    --popover-foreground: 0 0% 100%; /* White text on popovers */
+
+    --primary: 0 0% 100%;     /* White primary in dark mode */
+    --primary-foreground: 0 0% 0%; /* Black text on white */
+
+    --secondary: 27 100% 65%; /* Orange secondary */
+    --secondary-foreground: 0 0% 0%; /* Black text on orange */
+
+    --muted: 214 40% 15%;     /* Dark muted */
+    --muted-foreground: 0 0% 65%; /* Light gray text */
+
+    --accent: 218 91% 42%;    /* Blue accent */
+    --accent-foreground: 0 0% 100%; /* White text on blue */
+
+    --destructive: 0 84% 60%; /* Red for destructive actions */
+    --destructive-foreground: 0 0% 100%; /* White text on red */
+
+    --border: 214 40% 20%;    /* Dark borders */
+    --input: 214 40% 15%;     /* Dark input backgrounds */
+    --ring: 218 91% 42%;      /* Blue focus rings */
+
+    --sidebar-background: 214 58% 11%; /* Dark blue sidebar */
+    --sidebar-foreground: 0 0% 100%;   /* White sidebar text */
+    --sidebar-primary: 0 0% 100%;      /* White sidebar primary */
+    --sidebar-primary-foreground: 0 0% 0%; /* Black text on white */
+    --sidebar-accent: 27 100% 65%;     /* Orange sidebar accent */
+    --sidebar-accent-foreground: 0 0% 0%; /* Black text on orange */
+    --sidebar-border: 214 40% 20%;     /* Dark sidebar borders */
+    --sidebar-ring: 218 91% 42%;       /* Blue sidebar rings */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom animations for the team page */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

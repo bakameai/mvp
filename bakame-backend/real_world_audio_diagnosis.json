@@ -1,0 +1,83 @@
+{
+  "summary": {
+    "total_tests": 12,
+    "passed": 10,
+    "failed": 2,
+    "success_rate": 83.33333333333334
+  },
+  "test_results": [
+    {
+      "test": "WebSocket State: CONNECTING",
+      "success": false,
+      "details": "Audio would be SKIPPED due to state check (state: CONNECTING)",
+      "timestamp": 1757210873.6892748
+    },
+    {
+      "test": "WebSocket State: CLOSED",
+      "success": false,
+      "details": "Audio would be SKIPPED due to state check (state: CLOSED)",
+      "timestamp": 1757210873.6896005
+    },
+    {
+      "test": "WebSocket State Transition",
+      "success": true,
+      "details": "Chunk 1 sent: True, Chunk 2 sent: False (state changed to CLOSED)",
+      "timestamp": 1757210873.6903906
+    },
+    {
+      "test": "WebSocket Send Exceptions",
+      "success": true,
+      "details": "Exception handling: Connection closed during send: Would CONTINUE (non-recoverable); Send after close: Would CONTINUE (recoverable); Connection closed: Would CONTINUE (non-recoverable); Connection lost: Would CONTINUE (non-recoverable)",
+      "timestamp": 1757210873.6913176
+    },
+    {
+      "test": "Rapid Audio Chunks",
+      "success": true,
+      "details": "Sent 10/10 chunks successfully (100.0%)",
+      "timestamp": 1757210874.7009752
+    },
+    {
+      "test": "ElevenLabs Connection",
+      "success": true,
+      "details": "Connected in 0.457s",
+      "timestamp": 1757210875.1581328
+    },
+    {
+      "test": "ElevenLabs Conversation Init",
+      "success": true,
+      "details": "Conversation ready after 0.000s",
+      "timestamp": 1757210875.15835
+    },
+    {
+      "test": "ElevenLabs Audio Chunk #1",
+      "success": true,
+      "details": "Received after 0.276s (32662 bytes PCM)",
+      "timestamp": 1757210875.4343662
+    },
+    {
+      "test": "Audio Conversion #1",
+      "success": true,
+      "details": "Converted in 0.000321s (32662 PCM -> 8166 \u03bc-law)",
+      "timestamp": 1757210875.4347732
+    },
+    {
+      "test": "ElevenLabs Audio Chunk #2",
+      "success": true,
+      "details": "Received after 0.378s (93622 bytes PCM)",
+      "timestamp": 1757210875.5369399
+    },
+    {
+      "test": "Audio Conversion #2",
+      "success": true,
+      "details": "Converted in 0.000951s (93622 PCM -> 23406 \u03bc-law)",
+      "timestamp": 1757210875.5379574
+    },
+    {
+      "test": "ElevenLabs Timing Summary",
+      "success": true,
+      "details": "Received 2 audio chunks, avg response time: 0.327s",
+      "timestamp": 1757210890.5156438
+    }
+  ],
+  "timestamp": 1757210891.5620286
+}

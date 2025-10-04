@@ -2,28 +2,30 @@ from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import Response
 import uuid
 from typing import Optional
+
 from app.services.twilio_service import twilio_service
 from app.services.openai_service import openai_service
+from app.services.elevenlabs_service import elevenlabs_service
 from app.services.redis_service import redis_service
 from app.services.logging_service import logging_service
+from app.services.offline_service import offline_service
+from app.services.multimodal_service import multimodal_service
+from app.config import settings
+from app.modules.english_module import english_module
+from app.modules.math_module import math_module
+from app.modules.comprehension_module import comprehension_module
+from app.modules.debate_module import debate_module
 from app.modules.general_module import general_module
 
 router = APIRouter()
 
 @router.post("/call")
-async def handle_voice_call(
-    request: Request,
-    From: str = Form(...),
-    To: str = Form(...),
-    CallSid: str = Form(...),
-    SpeechResult: Optional[str] = Form(None),
-    RecordingUrl: Optional[str] = Form(None)
-):
-    """Handle incoming voice calls from Twilio"""
+def handle_voice_call():
+    """Handle incoming voice calls from Twilio - Connect to ElevenLabs WebSocket stream"""
     
-    phone_number = From
-    session_id = CallSid
+    WS_URL = "wss://bakame-elevenlabs-mcp.fly.dev/twilio-stream"
     
+<<<<<<< HEAD
     try:
         redis_service.clear_user_context(phone_number)
         user_context = redis_service.get_user_context(phone_number)
@@ -84,6 +86,16 @@ async def handle_voice_call(
             content=twilio_service.create_voice_response("I'm sorry, I'm having technical difficulties. Please try again later.", gather_input=True),
             media_type="application/xml"
         )
+=======
+    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Connect>
+    <Stream url="{WS_URL}"/>
+  </Connect>
+</Response>"""
+    
+    return Response(content=twiml, media_type="application/xml")
+>>>>>>> bakame-mvp-implementation
 
 @router.post("/sms")
 async def handle_sms(
@@ -103,8 +115,27 @@ async def handle_sms(
         redis_service.clear_user_context(phone_number)
         user_context = redis_service.get_user_context(phone_number)
         
+<<<<<<< HEAD
         messages = [{"role": "user", "content": user_input}]
         ai_response = await openai_service.generate_response(messages, "general")
+=======
+        user_context["phone_number"] = phone_number
+        
+        current_module_name = redis_service.get_current_module(phone_number) or "general"
+        
+        requested_module = user_context.get("user_state", {}).get("requested_module")
+        if requested_module and requested_module in MODULES:
+            current_module_name = requested_module
+            redis_service.set_current_module(phone_number, current_module_name)
+            user_context["user_state"]["requested_module"] = None
+            redis_service.set_user_context(phone_number, user_context)
+        
+        current_module = MODULES.get(current_module_name, general_module)
+        
+        ai_response = await current_module.process_input(user_input, user_context)
+        
+        redis_service.add_to_conversation_history(phone_number, user_input, ai_response)
+>>>>>>> bakame-mvp-implementation
         
         await logging_service.log_interaction(
             phone_number=phone_number,
@@ -115,6 +146,8 @@ async def handle_sms(
             ai_response=ai_response
         )
         
+        await offline_service.cache_interaction(phone_number, user_input, ai_response, current_module_name)
+        
         return Response(
             content=twilio_service.create_sms_response(ai_response),
             media_type="application/xml"
@@ -122,10 +155,25 @@ async def handle_sms(
         
     except Exception as e:
         print(f"Error in SMS handler: {e}")
-        return Response(
-            content=twilio_service.create_sms_response("I'm sorry, I'm having technical difficulties. Please try again later."),
-            media_type="application/xml"
-        )
+        await logging_service.log_error(f"SMS error for {phone_number}: {str(e)}")
+        
+        try:
+            fallback_response = "Welcome to BAKAME! I'm your AI learning assistant. Reply MATH for math practice, ENGLISH for language learning, or HELP for more options."
+            return Response(
+                content=twilio_service.create_sms_response(fallback_response),
+                media_type="application/xml"
+            )
+        except Exception as fallback_error:
+            print(f"SMS fallback error: {fallback_error}")
+            return Response(
+                content='<?xml version="1.0" encoding="UTF-8"?><Response><Message>Welcome to BAKAME learning assistant. Please try again.</Message></Response>',
+                media_type="application/xml"
+            )
+
+@router.post("/voice/process")
+def handle_voice_process():
+    """Handle continued voice interactions from Twilio"""
+    return handle_voice_call()
 
 @router.get("/health")
 async def health_check():
