@@ -1,0 +1,391 @@
+{
+  "name": "BAKAME Telephony Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "twilio-voice",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-voice",
+      "name": "Twilio Voice Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "twilio-voice-webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "twilio-sms",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-sms",
+      "name": "Twilio SMS Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 500],
+      "webhookId": "twilio-sms-webhook"
+    },
+    {
+      "parameters": {
+        "resource": "transcription",
+        "operation": "create",
+        "fileUrl": "={{ $json.RecordingUrl }}",
+        "options": {
+          "language": "en",
+          "responseFormat": "json"
+        }
+      },
+      "id": "openai-transcribe",
+      "name": "OpenAI Whisper Transcription",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.item.json.text;\nconst modules = {\n  english: ['english', 'grammar', 'pronunciation'],\n  math: ['math', 'arithmetic', 'calculation'],\n  comprehension: ['read', 'story', 'comprehension'],\n  debate: ['debate', 'opinion', 'argue'],\n  general: ['question', 'knowledge', 'learn']\n};\n\nlet selectedModule = 'general';\nconst lowerText = text.toLowerCase();\n\nfor (const [module, keywords] of Object.entries(modules)) {\n  if (keywords.some(keyword => lowerText.includes(keyword))) {\n    selectedModule = module;\n    break;\n  }\n}\n\nreturn {\n  json: {\n    transcription: text,\n    module: selectedModule,\n    phoneNumber: $input.item.json.From\n  }\n};"
+      },
+      "id": "module-selector",
+      "name": "AI Module Selector",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "model": "gpt-3.5-turbo",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "={{ $json.module === 'english' ? 'You are an English teacher helping students practice grammar and pronunciation. Provide corrections and encouragement.' : $json.module === 'math' ? 'You are a math tutor. Help students solve problems step by step and provide similar practice questions.' : $json.module === 'comprehension' ? 'You are a reading comprehension teacher. Tell engaging stories and ask questions to test understanding.' : $json.module === 'debate' ? 'You are a debate coach. Present thought-provoking topics and encourage critical thinking.' : 'You are a friendly educational assistant. Answer questions clearly and encourage learning.' }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.transcription }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 150,
+          "temperature": 0.7
+        }
+      },
+      "id": "openai-response",
+      "name": "OpenAI GPT Response",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "speech",
+        "operation": "create",
+        "text": "={{ $json.message.content }}",
+        "voice": "alloy",
+        "options": {
+          "speed": 1.0,
+          "responseFormat": "mp3"
+        }
+      },
+      "id": "openai-tts",
+      "name": "OpenAI TTS",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "makeCall",
+        "from": "={{ $env.TWILIO_PHONE_NUMBER }}",
+        "to": "={{ $node['AI Module Selector'].json.phoneNumber }}",
+        "twiml": "={{ '<Response><Play>' + $json.audioUrl + '</Play></Response>' }}",
+        "options": {}
+      },
+      "id": "twilio-call-response",
+      "name": "Twilio Call Response",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-credentials",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "from": "={{ $env.TWILIO_PHONE_NUMBER }}",
+        "to": "={{ $json.From }}",
+        "message": "={{ $node['OpenAI GPT Response'].json.message.content }}",
+        "options": {}
+      },
+      "id": "twilio-sms-response",
+      "name": "Twilio SMS Response",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1050, 500],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-credentials",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.item.json.Body;\nconst modules = {\n  english: ['english', 'grammar', 'pronunciation'],\n  math: ['math', 'arithmetic', 'calculation'],\n  comprehension: ['read', 'story', 'comprehension'],\n  debate: ['debate', 'opinion', 'argue'],\n  general: ['question', 'knowledge', 'learn']\n};\n\nlet selectedModule = 'general';\nconst lowerText = text.toLowerCase();\n\nfor (const [module, keywords] of Object.entries(modules)) {\n  if (keywords.some(keyword => lowerText.includes(keyword))) {\n    selectedModule = module;\n    break;\n  }\n}\n\nreturn {\n  json: {\n    transcription: text,\n    module: selectedModule,\n    phoneNumber: $input.item.json.From\n  }\n};"
+      },
+      "id": "sms-module-selector",
+      "name": "SMS Module Selector",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "model": "gpt-3.5-turbo",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "={{ $json.module === 'english' ? 'You are an English teacher. Provide brief, SMS-friendly corrections and tips.' : $json.module === 'math' ? 'You are a math tutor. Solve problems concisely for SMS.' : $json.module === 'comprehension' ? 'You are a reading teacher. Share brief stories and questions.' : $json.module === 'debate' ? 'You are a debate coach. Present topics and questions briefly.' : 'You are an educational assistant. Answer concisely for SMS.' }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.transcription }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 100,
+          "temperature": 0.7
+        }
+      },
+      "id": "sms-openai-response",
+      "name": "SMS OpenAI Response",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [650, 500],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ '<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Say>Processing your request</Say></Response>' }}"
+      },
+      "id": "voice-webhook-response",
+      "name": "Voice Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ '<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message>' + $node['Twilio SMS Response'].json.message + '</Message></Response>' }}"
+      },
+      "id": "sms-webhook-response",
+      "name": "SMS Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BACKEND_URL }}/dashboard",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "values": [
+            {
+              "name": "type",
+              "value": "={{ $node.name.includes('Voice') ? 'call_started' : 'sms_received' }}"
+            },
+            {
+              "name": "phone_number",
+              "value": "={{ $json.phoneNumber }}"
+            },
+            {
+              "name": "module",
+              "value": "={{ $json.module }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ Date.now() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dashboard-event",
+      "name": "Send Dashboard Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 600]
+    }
+  ],
+  "connections": {
+    "Twilio Voice Webhook": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Whisper Transcription",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio SMS Webhook": {
+      "main": [
+        [
+          {
+            "node": "SMS Module Selector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Whisper Transcription": {
+      "main": [
+        [
+          {
+            "node": "AI Module Selector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Module Selector": {
+      "main": [
+        [
+          {
+            "node": "OpenAI GPT Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Dashboard Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT Response": {
+      "main": [
+        [
+          {
+            "node": "OpenAI TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI TTS": {
+      "main": [
+        [
+          {
+            "node": "Twilio Call Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio Call Response": {
+      "main": [
+        [
+          {
+            "node": "Voice Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS Module Selector": {
+      "main": [
+        [
+          {
+            "node": "SMS OpenAI Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Dashboard Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS OpenAI Response": {
+      "main": [
+        [
+          {
+            "node": "Twilio SMS Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio SMS Response": {
+      "main": [
+        [
+          {
+            "node": "SMS Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 2,
+  "updatedAt": "2025-10-05T00:00:00.000Z",
+  "versionId": "1"
+}
