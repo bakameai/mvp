@@ -355,32 +355,34 @@ const AdminSimple = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {unifiedData.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No call data yet. Make your first test call!</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date & Time</TableHead>
+                    <TableHead>Phone Number</TableHead>
+                    <TableHead>Event Type</TableHead>
+                    <TableHead>User Message</TableHead>
+                    <TableHead>AI Response</TableHead>
+                    <TableHead>Call Status</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Duration (s)</TableHead>
+                    <TableHead>Model</TableHead>
+                    <TableHead>Tokens</TableHead>
+                    <TableHead>Cost (USD)</TableHead>
+                    <TableHead>Call SID</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {unifiedData.length === 0 ? (
                     <TableRow>
-                      <TableHead>Timestamp</TableHead>
-                      <TableHead>Phone Number</TableHead>
-                      <TableHead>Event Type</TableHead>
-                      <TableHead>User Message</TableHead>
-                      <TableHead>AI Response</TableHead>
-                      <TableHead>Call Status</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Interactions</TableHead>
-                      <TableHead>Model</TableHead>
-                      <TableHead>Tokens</TableHead>
-                      <TableHead>Cost</TableHead>
-                      <TableHead>Call SID</TableHead>
+                      <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
+                        <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No call data yet. Make your first test call to see data appear here!</p>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {unifiedData.slice().reverse().map((row, idx) => (
+                  ) : (
+                    unifiedData.slice().reverse().map((row, idx) => (
                       <TableRow key={idx}>
                         <TableCell className="text-xs whitespace-nowrap">
                           {formatTimestamp(row.timestamp)}
@@ -422,11 +424,11 @@ const AdminSimple = () => {
                           {row.call_sid.substring(0, 10)}...
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
