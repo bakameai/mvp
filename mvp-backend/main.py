@@ -10,6 +10,7 @@ from typing import Optional, List, Dict
 import json
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from redis_service import redis_service
 
 app = FastAPI(title="Bakame AI MVP")
 
@@ -50,6 +51,77 @@ class OpenAIUsage(BaseModel):
     estimated_cost: float
     request_type: str
     timestamp: str
+
+def get_or_create_user(phone_number: str) -> Dict:
+    """Get existing user or create new one"""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT * FROM user_profiles WHERE phone_number = %s", (phone_number,))
+                user = cur.fetchone()
+                
+                if user:
+                    cur.execute("""
+                        UPDATE user_profiles 
+                        SET last_active = %s 
+                        WHERE phone_number = %s
+                    """, (datetime.utcnow(), phone_number))
+                    conn.commit()
+                    return dict(user)
+                else:
+                    cur.execute("""
+                        INSERT INTO user_profiles (phone_number, profile_completed)
+                        VALUES (%s, FALSE)
+                        RETURNING *
+                    """, (phone_number,))
+                    new_user = cur.fetchone()
+                    conn.commit()
+                    return dict(new_user)
+    except Exception as e:
+        print(f"[DB ERROR] Failed to get/create user: {e}")
+        return {"phone_number": phone_number, "profile_completed": False}
+
+def update_user_profile(phone_number: str, name: str = None, region: str = None, school: str = None):
+    """Update user profile information"""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                updates = []
+                values = []
+                
+                if name:
+                    updates.append("name = %s")
+                    values.append(name)
+                if region:
+                    updates.append("region = %s")
+                    values.append(region)
+                if school:
+                    updates.append("school = %s")
+                    values.append(school)
+                
+                if updates:
+                    updates.append("profile_completed = TRUE")
+                    values.append(phone_number)
+                    
+                    query = f"UPDATE user_profiles SET {', '.join(updates)} WHERE phone_number = %s"
+                    cur.execute(query, values)
+                    conn.commit()
+                    print(f"[USER] Updated profile for {phone_number}")
+    except Exception as e:
+        print(f"[DB ERROR] Failed to update user profile: {e}")
+
+def log_learning_history(phone_number: str, topic: str, duration_seconds: int = 0):
+    """Log learning interaction to history"""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO learning_history (phone_number, topic, duration_seconds)
+                    VALUES (%s, %s, %s)
+                """, (phone_number, topic, duration_seconds))
+                conn.commit()
+    except Exception as e:
+        print(f"[DB ERROR] Failed to log learning history: {e}")
 
 def estimate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
     """Estimate OpenAI API cost based on token usage"""
@@ -105,6 +177,10 @@ async def handle_incoming_call(request: Request):
     from_number = form_data.get("From")
     call_status = form_data.get("CallStatus")
     
+    # Get or create user profile
+    user = get_or_create_user(from_number)
+    print(f"[USER] Identified user: {from_number}, Profile completed: {user.get('profile_completed', False)}")
+    
     # Store Twilio call details in database
     try:
         with get_db_connection() as conn:
@@ -121,10 +197,13 @@ async def handle_incoming_call(request: Request):
     except Exception as e:
         print(f"[DB ERROR] Failed to log Twilio call: {e}")
     
-    # Initialize conversation history for this call
+    # Initialize conversation history for this call (keyed by call_sid)
     if call_sid not in call_sessions:
         call_sessions[call_sid] = []
         print(f"[SESSION] Started new conversation for {call_sid}")
+    
+    # Store phone number mapping for this call
+    call_sessions[f"{call_sid}_phone"] = from_number
     
     # Log the incoming call
     try:
@@ -139,7 +218,7 @@ async def handle_incoming_call(request: Request):
     except Exception as e:
         print(f"[DB ERROR] Failed to log call: {e}")
     
-    # Generate dynamic GPT greeting
+    # Generate greeting based on user status
     greeting = "Hello! I'm here to help you learn. What would you like to explore today?"
     try:
         system_prompt = """You are Bakame AI, an educational tutor helping students in underserved communities learn through voice calls.
@@ -167,19 +246,40 @@ Your Approach:
 
 Remember: You're on a phone call, so be concise and conversational. Your goal is to help students discover knowledge, not just deliver information."""
 
-        print("[GREETING] Generating dynamic GPT-4o greeting...")
-        greeting_response = openai_client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": "A student just called. Please greet them warmly and invite them to ask a question. Keep it very brief - just 1-2 sentences for a phone call."}
-            ],
-            temperature=1.0
-        )
-        greeting = greeting_response.choices[0].message.content
-        
-        # Log OpenAI usage
-        log_openai_usage(str(call_sid), "gpt-4o", greeting_response.usage, "greeting_generation")
+        # Check if this is a new user who needs profile setup
+        if not user.get('profile_completed'):
+            print("[GREETING] New user - starting profile collection")
+            greeting_response = openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": "This is a new student calling for the first time. Greet them warmly and ask them their name in a friendly, conversational way. Keep it very brief - 1-2 sentences."}
+                ],
+                temperature=1.0
+            )
+            greeting = greeting_response.choices[0].message.content
+            log_openai_usage(str(call_sid), "gpt-4o", greeting_response.usage, "new_user_greeting")
+        else:
+            # Returning user - personalized greeting
+            user_name = user.get('name', 'friend')
+            user_context = redis_service.get_user_context(from_number)
+            
+            context_info = ""
+            if user_context.get('topics_discussed'):
+                recent_topics = user_context['topics_discussed'][-3:]
+                context_info = f"They previously discussed: {', '.join(recent_topics)}."
+            
+            print(f"[GREETING] Returning user: {user_name}")
+            greeting_response = openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Welcome back {user_name}! {context_info} Greet them warmly and ask what they'd like to learn about today. Keep it brief - 1-2 sentences."}
+                ],
+                temperature=1.0
+            )
+            greeting = greeting_response.choices[0].message.content
+            log_openai_usage(str(call_sid), "gpt-4o", greeting_response.usage, "returning_user_greeting")
         
         print(f"[GREETING] GPT-4o greeting: {greeting}")
     except Exception as e:
@@ -208,6 +308,7 @@ async def process_speech(request: Request):
     """Process user speech and generate AI response"""
     form_data = await request.form()
     call_sid = form_data.get("CallSid")
+    from_number = form_data.get("From")
     user_speech = form_data.get("SpeechResult", "")
     
     if not user_speech:
@@ -216,9 +317,19 @@ async def process_speech(request: Request):
         response.redirect('/voice/incoming')
         return Response(content=str(response), media_type="application/xml")
     
+    # Get phone number for this call
+    if f"{call_sid}_phone" not in call_sessions:
+        call_sessions[f"{call_sid}_phone"] = from_number
+    
+    phone_number = call_sessions.get(f"{call_sid}_phone", from_number)
+    
     # Initialize session if needed
     if call_sid not in call_sessions:
         call_sessions[call_sid] = []
+    
+    # Get user profile
+    user = get_or_create_user(phone_number)
+    user_context = redis_service.get_user_context(phone_number)
     
     # Update Twilio call details - increment interactions
     try:
@@ -238,7 +349,7 @@ async def process_speech(request: Request):
     print(f"[GPT-4o CALL] User said: {user_speech}")
     print(f"[SESSION] Conversation history length: {len(call_sessions[call_sid])} messages")
     
-    # Get AI response from OpenAI with streaming
+    # Get AI response from OpenAI
     try:
         system_prompt = """You are Bakame AI, an educational tutor helping students in underserved communities learn through voice calls.
 
@@ -265,25 +376,118 @@ Your Approach:
 
 Remember: You're on a phone call, so be concise and conversational. Your goal is to help students discover knowledge, not just deliver information."""
 
-        # Build messages with full conversation history
-        messages = [{"role": "system", "content": system_prompt}] + call_sessions[call_sid]
-        
-        # Use non-streaming for complete usage data
-        completion = openai_client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            temperature=1.0
-        )
-        
-        ai_text = completion.choices[0].message.content
-        
-        # Log OpenAI usage
-        log_openai_usage(str(call_sid), "gpt-4o", completion.usage, "conversation_response")
+        # Handle profile collection for new users
+        if not user.get('profile_completed'):
+            profile_state = user_context.get('user_state', {})
+            
+            # Collect name (first interaction)
+            if not profile_state.get('name_collected'):
+                print("[PROFILE] Collecting name...")
+                profile_state['name_collected'] = True
+                profile_state['user_name'] = user_speech.strip()
+                user_context['user_state'] = profile_state
+                redis_service.set_user_context(phone_number, user_context)
+                
+                # Ask for region
+                system_profile_prompt = system_prompt + "\n\nYou're helping a new student set up their profile. They just told you their name. Ask them where they're from (their city or region) in a friendly, conversational way. Keep it very brief."
+                messages = [{"role": "system", "content": system_profile_prompt}] + call_sessions[call_sid]
+                
+                completion = openai_client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=messages,
+                    temperature=1.0
+                )
+                ai_text = completion.choices[0].message.content
+                log_openai_usage(str(call_sid), "gpt-4o", completion.usage, "profile_region")
+                
+            # Collect region
+            elif not profile_state.get('region_collected'):
+                print("[PROFILE] Collecting region...")
+                profile_state['region_collected'] = True
+                profile_state['user_region'] = user_speech.strip()
+                user_context['user_state'] = profile_state
+                redis_service.set_user_context(phone_number, user_context)
+                
+                # Ask for school
+                system_profile_prompt = system_prompt + "\n\nYou're helping a new student set up their profile. They just told you where they're from. Ask them what school they go to in a friendly, conversational way. Keep it very brief."
+                messages = [{"role": "system", "content": system_profile_prompt}] + call_sessions[call_sid]
+                
+                completion = openai_client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=messages,
+                    temperature=1.0
+                )
+                ai_text = completion.choices[0].message.content
+                log_openai_usage(str(call_sid), "gpt-4o", completion.usage, "profile_school")
+                
+            # Collect school and complete profile
+            elif not profile_state.get('school_collected'):
+                print("[PROFILE] Completing profile...")
+                profile_state['school_collected'] = True
+                profile_state['user_school'] = user_speech.strip()
+                user_context['user_state'] = profile_state
+                redis_service.set_user_context(phone_number, user_context)
+                
+                # Save to database
+                update_user_profile(
+                    phone_number,
+                    name=profile_state.get('user_name'),
+                    region=profile_state.get('user_region'),
+                    school=profile_state.get('user_school')
+                )
+                print(f"[PROFILE] Profile completed for {phone_number}")
+                
+                # Welcome them and start learning
+                user_name = profile_state.get('user_name', 'friend')
+                system_complete_prompt = system_prompt + f"\n\nYou just finished collecting profile info from {user_name}. Welcome them and ask what they'd like to learn about. Keep it brief and encouraging."
+                messages = [{"role": "system", "content": system_complete_prompt}] + call_sessions[call_sid]
+                
+                completion = openai_client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=messages,
+                    temperature=1.0
+                )
+                ai_text = completion.choices[0].message.content
+                log_openai_usage(str(call_sid), "gpt-4o", completion.usage, "profile_complete")
+        else:
+            # Normal learning conversation for users with completed profiles
+            user_name = user.get('name', 'friend')
+            
+            # Extract topic from conversation
+            topic_keywords = ['math', 'science', 'english', 'reading', 'history', 'geography']
+            detected_topic = None
+            for keyword in topic_keywords:
+                if keyword in user_speech.lower():
+                    detected_topic = keyword
+                    redis_service.add_topic(phone_number, keyword)
+                    log_learning_history(phone_number, keyword)
+                    break
+            
+            # Add conversation to history and Redis
+            context_message = f"Student name: {user_name}. "
+            if user_context.get('topics_discussed'):
+                context_message += f"Previously discussed: {', '.join(user_context['topics_discussed'][-3:])}. "
+            
+            enhanced_prompt = system_prompt + f"\n\n{context_message}"
+            messages = [{"role": "system", "content": enhanced_prompt}] + call_sessions[call_sid]
+            
+            completion = openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=messages,
+                temperature=1.0
+            )
+            
+            ai_text = completion.choices[0].message.content
+            log_openai_usage(str(call_sid), "gpt-4o", completion.usage, "conversation_response")
         
         print(f"[GPT-4o RESPONSE] AI said: {ai_text}")
         
         # Add assistant response to conversation history
         call_sessions[call_sid].append({"role": "assistant", "content": ai_text})
+        
+        # Store in Redis for long-term context
+        redis_service.add_to_conversation_history(phone_number, user_speech, ai_text)
+        
     except Exception as e:
         ai_text = "I'm having trouble processing that right now. Please try again later."
         print(f"OpenAI error: {e}")
@@ -296,7 +500,7 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
                     INSERT INTO call_logs 
                     (call_sid, from_number, message, ai_response, timestamp, event_type)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (call_sid, form_data.get("From"), user_speech, ai_text, datetime.utcnow(), "conversation"))
+                """, (call_sid, from_number, user_speech, ai_text, datetime.utcnow(), "conversation"))
                 conn.commit()
     except Exception as e:
         print(f"[DB ERROR] Failed to log conversation: {e}")
