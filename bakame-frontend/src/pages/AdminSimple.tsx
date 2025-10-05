@@ -355,79 +355,79 @@ const AdminSimple = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b">
-                    <TableHead className="border-r">Date & Time</TableHead>
-                    <TableHead className="border-r">Phone Number</TableHead>
-                    <TableHead className="border-r">Event Type</TableHead>
-                    <TableHead className="border-r">User Message</TableHead>
-                    <TableHead className="border-r">AI Response</TableHead>
-                    <TableHead className="border-r">Call Status</TableHead>
-                    <TableHead className="border-r">Location</TableHead>
-                    <TableHead className="border-r">Duration (s)</TableHead>
-                    <TableHead className="border-r">Model</TableHead>
-                    <TableHead className="border-r">Tokens</TableHead>
-                    <TableHead className="border-r">Cost (USD)</TableHead>
-                    <TableHead>Call SID</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <div className="overflow-x-auto">
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #d1d5db' }}>
+                <thead style={{ backgroundColor: '#f9fafb' }}>
+                  <tr>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Date & Time</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Phone Number</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Event Type</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>User Message</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>AI Response</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Call Status</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Location</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Duration (s)</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Model</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Tokens</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Cost (USD)</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Call SID</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {unifiedData.length === 0 ? (
-                    <TableRow className="border-b">
-                      <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
+                    <tr>
+                      <td colSpan={12} style={{ border: '1px solid #d1d5db', padding: '3rem 1rem', textAlign: 'center' }}>
                         <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>No call data yet. Make your first test call to see data appear here!</p>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ) : (
                     unifiedData.slice().reverse().map((row, idx) => (
-                      <TableRow key={idx} className="border-b">
-                        <TableCell className="text-xs whitespace-nowrap border-r">
+                      <tr key={idx}>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
                           {formatTimestamp(row.timestamp)}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm border-r">{row.from_number}</TableCell>
-                        <TableCell className="border-r">
+                        </td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', fontFamily: 'monospace', fontSize: '0.875rem' }}>{row.from_number}</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem' }}>
                           <Badge variant="secondary" className="text-xs">
                             {row.event_type}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs border-r">
+                        </td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', maxWidth: '300px' }}>
                           <div className="truncate" title={row.user_message}>
                             {row.user_message}
                           </div>
-                        </TableCell>
-                        <TableCell className="max-w-xs border-r">
+                        </td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', maxWidth: '300px' }}>
                           <div className="truncate" title={row.ai_response}>
                             {row.ai_response}
                           </div>
-                        </TableCell>
-                        <TableCell className="border-r">
+                        </td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem' }}>
                           <Badge 
                             variant={row.call_status === 'completed' ? 'default' : 'outline'}
                             className="text-xs"
                           >
                             {row.call_status}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm border-r">{row.location}</TableCell>
-                        <TableCell className="text-center border-r">{row.interactions}</TableCell>
-                        <TableCell className="border-r">
+                        </td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>{row.location}</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'center' }}>{row.interactions}</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem' }}>
                           <Badge variant="outline" className="text-xs">{row.openai_model}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right border-r">{row.tokens_used.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-mono text-xs text-green-600 border-r">
+                        </td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'right' }}>{row.tokens_used.toLocaleString()}</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.75rem', color: '#16a34a' }}>
                           {row.cost_usd}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
+                        </td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', fontFamily: 'monospace', fontSize: '0.75rem' }}>
                           {row.call_sid.substring(0, 10)}...
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))
                   )}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
