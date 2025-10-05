@@ -24,6 +24,10 @@ openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # In-memory storage for call logs (for MVP)
 call_logs = []
 
+# Session storage: conversation history per call
+# Format: {call_sid: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
+call_sessions = {}
+
 class CallLog(BaseModel):
     call_sid: Optional[str] = None
     from_number: Optional[str] = None
@@ -41,6 +45,11 @@ async def handle_incoming_call(request: Request):
     form_data = await request.form()
     call_sid = form_data.get("CallSid")
     from_number = form_data.get("From")
+    
+    # Initialize conversation history for this call
+    if call_sid not in call_sessions:
+        call_sessions[call_sid] = []
+        print(f"[SESSION] Started new conversation for {call_sid}")
     
     # Log the incoming call
     call_logs.append({
@@ -124,7 +133,16 @@ async def process_speech(request: Request):
         response.redirect('/voice/incoming')
         return Response(content=str(response), media_type="application/xml")
     
-    # Get AI response from OpenAI
+    # Initialize session if needed
+    if call_sid not in call_sessions:
+        call_sessions[call_sid] = []
+    
+    # Add user message to conversation history
+    call_sessions[call_sid].append({"role": "user", "content": user_speech})
+    print(f"[GPT-4o CALL] User said: {user_speech}")
+    print(f"[SESSION] Conversation history length: {len(call_sessions[call_sid])} messages")
+    
+    # Get AI response from OpenAI with streaming
     try:
         system_prompt = """You are Bakame AI, an educational tutor helping students in underserved communities learn through voice calls.
 
@@ -151,17 +169,27 @@ Your Approach:
 
 Remember: You're on a phone call, so be concise and conversational. Your goal is to help students discover knowledge, not just deliver information."""
 
-        print(f"[GPT-4o CALL] User said: {user_speech}")
-        ai_response = openai_client.chat.completions.create(
+        # Build messages with full conversation history
+        messages = [{"role": "system", "content": system_prompt}] + call_sessions[call_sid]
+        
+        # Use streaming for faster response
+        stream = openai_client.chat.completions.create(
             model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_speech}
-            ],
-            temperature=1.0
+            messages=messages,
+            temperature=1.0,
+            stream=True
         )
-        ai_text = ai_response.choices[0].message.content
+        
+        # Collect streamed response
+        ai_text = ""
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                ai_text += chunk.choices[0].delta.content
+        
         print(f"[GPT-4o RESPONSE] AI said: {ai_text}")
+        
+        # Add assistant response to conversation history
+        call_sessions[call_sid].append({"role": "assistant", "content": ai_text})
     except Exception as e:
         ai_text = "I'm having trouble processing that right now. Please try again later."
         print(f"OpenAI error: {e}")
@@ -227,6 +255,11 @@ async def handle_continue(request: Request):
     
     if check_intent(user_speech, exit_keywords):
         # End the call (check this FIRST)
+        # Clear conversation history
+        if call_sid in call_sessions:
+            session_length = len(call_sessions[call_sid])
+            del call_sessions[call_sid]
+            print(f"[SESSION] Ended conversation for {call_sid} ({session_length} messages)")
         response.say("Thank you for using Bakame AI. Goodbye!", voice="alice")
         response.hangup()
     elif check_intent(user_speech, continue_keywords):
@@ -251,6 +284,10 @@ async def handle_continue(request: Request):
         )
         gather.say("I didn't quite catch that. Would you like to continue? Say yes or no.", voice="alice")
         response.append(gather)
+        # Clear conversation history on timeout
+        if call_sid in call_sessions:
+            del call_sessions[call_sid]
+            print(f"[SESSION] Ended conversation for {call_sid} (timeout)")
         response.say("Thank you for using Bakame AI. Goodbye!", voice="alice")
         response.hangup()
     
