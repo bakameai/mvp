@@ -355,27 +355,27 @@ const AdminSimple = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto border rounded-lg">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Date & Time</TableHead>
-                    <TableHead>Phone Number</TableHead>
-                    <TableHead>Event Type</TableHead>
-                    <TableHead>User Message</TableHead>
-                    <TableHead>AI Response</TableHead>
-                    <TableHead>Call Status</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Duration (s)</TableHead>
-                    <TableHead>Model</TableHead>
-                    <TableHead>Tokens</TableHead>
-                    <TableHead>Cost (USD)</TableHead>
+                  <TableRow className="border-b">
+                    <TableHead className="border-r">Date & Time</TableHead>
+                    <TableHead className="border-r">Phone Number</TableHead>
+                    <TableHead className="border-r">Event Type</TableHead>
+                    <TableHead className="border-r">User Message</TableHead>
+                    <TableHead className="border-r">AI Response</TableHead>
+                    <TableHead className="border-r">Call Status</TableHead>
+                    <TableHead className="border-r">Location</TableHead>
+                    <TableHead className="border-r">Duration (s)</TableHead>
+                    <TableHead className="border-r">Model</TableHead>
+                    <TableHead className="border-r">Tokens</TableHead>
+                    <TableHead className="border-r">Cost (USD)</TableHead>
                     <TableHead>Call SID</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {unifiedData.length === 0 ? (
-                    <TableRow>
+                    <TableRow className="border-b">
                       <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                         <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>No call data yet. Make your first test call to see data appear here!</p>
@@ -383,27 +383,27 @@ const AdminSimple = () => {
                     </TableRow>
                   ) : (
                     unifiedData.slice().reverse().map((row, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="text-xs whitespace-nowrap">
+                      <TableRow key={idx} className="border-b">
+                        <TableCell className="text-xs whitespace-nowrap border-r">
                           {formatTimestamp(row.timestamp)}
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{row.from_number}</TableCell>
-                        <TableCell>
+                        <TableCell className="font-mono text-sm border-r">{row.from_number}</TableCell>
+                        <TableCell className="border-r">
                           <Badge variant="secondary" className="text-xs">
                             {row.event_type}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-xs">
+                        <TableCell className="max-w-xs border-r">
                           <div className="truncate" title={row.user_message}>
                             {row.user_message}
                           </div>
                         </TableCell>
-                        <TableCell className="max-w-xs">
+                        <TableCell className="max-w-xs border-r">
                           <div className="truncate" title={row.ai_response}>
                             {row.ai_response}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="border-r">
                           <Badge 
                             variant={row.call_status === 'completed' ? 'default' : 'outline'}
                             className="text-xs"
@@ -411,13 +411,13 @@ const AdminSimple = () => {
                             {row.call_status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm">{row.location}</TableCell>
-                        <TableCell className="text-center">{row.interactions}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-sm border-r">{row.location}</TableCell>
+                        <TableCell className="text-center border-r">{row.interactions}</TableCell>
+                        <TableCell className="border-r">
                           <Badge variant="outline" className="text-xs">{row.openai_model}</Badge>
                         </TableCell>
-                        <TableCell className="text-right">{row.tokens_used.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-mono text-xs text-green-600">
+                        <TableCell className="text-right border-r">{row.tokens_used.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-mono text-xs text-green-600 border-r">
                           {row.cost_usd}
                         </TableCell>
                         <TableCell className="font-mono text-xs">
