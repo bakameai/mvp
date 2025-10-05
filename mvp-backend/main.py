@@ -18,8 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# the newest OpenAI model is "gpt-5" which was released August 7, 2025.
-# do not change this unless explicitly requested by the user
+# Using GPT-4o as requested by user
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # In-memory storage for call logs (for MVP)
@@ -80,18 +79,18 @@ Your Approach:
 
 Remember: You're on a phone call, so be concise and conversational. Your goal is to help students discover knowledge, not just deliver information."""
 
-        print("[GREETING] Generating dynamic GPT greeting...")
+        print("[GREETING] Generating dynamic GPT-4o greeting...")
         greeting_response = openai_client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": "A student just called. Please greet them warmly and invite them to ask a question. Keep it very brief - just 1-2 sentences for a phone call."}
             ],
             temperature=1.0,
-            max_completion_tokens=80
+            max_tokens=80
         )
         greeting = greeting_response.choices[0].message.content
-        print(f"[GREETING] GPT greeting: {greeting}")
+        print(f"[GREETING] GPT-4o greeting: {greeting}")
     except Exception as e:
         print(f"[GREETING] Error generating greeting: {e}")
     
@@ -153,18 +152,18 @@ Your Approach:
 
 Remember: You're on a phone call, so be concise and conversational. Your goal is to help students discover knowledge, not just deliver information."""
 
-        print(f"[GPT CALL] User said: {user_speech}")
+        print(f"[GPT-4o CALL] User said: {user_speech}")
         ai_response = openai_client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_speech}
             ],
             temperature=1.0,
-            max_completion_tokens=150
+            max_tokens=150
         )
         ai_text = ai_response.choices[0].message.content
-        print(f"[GPT RESPONSE] AI said: {ai_text}")
+        print(f"[GPT-4o RESPONSE] AI said: {ai_text}")
     except Exception as e:
         ai_text = "I'm having trouble processing that right now. Please try again later."
         print(f"OpenAI error: {e}")
