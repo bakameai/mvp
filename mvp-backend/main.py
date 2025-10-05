@@ -52,10 +52,8 @@ async def handle_incoming_call(request: Request):
         "timestamp": str(form_data.get("Timestamp", ""))
     })
     
-    # Create TwiML response
+    # Create TwiML response - let GPT handle the greeting naturally
     response = VoiceResponse()
-    response.say("Welcome to Bakame AI. I'm your learning assistant. How can I help you today?", 
-                 voice="alice", language="en-US")
     
     # Gather user speech
     gather = Gather(
@@ -64,7 +62,6 @@ async def handle_incoming_call(request: Request):
         speech_timeout='auto',
         language='en-US'
     )
-    gather.say("Please tell me what you'd like to learn about.")
     response.append(gather)
     
     # If no input, redirect
@@ -112,16 +109,18 @@ Your Approach:
 
 Remember: You're on a phone call, so be concise and conversational. Your goal is to help students discover knowledge, not just deliver information."""
 
+        print(f"[GPT CALL] User said: {user_speech}")
         ai_response = openai_client.chat.completions.create(
             model="gpt-5",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_speech}
             ],
-            temperature=1.5,
+            temperature=1.0,
             max_completion_tokens=150
         )
         ai_text = ai_response.choices[0].message.content
+        print(f"[GPT RESPONSE] AI said: {ai_text}")
     except Exception as e:
         ai_text = "I'm having trouble processing that right now. Please try again later."
         print(f"OpenAI error: {e}")
