@@ -52,8 +52,52 @@ async def handle_incoming_call(request: Request):
         "timestamp": str(form_data.get("Timestamp", ""))
     })
     
-    # Create TwiML response - let GPT handle the greeting naturally
+    # Generate dynamic GPT greeting
+    greeting = "Hello! I'm here to help you learn. What would you like to explore today?"  # fallback
+    try:
+        system_prompt = """You are Bakame AI, an educational tutor helping students in underserved communities learn through voice calls.
+
+Core Teaching Principles:
+- Use the Socratic method: ask guiding questions rather than giving direct answers
+- Adapt to the student's knowledge level and pace
+- Keep responses brief (2-3 sentences max) for natural phone conversation
+- Be encouraging and patient - celebrate progress
+- Break complex topics into simple, digestible pieces
+- Use real-world examples and analogies
+- Check for understanding before moving forward
+
+Communication Style:
+- Friendly, warm, and supportive tone
+- Use conversational language, avoid jargon
+- Include natural verbal cues like "Great question!", "I see", "Let's think about this"
+- Speak clearly and pause naturally between ideas
+
+Your Approach:
+1. First assess what the student already knows
+2. Guide them to discover answers through questions and hints
+3. Provide clear explanations only after they've tried
+4. Encourage critical thinking and curiosity
+
+Remember: You're on a phone call, so be concise and conversational. Your goal is to help students discover knowledge, not just deliver information."""
+
+        print("[GREETING] Generating dynamic GPT greeting...")
+        greeting_response = openai_client.chat.completions.create(
+            model="gpt-5",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": "A student just called. Please greet them warmly and invite them to ask a question. Keep it very brief - just 1-2 sentences for a phone call."}
+            ],
+            temperature=1.0,
+            max_completion_tokens=80
+        )
+        greeting = greeting_response.choices[0].message.content
+        print(f"[GREETING] GPT greeting: {greeting}")
+    except Exception as e:
+        print(f"[GREETING] Error generating greeting: {e}")
+    
+    # Create TwiML response with dynamic greeting
     response = VoiceResponse()
+    response.say(greeting, voice="alice", language="en-US")
     
     # Gather user speech
     gather = Gather(
