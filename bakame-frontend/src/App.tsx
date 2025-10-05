@@ -26,6 +26,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import TelephonyAdminDashboard from "./pages/TelephonyAdminDashboard";
 import LearningModules from "./pages/LearningModules";
 import IVRInterface from "./pages/IVRInterface";
+import AdminSimple from "./pages/AdminSimple";
 
 const queryClient = new QueryClient();
 
@@ -38,7 +39,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<AdminSimple />} />
               <Route path="/about" element={<About />} />
               <Route path="/team" element={<Team />} />
               <Route path="/contact" element={<Contact />} />
