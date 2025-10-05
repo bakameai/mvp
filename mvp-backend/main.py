@@ -70,17 +70,15 @@ def log_openai_usage(call_sid: str, model: str, usage, request_type: str):
     estimated_cost = estimate_cost(model, usage.prompt_tokens, usage.completion_tokens)
     
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO openai_usage_logs 
-            (call_sid, model, prompt_tokens, completion_tokens, total_tokens, estimated_cost, request_type, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (call_sid, model, usage.prompt_tokens, usage.completion_tokens, 
-              usage.total_tokens, estimated_cost, request_type, datetime.utcnow()))
-        conn.commit()
-        cur.close()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO openai_usage_logs 
+                    (call_sid, model, prompt_tokens, completion_tokens, total_tokens, estimated_cost, request_type, timestamp)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (call_sid, model, usage.prompt_tokens, usage.completion_tokens, 
+                      usage.total_tokens, estimated_cost, request_type, datetime.utcnow()))
+                conn.commit()
         print(f"[OPENAI USAGE] {request_type}: {usage.total_tokens} tokens, ~${estimated_cost}")
     except Exception as e:
         print(f"[DB ERROR] Failed to log OpenAI usage: {e}")
@@ -109,19 +107,17 @@ async def handle_incoming_call(request: Request):
     
     # Store Twilio call details in database
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO twilio_call_logs 
-            (call_sid, from_number, to_number, call_status, direction, from_city, from_state, from_country, start_time, interactions)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (call_sid) DO NOTHING
-        """, (call_sid, from_number, form_data.get("To"), call_status, form_data.get("Direction"),
-              form_data.get("FromCity"), form_data.get("FromState"), form_data.get("FromCountry"), 
-              datetime.utcnow(), 0))
-        conn.commit()
-        cur.close()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO twilio_call_logs 
+                    (call_sid, from_number, to_number, call_status, direction, from_city, from_state, from_country, start_time, interactions)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (call_sid) DO NOTHING
+                """, (call_sid, from_number, form_data.get("To"), call_status, form_data.get("Direction"),
+                      form_data.get("FromCity"), form_data.get("FromState"), form_data.get("FromCountry"), 
+                      datetime.utcnow(), 0))
+                conn.commit()
     except Exception as e:
         print(f"[DB ERROR] Failed to log Twilio call: {e}")
     
@@ -132,16 +128,14 @@ async def handle_incoming_call(request: Request):
     
     # Log the incoming call
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO call_logs 
-            (call_sid, from_number, message, ai_response, timestamp, event_type)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (call_sid, from_number, "Incoming call", None, datetime.utcnow(), "call_started"))
-        conn.commit()
-        cur.close()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO call_logs 
+                    (call_sid, from_number, message, ai_response, timestamp, event_type)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (call_sid, from_number, "Incoming call", None, datetime.utcnow(), "call_started"))
+                conn.commit()
     except Exception as e:
         print(f"[DB ERROR] Failed to log call: {e}")
     
@@ -228,16 +222,14 @@ async def process_speech(request: Request):
     
     # Update Twilio call details - increment interactions
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            UPDATE twilio_call_logs 
-            SET interactions = interactions + 1
-            WHERE call_sid = %s
-        """, (call_sid,))
-        conn.commit()
-        cur.close()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE twilio_call_logs 
+                    SET interactions = interactions + 1
+                    WHERE call_sid = %s
+                """, (call_sid,))
+                conn.commit()
     except Exception as e:
         print(f"[DB ERROR] Failed to update interactions: {e}")
     
@@ -298,16 +290,14 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
     
     # Log the interaction
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO call_logs 
-            (call_sid, from_number, message, ai_response, timestamp, event_type)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (call_sid, form_data.get("From"), user_speech, ai_text, datetime.utcnow(), "conversation"))
-        conn.commit()
-        cur.close()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO call_logs 
+                    (call_sid, from_number, message, ai_response, timestamp, event_type)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (call_sid, form_data.get("From"), user_speech, ai_text, datetime.utcnow(), "conversation"))
+                conn.commit()
     except Exception as e:
         print(f"[DB ERROR] Failed to log conversation: {e}")
     
@@ -347,17 +337,15 @@ async def handle_continue(request: Request):
     
     # Log the continuation decision
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO call_logs 
-            (call_sid, from_number, message, ai_response, timestamp, event_type)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (call_sid, form_data.get("From"), f"Continue prompt response: {user_speech}", 
-              None, datetime.utcnow(), "continuation_decision"))
-        conn.commit()
-        cur.close()
-        conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO call_logs 
+                    (call_sid, from_number, message, ai_response, timestamp, event_type)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (call_sid, form_data.get("From"), f"Continue prompt response: {user_speech}", 
+                      None, datetime.utcnow(), "continuation_decision"))
+                conn.commit()
     except Exception as e:
         print(f"[DB ERROR] Failed to log continuation decision: {e}")
     
@@ -376,16 +364,14 @@ async def handle_continue(request: Request):
         
         # Update Twilio call details
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("""
-                UPDATE twilio_call_logs 
-                SET end_time = %s, call_status = 'completed'
-                WHERE call_sid = %s
-            """, (datetime.utcnow(), call_sid))
-            conn.commit()
-            cur.close()
-            conn.close()
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE twilio_call_logs 
+                        SET end_time = %s, call_status = 'completed'
+                        WHERE call_sid = %s
+                    """, (datetime.utcnow(), call_sid))
+                    conn.commit()
         except Exception as e:
             print(f"[DB ERROR] Failed to update call end time: {e}")
         
@@ -421,16 +407,14 @@ async def handle_continue(request: Request):
         
         # Update Twilio call details
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("""
-                UPDATE twilio_call_logs 
-                SET end_time = %s, call_status = 'completed'
-                WHERE call_sid = %s
-            """, (datetime.utcnow(), call_sid))
-            conn.commit()
-            cur.close()
-            conn.close()
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE twilio_call_logs 
+                        SET end_time = %s, call_status = 'completed'
+                        WHERE call_sid = %s
+                    """, (datetime.utcnow(), call_sid))
+                    conn.commit()
         except Exception as e:
             print(f"[DB ERROR] Failed to update call end time: {e}")
         
@@ -443,16 +427,12 @@ async def handle_continue(request: Request):
 async def get_call_logs():
     """Get all call logs for admin dashboard"""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT * FROM call_logs ORDER BY timestamp DESC")
-        calls = cur.fetchall()
-        cur.close()
-        conn.close()
-        
-        # Convert to list of dicts
-        calls_list = [dict(call) for call in calls]
-        return {"calls": calls_list, "total": len(calls_list)}
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT * FROM call_logs ORDER BY timestamp DESC")
+                calls = cur.fetchall()
+                calls_list = [dict(call) for call in calls]
+                return {"calls": calls_list, "total": len(calls_list)}
     except Exception as e:
         print(f"[DB ERROR] Failed to fetch call logs: {e}")
         return {"calls": [], "total": 0}
@@ -461,27 +441,24 @@ async def get_call_logs():
 async def get_openai_usage():
     """Get OpenAI usage statistics"""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT * FROM openai_usage_logs ORDER BY timestamp DESC")
-        logs = cur.fetchall()
-        cur.close()
-        conn.close()
-        
-        logs_list = [dict(log) for log in logs]
-        total_tokens = sum(log["total_tokens"] for log in logs_list)
-        total_cost = sum(float(log["estimated_cost"]) for log in logs_list)
-        
-        return {
-            "logs": logs_list,
-            "summary": {
-                "total_requests": len(logs_list),
-                "total_tokens": total_tokens,
-                "total_cost": round(total_cost, 4),
-                "greeting_requests": len([l for l in logs_list if l["request_type"] == "greeting_generation"]),
-                "conversation_requests": len([l for l in logs_list if l["request_type"] == "conversation_response"])
-            }
-        }
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT * FROM openai_usage_logs ORDER BY timestamp DESC")
+                logs = cur.fetchall()
+                logs_list = [dict(log) for log in logs]
+                total_tokens = sum(log["total_tokens"] for log in logs_list)
+                total_cost = sum(float(log["estimated_cost"]) for log in logs_list)
+                
+                return {
+                    "logs": logs_list,
+                    "summary": {
+                        "total_requests": len(logs_list),
+                        "total_tokens": total_tokens,
+                        "total_cost": round(total_cost, 4),
+                        "greeting_requests": len([l for l in logs_list if l["request_type"] == "greeting_generation"]),
+                        "conversation_requests": len([l for l in logs_list if l["request_type"] == "conversation_response"])
+                    }
+                }
     except Exception as e:
         print(f"[DB ERROR] Failed to fetch OpenAI usage: {e}")
         return {"logs": [], "summary": {"total_requests": 0, "total_tokens": 0, "total_cost": 0, "greeting_requests": 0, "conversation_requests": 0}}
@@ -490,15 +467,12 @@ async def get_openai_usage():
 async def get_twilio_calls():
     """Get Twilio call details"""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT * FROM twilio_call_logs ORDER BY start_time DESC")
-        calls = cur.fetchall()
-        cur.close()
-        conn.close()
-        
-        calls_list = [dict(call) for call in calls]
-        return {"calls": calls_list, "total": len(calls_list)}
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT * FROM twilio_call_logs ORDER BY start_time DESC")
+                calls = cur.fetchall()
+                calls_list = [dict(call) for call in calls]
+                return {"calls": calls_list, "total": len(calls_list)}
     except Exception as e:
         print(f"[DB ERROR] Failed to fetch Twilio calls: {e}")
         return {"calls": [], "total": 0}
@@ -518,47 +492,43 @@ async def get_conversation(call_sid: str):
 async def get_dashboard_stats():
     """Get comprehensive dashboard statistics"""
     try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # Get call stats
-        cur.execute("SELECT COUNT(*) as total FROM call_logs")
-        total_calls = cur.fetchone()["total"]
-        
-        cur.execute("SELECT COUNT(DISTINCT from_number) as unique FROM call_logs WHERE from_number IS NOT NULL")
-        unique_callers = cur.fetchone()["unique"]
-        
-        cur.execute("SELECT COUNT(*) as conversations FROM call_logs WHERE event_type = 'conversation'")
-        total_conversations = cur.fetchone()["conversations"]
-        
-        # Get OpenAI stats
-        cur.execute("SELECT COUNT(*) as total, COALESCE(SUM(total_tokens), 0) as tokens, COALESCE(SUM(estimated_cost), 0) as cost FROM openai_usage_logs")
-        openai_stats = cur.fetchone()
-        
-        # Get Twilio stats
-        cur.execute("SELECT COUNT(*) as total, COUNT(CASE WHEN call_status = 'completed' THEN 1 END) as completed FROM twilio_call_logs")
-        twilio_stats = cur.fetchone()
-        
-        cur.close()
-        conn.close()
-        
-        return {
-            "calls": {
-                "total": total_calls,
-                "unique_callers": unique_callers,
-                "conversations": total_conversations,
-                "active_sessions": len(call_sessions)
-            },
-            "openai": {
-                "total_requests": openai_stats["total"],
-                "total_tokens": int(openai_stats["tokens"]),
-                "estimated_cost": round(float(openai_stats["cost"]), 4)
-            },
-            "twilio": {
-                "total_calls": twilio_stats["total"],
-                "completed_calls": twilio_stats["completed"]
-            }
-        }
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # Get call stats
+                cur.execute("SELECT COUNT(*) as total FROM call_logs")
+                total_calls = cur.fetchone()["total"]
+                
+                cur.execute("SELECT COUNT(DISTINCT from_number) as unique FROM call_logs WHERE from_number IS NOT NULL")
+                unique_callers = cur.fetchone()["unique"]
+                
+                cur.execute("SELECT COUNT(*) as conversations FROM call_logs WHERE event_type = 'conversation'")
+                total_conversations = cur.fetchone()["conversations"]
+                
+                # Get OpenAI stats
+                cur.execute("SELECT COUNT(*) as total, COALESCE(SUM(total_tokens), 0) as tokens, COALESCE(SUM(estimated_cost), 0) as cost FROM openai_usage_logs")
+                openai_stats = cur.fetchone()
+                
+                # Get Twilio stats
+                cur.execute("SELECT COUNT(*) as total, COUNT(CASE WHEN call_status = 'completed' THEN 1 END) as completed FROM twilio_call_logs")
+                twilio_stats = cur.fetchone()
+                
+                return {
+                    "calls": {
+                        "total": total_calls,
+                        "unique_callers": unique_callers,
+                        "conversations": total_conversations,
+                        "active_sessions": len(call_sessions)
+                    },
+                    "openai": {
+                        "total_requests": openai_stats["total"],
+                        "total_tokens": int(openai_stats["tokens"]),
+                        "estimated_cost": round(float(openai_stats["cost"]), 4)
+                    },
+                    "twilio": {
+                        "total_calls": twilio_stats["total"],
+                        "completed_calls": twilio_stats["completed"]
+                    }
+                }
     except Exception as e:
         print(f"[DB ERROR] Failed to fetch dashboard stats: {e}")
         return {
