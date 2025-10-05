@@ -86,8 +86,7 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": "A student just called. Please greet them warmly and invite them to ask a question. Keep it very brief - just 1-2 sentences for a phone call."}
             ],
-            temperature=1.0,
-            max_tokens=80
+            temperature=1.0
         )
         greeting = greeting_response.choices[0].message.content
         print(f"[GREETING] GPT-4o greeting: {greeting}")
@@ -159,8 +158,7 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_speech}
             ],
-            temperature=1.0,
-            max_tokens=150
+            temperature=1.0
         )
         ai_text = ai_response.choices[0].message.content
         print(f"[GPT-4o RESPONSE] AI said: {ai_text}")
@@ -180,6 +178,19 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
     # Create TwiML response
     response = VoiceResponse()
     response.say(ai_text, voice="alice", language="en-US")
+    
+    # Ask if they want to continue
+    gather = Gather(
+        input='speech',
+        action='/voice/continue',
+        speech_timeout='auto',
+        language='en-US',
+        timeout=3
+    )
+    gather.say("Would you like to ask another question?", voice="alice")
+    response.append(gather)
+    
+    # If no response, thank and hangup
     response.say("Thank you for using Bakame AI. Goodbye!", voice="alice")
     response.hangup()
     
