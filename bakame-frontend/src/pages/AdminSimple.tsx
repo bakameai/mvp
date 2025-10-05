@@ -17,7 +17,9 @@ const AdminSimple = () => {
   const [loading, setLoading] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'unknown' | 'healthy' | 'error'>('unknown');
 
-  const API_BASE = 'http://localhost:8000';
+  const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8000'
+    : `${window.location.protocol}//${window.location.hostname.replace('-00-', '-01-')}:8000`;
 
   const checkBackendHealth = async () => {
     try {

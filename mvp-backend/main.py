@@ -1,4 +1,5 @@
 import os
+import re
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from twilio.twiml.voice_response import VoiceResponse, Gather
@@ -111,20 +112,68 @@ async def process_speech(request: Request):
     # Create TwiML response
     response = VoiceResponse()
     response.say(ai_text, voice="alice", language="en-US")
-    response.say("Would you like to ask anything else?", voice="alice")
-    
-    # Gather next input
-    gather = Gather(
-        input='speech',
-        action='/voice/process',
-        speech_timeout='auto',
-        language='en-US'
-    )
-    gather.say("Say yes to continue, or no to end the call.")
-    response.append(gather)
-    
-    response.say("Thank you for using Bakame AI. Goodbye!")
+    response.say("Thank you for using Bakame AI. Goodbye!", voice="alice")
     response.hangup()
+    
+    return Response(content=str(response), media_type="application/xml")
+
+def check_intent(text: str, keywords: list) -> bool:
+    """Check if any keyword matches as a whole word in the text"""
+    text_lower = text.lower()
+    pattern = r'\b(' + '|'.join(map(re.escape, keywords)) + r')\b'
+    return bool(re.search(pattern, text_lower))
+
+@app.post("/voice/continue")
+async def handle_continue(request: Request):
+    """Handle user decision to continue or end call"""
+    form_data = await request.form()
+    call_sid = form_data.get("CallSid")
+    user_speech = form_data.get("SpeechResult", "")
+    
+    # Log the continuation decision
+    call_logs.append({
+        "call_sid": call_sid,
+        "from_number": form_data.get("From"),
+        "message": f"Continue prompt response: {user_speech}",
+        "ai_response": None,
+        "timestamp": str(form_data.get("Timestamp", ""))
+    })
+    
+    response = VoiceResponse()
+    
+    # Check if user wants to continue using whole-word matching
+    # Check exit keywords FIRST to prioritize stopping
+    exit_keywords = ['no', 'nope', 'stop', 'goodbye', 'bye', 'quit', 'exit', 'done', 'finish', 'end']
+    continue_keywords = ['yes', 'yeah', 'yep', 'sure', 'okay', 'ok', 'continue']
+    
+    if check_intent(user_speech, exit_keywords):
+        # End the call (check this FIRST)
+        response.say("Thank you for using Bakame AI. Goodbye!", voice="alice")
+        response.hangup()
+    elif check_intent(user_speech, continue_keywords):
+        # Continue with another question
+        gather = Gather(
+            input='speech',
+            action='/voice/process',
+            speech_timeout='auto',
+            language='en-US'
+        )
+        gather.say("What would you like to know?", voice="alice")
+        response.append(gather)
+        response.redirect('/voice/incoming')
+    else:
+        # Unclear response, ask again
+        gather = Gather(
+            input='speech',
+            action='/voice/continue',
+            speech_timeout='auto',
+            language='en-US',
+            timeout=3
+        )
+        gather.say("I didn't quite catch that. Would you like to continue? Say yes or no.", voice="alice")
+        response.append(gather)
+        response.say("Thank you for using Bakame AI. Goodbye!", voice="alice")
+        response.hangup()
     
     return Response(content=str(response), media_type="application/xml")
 
