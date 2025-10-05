@@ -56,6 +56,8 @@ interface UnifiedRow {
   call_status: string;
   location: string;
   interactions: number;
+  time_used: string;
+  topic_discussed: string;
   openai_model: string;
   tokens_used: number;
   cost_usd: string;
@@ -142,12 +144,34 @@ const AdminSimple = () => {
           call_status: '-',
           location: '-',
           interactions: 0,
+          time_used: '-',
+          topic_discussed: '-',
           openai_model: '-',
           tokens_used: 0,
           cost_usd: '-'
         });
       }
       return rows.get(uniqueId)!;
+    };
+
+    const calculateDuration = (startTime: string, endTime?: string): string => {
+      if (!endTime) return '-';
+      try {
+        const start = new Date(startTime).getTime();
+        const end = new Date(endTime).getTime();
+        const seconds = Math.floor((end - start) / 1000);
+        return seconds > 0 ? `${seconds}s` : '-';
+      } catch {
+        return '-';
+      }
+    };
+
+    const extractTopic = (userMessage: string, eventType: string): string => {
+      if (userMessage && userMessage !== '-') {
+        const firstWords = userMessage.split(' ').slice(0, 5).join(' ');
+        return firstWords.length < userMessage.length ? `${firstWords}...` : firstWords;
+      }
+      return eventType !== '-' ? eventType : '-';
     };
 
     calls.forEach((call, idx) => {
@@ -158,12 +182,14 @@ const AdminSimple = () => {
       row.event_type = call.event_type || '-';
       row.user_message = call.message || '-';
       row.ai_response = call.ai_response || '-';
+      row.topic_discussed = extractTopic(call.message, call.event_type);
       
       const twilioCall = twilioCalls.find(tc => tc.call_sid === call.call_sid);
       if (twilioCall) {
         row.call_status = twilioCall.call_status;
         row.location = `${twilioCall.from_city || ''} ${twilioCall.from_state || ''} ${twilioCall.from_country || ''}`.trim() || '-';
         row.interactions = twilioCall.interactions;
+        row.time_used = calculateDuration(twilioCall.start_time, twilioCall.end_time);
       }
     });
 
@@ -194,6 +220,8 @@ const AdminSimple = () => {
       row.event_type = 'twilio_call';
       row.location = `${twilioCall.from_city || ''} ${twilioCall.from_state || ''} ${twilioCall.from_country || ''}`.trim() || '-';
       row.interactions = twilioCall.interactions;
+      row.time_used = calculateDuration(twilioCall.start_time, twilioCall.end_time);
+      row.topic_discussed = row.topic_discussed === '-' ? 'General Call' : row.topic_discussed;
     });
 
     return Array.from(rows.values()).sort((a, b) => 
@@ -219,6 +247,8 @@ const AdminSimple = () => {
       'Call Status',
       'Location',
       'Interactions',
+      'Time Used',
+      'Topic Discussed',
       'OpenAI Model',
       'Tokens Used',
       'Cost (USD)'
@@ -244,6 +274,8 @@ const AdminSimple = () => {
         escapeCSV(row.call_status),
         escapeCSV(row.location),
         escapeCSV(row.interactions),
+        escapeCSV(row.time_used),
+        escapeCSV(row.topic_discussed),
         escapeCSV(row.openai_model),
         escapeCSV(row.tokens_used),
         escapeCSV(row.cost_usd)
@@ -366,7 +398,9 @@ const AdminSimple = () => {
                     <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>AI Response</th>
                     <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Call Status</th>
                     <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Location</th>
-                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Duration (s)</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Interactions</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Time Used</th>
+                    <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Topic Discussed</th>
                     <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Model</th>
                     <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Tokens</th>
                     <th style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: '500' }}>Cost (USD)</th>
@@ -376,7 +410,7 @@ const AdminSimple = () => {
                 <tbody>
                   {unifiedData.length === 0 ? (
                     <tr>
-                      <td colSpan={12} style={{ border: '1px solid #d1d5db', padding: '3rem 1rem', textAlign: 'center' }}>
+                      <td colSpan={14} style={{ border: '1px solid #d1d5db', padding: '3rem 1rem', textAlign: 'center' }}>
                         <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>No call data yet. Make your first test call to see data appear here!</p>
                       </td>
@@ -413,6 +447,8 @@ const AdminSimple = () => {
                         </td>
                         <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>{row.location}</td>
                         <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'center' }}>{row.interactions}</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', textAlign: 'center' }}>{row.time_used}</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>{row.topic_discussed}</td>
                         <td style={{ border: '1px solid #d1d5db', padding: '0.5rem 1rem' }}>
                           <Badge variant="outline" className="text-xs">{row.openai_model}</Badge>
                         </td>
