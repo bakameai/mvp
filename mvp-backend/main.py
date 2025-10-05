@@ -246,40 +246,46 @@ Your Approach:
 
 Remember: You're on a phone call, so be concise and conversational. Your goal is to help students discover knowledge, not just deliver information."""
 
-        # Check if this is a new user who needs profile setup
+        # Build context for ChatGPT
+        profile_context = ""
+        
         if not user.get('profile_completed'):
-            print("[GREETING] New user - starting profile collection")
-            greeting_response = openai_client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": "This is a new student calling for the first time. Greet them warmly and ask them their name in a friendly, conversational way. Keep it very brief - 1-2 sentences."}
-                ],
-                temperature=1.0
-            )
-            greeting = greeting_response.choices[0].message.content
-            log_openai_usage(str(call_sid), "gpt-4o", greeting_response.usage, "new_user_greeting")
+            # New user - ChatGPT needs to collect: name, region, school
+            profile_state = redis_service.get_user_context(from_number).get('user_state', {})
+            missing_info = []
+            if not profile_state.get('name_collected'):
+                missing_info.append("name")
+            if not profile_state.get('region_collected'):
+                missing_info.append("location/region")
+            if not profile_state.get('school_collected'):
+                missing_info.append("school")
+            
+            profile_context = f"\n\nIMPORTANT: This is a new student. During this call, naturally find out their {', '.join(missing_info)} if they haven't shared it yet. Be conversational and friendly - don't interrogate them."
+            print(f"[GREETING] New user - needs: {', '.join(missing_info)}")
         else:
-            # Returning user - personalized greeting
+            # Returning user - provide their context
             user_name = user.get('name', 'friend')
             user_context = redis_service.get_user_context(from_number)
             
-            context_info = ""
+            profile_context = f"\n\nStudent name: {user_name}"
             if user_context.get('topics_discussed'):
                 recent_topics = user_context['topics_discussed'][-3:]
-                context_info = f"They previously discussed: {', '.join(recent_topics)}."
+                profile_context += f"\nPreviously discussed: {', '.join(recent_topics)}"
             
             print(f"[GREETING] Returning user: {user_name}")
-            greeting_response = openai_client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Welcome back {user_name}! {context_info} Greet them warmly and ask what they'd like to learn about today. Keep it brief - 1-2 sentences."}
-                ],
-                temperature=1.0
-            )
-            greeting = greeting_response.choices[0].message.content
-            log_openai_usage(str(call_sid), "gpt-4o", greeting_response.usage, "returning_user_greeting")
+        
+        enhanced_system_prompt = system_prompt + profile_context
+        
+        greeting_response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": enhanced_system_prompt},
+                {"role": "user", "content": "Generate a warm greeting for the student calling."}
+            ],
+            temperature=1.0
+        )
+        greeting = greeting_response.choices[0].message.content
+        log_openai_usage(str(call_sid), "gpt-4o", greeting_response.usage, "greeting_generation")
         
         print(f"[GREETING] GPT-4o greeting: {greeting}")
     except Exception as e:
@@ -380,53 +386,33 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
         if not user.get('profile_completed'):
             profile_state = user_context.get('user_state', {})
             
-            # Collect name (first interaction)
+            # Detect if user shared profile information
+            user_speech_lower = user_speech.lower()
+            
+            # Check for name (if not collected)
             if not profile_state.get('name_collected'):
-                print("[PROFILE] Collecting name...")
+                # Assume first response is their name, or extract it intelligently
                 profile_state['name_collected'] = True
                 profile_state['user_name'] = user_speech.strip()
                 user_context['user_state'] = profile_state
                 redis_service.set_user_context(phone_number, user_context)
+                print(f"[PROFILE] Name collected: {user_speech.strip()}")
                 
-                # Ask for region
-                system_profile_prompt = system_prompt + "\n\nYou're helping a new student set up their profile. They just told you their name. Ask them where they're from (their city or region) in a friendly, conversational way. Keep it very brief."
-                messages = [{"role": "system", "content": system_profile_prompt}] + call_sessions[call_sid]
-                
-                completion = openai_client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=messages,
-                    temperature=1.0
-                )
-                ai_text = completion.choices[0].message.content
-                log_openai_usage(str(call_sid), "gpt-4o", completion.usage, "profile_region")
-                
-            # Collect region
+            # Check for region/location
             elif not profile_state.get('region_collected'):
-                print("[PROFILE] Collecting region...")
                 profile_state['region_collected'] = True
                 profile_state['user_region'] = user_speech.strip()
                 user_context['user_state'] = profile_state
                 redis_service.set_user_context(phone_number, user_context)
+                print(f"[PROFILE] Region collected: {user_speech.strip()}")
                 
-                # Ask for school
-                system_profile_prompt = system_prompt + "\n\nYou're helping a new student set up their profile. They just told you where they're from. Ask them what school they go to in a friendly, conversational way. Keep it very brief."
-                messages = [{"role": "system", "content": system_profile_prompt}] + call_sessions[call_sid]
-                
-                completion = openai_client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=messages,
-                    temperature=1.0
-                )
-                ai_text = completion.choices[0].message.content
-                log_openai_usage(str(call_sid), "gpt-4o", completion.usage, "profile_school")
-                
-            # Collect school and complete profile
+            # Check for school
             elif not profile_state.get('school_collected'):
-                print("[PROFILE] Completing profile...")
                 profile_state['school_collected'] = True
                 profile_state['user_school'] = user_speech.strip()
                 user_context['user_state'] = profile_state
                 redis_service.set_user_context(phone_number, user_context)
+                print(f"[PROFILE] School collected: {user_speech.strip()}")
                 
                 # Save to database
                 update_user_profile(
@@ -436,19 +422,31 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
                     school=profile_state.get('user_school')
                 )
                 print(f"[PROFILE] Profile completed for {phone_number}")
-                
-                # Welcome them and start learning
-                user_name = profile_state.get('user_name', 'friend')
-                system_complete_prompt = system_prompt + f"\n\nYou just finished collecting profile info from {user_name}. Welcome them and ask what they'd like to learn about. Keep it brief and encouraging."
-                messages = [{"role": "system", "content": system_complete_prompt}] + call_sessions[call_sid]
-                
-                completion = openai_client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=messages,
-                    temperature=1.0
-                )
-                ai_text = completion.choices[0].message.content
-                log_openai_usage(str(call_sid), "gpt-4o", completion.usage, "profile_complete")
+            
+            # Build context for ChatGPT about what's still needed
+            missing_info = []
+            if not profile_state.get('name_collected'):
+                missing_info.append("name")
+            if not profile_state.get('region_collected'):
+                missing_info.append("location/region")
+            if not profile_state.get('school_collected'):
+                missing_info.append("school")
+            
+            profile_goal = ""
+            if missing_info:
+                profile_goal = f"\n\nGOAL: Naturally find out their {', '.join(missing_info)} during this conversation. Be conversational - don't make it feel like a form."
+            
+            enhanced_prompt = system_prompt + profile_goal
+            messages = [{"role": "system", "content": enhanced_prompt}] + call_sessions[call_sid]
+            
+            completion = openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=messages,
+                temperature=1.0
+            )
+            
+            ai_text = completion.choices[0].message.content
+            log_openai_usage(str(call_sid), "gpt-4o", completion.usage, "conversation_response")
         else:
             # Normal learning conversation for users with completed profiles
             user_name = user.get('name', 'friend')
@@ -463,11 +461,14 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
                     log_learning_history(phone_number, keyword)
                     break
             
-            # Add conversation to history and Redis
-            context_message = f"Student name: {user_name}. "
-            if user_context.get('topics_discussed'):
-                context_message += f"Previously discussed: {', '.join(user_context['topics_discussed'][-3:])}. "
+            # Build context for ChatGPT
+            context_parts = [f"Student name: {user_name}"]
             
+            if user_context.get('topics_discussed'):
+                recent_topics = user_context['topics_discussed'][-3:]
+                context_parts.append(f"Previous topics: {', '.join(recent_topics)}")
+            
+            context_message = "\n".join(context_parts)
             enhanced_prompt = system_prompt + f"\n\n{context_message}"
             messages = [{"role": "system", "content": enhanced_prompt}] + call_sessions[call_sid]
             
