@@ -27,12 +27,18 @@ export const AnalyticsProvider = ({ children }: AnalyticsProviderProps) => {
 
   const trackEvent = async (eventType: string, eventData: any = {}) => {
     try {
-      const user = await authAPI.getCurrentUser();
+      let userId = null;
+      try {
+        const user = await authAPI.getCurrentUser();
+        userId = user?.id || null;
+      } catch {
+        // Auth not available - continue without user ID
+      }
       
       console.log('Analytics event:', {
         event_type: eventType,
         event_data: eventData,
-        user_id: user?.id || null,
+        user_id: userId,
         session_id: sessionId,
         page_path: window.location.pathname,
         user_agent: navigator.userAgent,
@@ -44,12 +50,18 @@ export const AnalyticsProvider = ({ children }: AnalyticsProviderProps) => {
 
   const trackPageView = async (pagePath: string) => {
     try {
-      const user = await authAPI.getCurrentUser();
+      let userId = null;
+      try {
+        const user = await authAPI.getCurrentUser();
+        userId = user?.id || null;
+      } catch {
+        // Auth not available - continue without user ID
+      }
       
       console.log('Page view:', {
         event_type: 'page_view',
         event_data: { path: pagePath },
-        user_id: user?.id || null,
+        user_id: userId,
         session_id: sessionId,
         page_path: pagePath,
         user_agent: navigator.userAgent,
@@ -57,7 +69,7 @@ export const AnalyticsProvider = ({ children }: AnalyticsProviderProps) => {
 
       console.log('Session update:', {
         session_id: sessionId,
-        user_id: user?.id || null,
+        user_id: userId,
         user_agent: navigator.userAgent,
         last_activity: new Date().toISOString(),
         pages_visited: 1,
