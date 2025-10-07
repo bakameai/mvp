@@ -583,8 +583,8 @@ async def twilio_stream(ws: WebSocket):
                         pass
 
         
-        google_tts_task = asyncio.create_task(pump_google_tts_monitoring())
-        print("[Bridge] Started Google TTS monitoring task", flush=True)
+        tts_task = asyncio.create_task(pump_google_tts_monitoring())
+        print("[Bridge] Started TTS monitoring task", flush=True)
 
         while True:
             msg = await ws.receive_text()
@@ -693,13 +693,13 @@ async def twilio_stream(ws: WebSocket):
     finally:
         print(f"[Bridge] Cleanup starting at {time.time()}", flush=True)
         try:
-            if google_tts_task:
-                print("[Bridge] Cancelling Google TTS task", flush=True)
-                google_tts_task.cancel()
+            if tts_task:
+                print("[Bridge] Cancelling TTS task", flush=True)
+                tts_task.cancel()
                 try:
-                    await google_tts_task
+                    await tts_task
                 except asyncio.CancelledError:
-                    print("[Bridge] Google TTS task cancelled successfully", flush=True)
+                    print("[Bridge] TTS task cancelled successfully", flush=True)
         except Exception as e:
             print(f"[Bridge] Error cancelling task: {e}", flush=True)
         try:
