@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import Response
 import uuid
+import os
 from typing import Optional
 
 from app.services.twilio_service import twilio_service
@@ -20,82 +21,23 @@ from app.modules.general_module import general_module
 router = APIRouter()
 
 @router.post("/call")
-def handle_voice_call():
-    """Handle incoming voice calls from Twilio - Connect to ElevenLabs WebSocket stream"""
+def handle_voice_call(From: str = Form(...)):
+    """Handle incoming voice calls from Twilio - Connect to WebSocket stream with Eleven Labs TTS"""
     
-    WS_URL = "wss://bakame-elevenlabs-mcp.fly.dev/twilio-stream"
+    phone_number = From
+    app_domain = settings.app_env == "production" and "bakame-elevenlabs-mcp.fly.dev" or os.getenv('FLY_APP_NAME_DOMAIN', 'bakame-elevenlabs-mcp.fly.dev')
+    WS_URL = f"wss://{app_domain}/twilio-stream"
     
-<<<<<<< HEAD
-    try:
-        redis_service.clear_user_context(phone_number)
-        user_context = redis_service.get_user_context(phone_number)
-        
-        if not SpeechResult and not RecordingUrl:
-            welcome_msg = "Hello! I'm BAKAME, your AI learning assistant. What would you like to learn about today?"
-            
-            await logging_service.log_interaction(
-                phone_number=phone_number,
-                session_id=session_id,
-                module_name="general",
-                interaction_type="voice",
-                user_input="[CALL_START]",
-                ai_response=welcome_msg
-            )
-            
-            return Response(
-                content=twilio_service.create_voice_response(welcome_msg),
-                media_type="application/xml"
-            )
-        
-        user_input = ""
-        if SpeechResult:
-            user_input = SpeechResult
-        
-        if not user_input:
-            return Response(
-                content=twilio_service.create_voice_response("I didn't catch that. Could you please repeat?", gather_input=True),
-                media_type="application/xml"
-            )
-        
-        messages = [{"role": "user", "content": user_input}]
-        ai_response = await openai_service.generate_response(messages, "general")
-        
-        await logging_service.log_interaction(
-            phone_number=phone_number,
-            session_id=session_id,
-            module_name="general",
-            interaction_type="voice",
-            user_input=user_input,
-            ai_response=ai_response
-        )
-        
-        if any(word in user_input.lower() for word in ["goodbye", "bye", "end call", "hang up", "stop"]):
-            return Response(
-                content=twilio_service.create_voice_response("Thank you for using BAKAME! Keep learning and have a great day!", gather_input=False),
-                media_type="application/xml"
-            )
-        
-        return Response(
-            content=twilio_service.create_voice_response(ai_response),
-            media_type="application/xml"
-        )
-        
-    except Exception as e:
-        print(f"Error in voice call handler: {e}")
-        return Response(
-            content=twilio_service.create_voice_response("I'm sorry, I'm having technical difficulties. Please try again later.", gather_input=True),
-            media_type="application/xml"
-        )
-=======
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="{WS_URL}"/>
+    <Stream url="{WS_URL}">
+      <Parameter name="phone_number" value="{phone_number}" />
+    </Stream>
   </Connect>
 </Response>"""
     
     return Response(content=twiml, media_type="application/xml")
->>>>>>> bakame-mvp-implementation
 
 @router.post("/sms")
 async def handle_sms(
@@ -114,12 +56,15 @@ async def handle_sms(
     try:
         redis_service.clear_user_context(phone_number)
         user_context = redis_service.get_user_context(phone_number)
-        
-<<<<<<< HEAD
-        messages = [{"role": "user", "content": user_input}]
-        ai_response = await openai_service.generate_response(messages, "general")
-=======
         user_context["phone_number"] = phone_number
+        
+        MODULES = {
+            "english": english_module,
+            "math": math_module,
+            "comprehension": comprehension_module,
+            "debate": debate_module,
+            "general": general_module
+        }
         
         current_module_name = redis_service.get_current_module(phone_number) or "general"
         
@@ -135,7 +80,6 @@ async def handle_sms(
         ai_response = await current_module.process_input(user_input, user_context)
         
         redis_service.add_to_conversation_history(phone_number, user_input, ai_response)
->>>>>>> bakame-mvp-implementation
         
         await logging_service.log_interaction(
             phone_number=phone_number,
