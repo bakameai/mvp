@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     twilio_auth_token: str
     twilio_phone_number: str
     openai_api_key: str
+    elevenlabs_api_key: str
     elevenlabs_agent_id: str = "agent_0301k3y6dwrve63sb37n6f4ffkrj"
     use_elevenlabs: bool = False
     llama_api_key: str

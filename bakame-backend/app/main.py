@@ -24,6 +24,8 @@ from app.modules.comprehension_module import comprehension_module
 from app.modules.debate_module import debate_module
 from app.modules.general_module import general_module
 from app.google_tts_client import open_google_tts
+from app.elevenlabs_tts_client import open_elevenlabs_tts
+from app.config import settings
 
 SILENCE_THRESHOLD_MS = 250  # Reduced from 500ms for real-time conversation
 BUFFER_CHECK_INTERVAL_MS = 5  # Faster buffer processing
@@ -306,7 +308,7 @@ def log_audio_quality_metrics(pcm16k: bytes, frames: list[bytes], event_id: str 
               f"Dynamic Range={dynamic_range:.2f}, Frames={len(frames)}", flush=True)
 
 
-async def process_audio_buffer(audio_buffer: bytearray, phone_number: str, session_id: str, google_tts_client):
+async def process_audio_buffer(audio_buffer: bytearray, phone_number: str, session_id: str, tts_client=None):
     """Process accumulated audio through BAKAME AI pipeline"""
     try:
         if not phone_number:
@@ -390,18 +392,24 @@ async def twilio_stream(ws: WebSocket):
     audio_frames_count = 0
     silence_padding_active = False
 
-    google_tts_client = None
-    google_tts_task: Optional[asyncio.Task] = None
+    tts_client = None
+    tts_task: Optional[asyncio.Task] = None
     tts_ready = False
     audio_conversion_state = None
+    use_elevenlabs = True
 
     try:
-        print("[Google TTS] Connecting...", flush=True)
-        google_tts_client = await open_google_tts()
-        print("[Google TTS] Connected successfully!", flush=True)
+        if use_elevenlabs:
+            print("[ElevenLabs TTS] Connecting...", flush=True)
+            tts_client = await open_elevenlabs_tts()
+            print("[ElevenLabs TTS] Connected successfully!", flush=True)
+        else:
+            print("[Google TTS] Connecting...", flush=True)
+            tts_client = await open_google_tts()
+            print("[Google TTS] Connected successfully!", flush=True)
         
         tts_ready = True
-        print("[Google TTS] Ready for text synthesis...", flush=True)
+        print(f"[TTS] Ready for text synthesis using {'ElevenLabs' if use_elevenlabs else 'Google TTS'}...", flush=True)
 
         async def pump_google_tts_monitoring():
             """Monitor Google TTS and maintain frame rate statistics."""
@@ -625,14 +633,15 @@ async def twilio_stream(ws: WebSocket):
                         
                         if len(audio_buffer) > 0:
                             print(f"[Twilio] Processing audio buffer: {len(audio_buffer)} bytes", flush=True)
-                            ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, google_tts_client)
+                            ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, tts_client)
                             audio_buffer.clear()
                             buffer_start_time = None
                             
-                            if ai_response and ai_response.strip() and google_tts_client and tts_ready:
+                            if ai_response and ai_response.strip() and tts_client and tts_ready:
                                 try:
-                                    print(f"[Google TTS] Synthesizing response: {ai_response[:100]}...", flush=True)
-                                    async for audio_chunk in google_tts_client.synthesize_response(ai_response):
+                                    tts_name = "ElevenLabs TTS" if use_elevenlabs else "Google TTS"
+                                    print(f"[{tts_name}] Synthesizing response: {ai_response[:100]}...", flush=True)
+                                    async for audio_chunk in tts_client.synthesize_response(ai_response):
                                         frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
                                         if stream_sid:
                                             frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
@@ -640,9 +649,10 @@ async def twilio_stream(ws: WebSocket):
                                             audio_frames_count += frames_sent if frames_sent else len(frames)
                                             last_audio_time = time.time()
                                             silence_padding_active = False
-                                            print(f"[Google TTS] Sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
+                                            print(f"[{tts_name}] Sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
                                 except Exception as e:
-                                    print(f"[Google TTS] Error synthesizing response: {e}", flush=True)
+                                    tts_name = "ElevenLabs TTS" if use_elevenlabs else "Google TTS"
+                                    print(f"[{tts_name}] Error synthesizing response: {e}", flush=True)
 
                     print(f"[Twilio->Google TTS] Received {len(pcm16k)} bytes of audio data", flush=True)
                 else:
@@ -652,12 +662,13 @@ async def twilio_stream(ws: WebSocket):
                 print(f"[Twilio] Media stop at {time.time()}, WS state: {ws.client_state.name}", flush=True)
                 if len(audio_buffer) > 0:
                     print(f"[Twilio] Processing final audio buffer: {len(audio_buffer)} bytes", flush=True)
-                    ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, google_tts_client)
+                    ai_response = await process_audio_buffer(audio_buffer, phone_number, session_id, tts_client)
                     
-                    if ai_response and ai_response.strip() and google_tts_client and tts_ready:
+                    if ai_response and ai_response.strip() and tts_client and tts_ready:
                         try:
-                            print(f"[Google TTS] Synthesizing final response: {ai_response[:100]}...", flush=True)
-                            async for audio_chunk in google_tts_client.synthesize_response(ai_response):
+                            tts_name = "ElevenLabs TTS" if use_elevenlabs else "Google TTS"
+                            print(f"[{tts_name}] Synthesizing final response: {ai_response[:100]}...", flush=True)
+                            async for audio_chunk in tts_client.synthesize_response(ai_response):
                                 frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
                                 if stream_sid:
                                     frames_sent = await send_twilio_media_frames(ws, stream_sid, frames)
@@ -692,11 +703,13 @@ async def twilio_stream(ws: WebSocket):
         except Exception as e:
             print(f"[Bridge] Error cancelling task: {e}", flush=True)
         try:
-            if google_tts_client:
-                print("[Bridge] Closing Google TTS client", flush=True)
-                await google_tts_client.close()
+            if tts_client:
+                tts_name = "ElevenLabs TTS" if use_elevenlabs else "Google TTS"
+                print(f"[Bridge] Closing {tts_name} client", flush=True)
+                await tts_client.close()
         except Exception as e:
-            print(f"[Bridge] Error closing Google TTS client: {e}", flush=True)
+            tts_name = "ElevenLabs TTS" if use_elevenlabs else "Google TTS"
+            print(f"[Bridge] Error closing {tts_name} client: {e}", flush=True)
         try:
             print(f"[Bridge] Closing Twilio WebSocket, state: {ws.client_state.name}", flush=True)
             await ws.close()
