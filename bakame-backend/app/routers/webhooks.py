@@ -25,7 +25,7 @@ def handle_voice_call(From: str = Form(...)):
     """Handle incoming voice calls from Twilio - Connect to WebSocket stream with Eleven Labs TTS"""
     
     phone_number = From
-    app_domain = settings.app_env == "production" and "bakame-elevenlabs-mcp.fly.dev" or os.getenv('FLY_APP_NAME_DOMAIN', 'bakame-elevenlabs-mcp.fly.dev')
+    app_domain = "app-pyzfduqr.fly.dev"  # Your actual Fly.io deployment
     WS_URL = f"wss://{app_domain}/twilio-stream"
     
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
