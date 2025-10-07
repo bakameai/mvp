@@ -76,12 +76,12 @@ def get_or_create_user(phone_number: str) -> Dict:
                     """, (phone_number,))
                     new_user = cur.fetchone()
                     conn.commit()
-                    return dict(new_user)
+                    return dict(new_user) if new_user else {"phone_number": phone_number, "profile_completed": False}
     except Exception as e:
         print(f"[DB ERROR] Failed to get/create user: {e}")
         return {"phone_number": phone_number, "profile_completed": False}
 
-def update_user_profile(phone_number: str, name: str = None, region: str = None, school: str = None):
+def update_user_profile(phone_number: str, name: Optional[str] = None, region: Optional[str] = None, school: Optional[str] = None):
     """Update user profile information"""
     try:
         with get_db_connection() as conn:
@@ -173,9 +173,9 @@ async def root():
 async def handle_incoming_call(request: Request):
     """Handle incoming Twilio voice calls"""
     form_data = await request.form()
-    call_sid = form_data.get("CallSid")
-    from_number = form_data.get("From")
-    call_status = form_data.get("CallStatus")
+    call_sid = str(form_data.get("CallSid", ""))
+    from_number = str(form_data.get("From", ""))
+    call_status = str(form_data.get("CallStatus", ""))
     
     # Get or create user profile
     user = get_or_create_user(from_number)
@@ -313,9 +313,9 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
 async def process_speech(request: Request):
     """Process user speech and generate AI response"""
     form_data = await request.form()
-    call_sid = form_data.get("CallSid")
-    from_number = form_data.get("From")
-    user_speech = form_data.get("SpeechResult", "")
+    call_sid = str(form_data.get("CallSid", ""))
+    from_number = str(form_data.get("From", ""))
+    user_speech = str(form_data.get("SpeechResult", ""))
     
     if not user_speech:
         response = VoiceResponse()
@@ -387,13 +387,13 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
             profile_state = user_context.get('user_state', {})
             
             # Detect if user shared profile information
-            user_speech_lower = user_speech.lower()
+            user_speech_lower = str(user_speech).lower()
             
             # Check for name (if not collected)
             if not profile_state.get('name_collected'):
                 # Assume first response is their name, or extract it intelligently
                 profile_state['name_collected'] = True
-                profile_state['user_name'] = user_speech.strip()
+                profile_state['user_name'] = str(user_speech).strip()
                 user_context['user_state'] = profile_state
                 redis_service.set_user_context(phone_number, user_context)
                 print(f"[PROFILE] Name collected: {user_speech.strip()}")
@@ -401,7 +401,7 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
             # Check for region/location
             elif not profile_state.get('region_collected'):
                 profile_state['region_collected'] = True
-                profile_state['user_region'] = user_speech.strip()
+                profile_state['user_region'] = str(user_speech).strip()
                 user_context['user_state'] = profile_state
                 redis_service.set_user_context(phone_number, user_context)
                 print(f"[PROFILE] Region collected: {user_speech.strip()}")
@@ -409,7 +409,7 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
             # Check for school
             elif not profile_state.get('school_collected'):
                 profile_state['school_collected'] = True
-                profile_state['user_school'] = user_speech.strip()
+                profile_state['user_school'] = str(user_speech).strip()
                 user_context['user_state'] = profile_state
                 redis_service.set_user_context(phone_number, user_context)
                 print(f"[PROFILE] School collected: {user_speech.strip()}")
@@ -455,7 +455,7 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
             topic_keywords = ['math', 'science', 'english', 'reading', 'history', 'geography']
             detected_topic = None
             for keyword in topic_keywords:
-                if keyword in user_speech.lower():
+                if keyword in str(user_speech).lower():
                     detected_topic = keyword
                     redis_service.add_topic(phone_number, keyword)
                     log_learning_history(phone_number, keyword)
@@ -487,7 +487,7 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
         call_sessions[call_sid].append({"role": "assistant", "content": ai_text})
         
         # Store in Redis for long-term context
-        redis_service.add_to_conversation_history(phone_number, user_speech, ai_text)
+        redis_service.add_to_conversation_history(phone_number, str(user_speech), str(ai_text))
         
     except Exception as e:
         ai_text = "I'm having trouble processing that right now. Please try again later."
@@ -537,8 +537,8 @@ def check_intent(text: str, keywords: list) -> bool:
 async def handle_continue(request: Request):
     """Handle user decision to continue or end call"""
     form_data = await request.form()
-    call_sid = form_data.get("CallSid")
-    user_speech = form_data.get("SpeechResult", "")
+    call_sid = str(form_data.get("CallSid", ""))
+    user_speech = str(form_data.get("SpeechResult", ""))
     
     # Log the continuation decision
     try:
@@ -701,13 +701,16 @@ async def get_dashboard_stats():
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 # Get call stats
                 cur.execute("SELECT COUNT(*) as total FROM call_logs")
-                total_calls = cur.fetchone()["total"]
+                total_calls_result = cur.fetchone()
+                total_calls = total_calls_result["total"] if total_calls_result else 0
                 
                 cur.execute("SELECT COUNT(DISTINCT from_number) as unique FROM call_logs WHERE from_number IS NOT NULL")
-                unique_callers = cur.fetchone()["unique"]
+                unique_callers_result = cur.fetchone()
+                unique_callers = unique_callers_result["unique"] if unique_callers_result else 0
                 
                 cur.execute("SELECT COUNT(*) as conversations FROM call_logs WHERE event_type = 'conversation'")
-                total_conversations = cur.fetchone()["conversations"]
+                total_conversations_result = cur.fetchone()
+                total_conversations = total_conversations_result["conversations"] if total_conversations_result else 0
                 
                 # Get OpenAI stats
                 cur.execute("SELECT COUNT(*) as total, COALESCE(SUM(total_tokens), 0) as tokens, COALESCE(SUM(estimated_cost), 0) as cost FROM openai_usage_logs")
@@ -725,13 +728,13 @@ async def get_dashboard_stats():
                         "active_sessions": len(call_sessions)
                     },
                     "openai": {
-                        "total_requests": openai_stats["total"],
-                        "total_tokens": int(openai_stats["tokens"]),
-                        "estimated_cost": round(float(openai_stats["cost"]), 4)
+                        "total_requests": openai_stats["total"] if openai_stats else 0,
+                        "total_tokens": int(openai_stats["tokens"]) if openai_stats else 0,
+                        "estimated_cost": round(float(openai_stats["cost"]), 4) if openai_stats else 0
                     },
                     "twilio": {
-                        "total_calls": twilio_stats["total"],
-                        "completed_calls": twilio_stats["completed"]
+                        "total_calls": twilio_stats["total"] if twilio_stats else 0,
+                        "completed_calls": twilio_stats["completed"] if twilio_stats else 0
                     }
                 }
     except Exception as e:
