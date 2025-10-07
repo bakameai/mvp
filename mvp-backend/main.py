@@ -295,11 +295,12 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
     response = VoiceResponse()
     response.say(greeting, voice="alice", language="en-US")
     
-    # Gather user speech
+    # Gather user speech - High timeout allows unlimited thinking time
     gather = Gather(
         input='speech',
         action='/voice/process',
         speech_timeout='auto',
+        timeout=3600,  # 1 hour - allows students to think as long as needed
         language='en-US'
     )
     response.append(gather)
@@ -537,16 +538,17 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
     response = VoiceResponse()
     response.say(ai_text, voice="alice", language="en-US")
     
-    # Continue listening for next question - NO timeout, NO hangup
+    # Continue listening for next question - High timeout allows unlimited thinking
     gather = Gather(
         input='speech',
         action='/voice/process',
         speech_timeout='auto',
+        timeout=3600,  # 1 hour - students can pause to think as long as needed
         language='en-US'
     )
     response.append(gather)
     
-    # If no speech detected, loop back to keep listening
+    # If no speech detected after timeout, loop back to keep listening
     response.redirect('/voice/process')
     
     return Response(content=str(response), media_type="application/xml")
