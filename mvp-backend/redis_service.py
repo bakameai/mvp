@@ -66,14 +66,14 @@ class RedisService:
         if len(context["conversation_history"]) > 20:
             context["conversation_history"] = context["conversation_history"][-20:]
         
-        self.set_user_context(phone_number, context, ttl=86400)  # 24 hours
+        self.set_user_context(phone_number, context, ttl=604800)  # 7 days - unlimited learning sessions
     
     def add_topic(self, phone_number: str, topic: str):
         """Track topics discussed by user"""
         context = self.get_user_context(phone_number)
         if topic not in context["topics_discussed"]:
             context["topics_discussed"].append(topic)
-        self.set_user_context(phone_number, context, ttl=86400)
+        self.set_user_context(phone_number, context, ttl=604800)  # 7 days - unlimited learning sessions
     
     def clear_user_context(self, phone_number: str):
         """Clear user context from Redis or memory"""
