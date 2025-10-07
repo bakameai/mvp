@@ -350,6 +350,33 @@ async def process_speech(request: Request):
     except Exception as e:
         print(f"[DB ERROR] Failed to update interactions: {e}")
     
+    # Check if user wants to end the call - ONLY user can hang up
+    exit_keywords = ['goodbye', 'bye', 'stop talking', 'hang up', 'end call', 'finish']
+    if check_intent(str(user_speech), exit_keywords):
+        # User explicitly wants to end call
+        if call_sid in call_sessions:
+            session_length = len(call_sessions[call_sid])
+            del call_sessions[call_sid]
+            print(f"[SESSION] User ended conversation for {call_sid} ({session_length} messages)")
+        
+        # Update Twilio call details
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE twilio_call_logs 
+                        SET end_time = %s, call_status = 'completed'
+                        WHERE call_sid = %s
+                    """, (datetime.utcnow(), call_sid))
+                    conn.commit()
+        except Exception as e:
+            print(f"[DB ERROR] Failed to update call end time: {e}")
+        
+        response = VoiceResponse()
+        response.say("Thank you for learning with Bakame AI. Keep up the great work! Goodbye!", voice="alice")
+        response.hangup()
+        return Response(content=str(response), media_type="application/xml")
+    
     # Add user message to conversation history
     call_sessions[call_sid].append({"role": "user", "content": user_speech})
     print(f"[GPT-4o CALL] User said: {user_speech}")
@@ -506,24 +533,21 @@ Remember: You're on a phone call, so be concise and conversational. Your goal is
     except Exception as e:
         print(f"[DB ERROR] Failed to log conversation: {e}")
     
-    # Create TwiML response
+    # Create TwiML response - Keep conversation flowing naturally
     response = VoiceResponse()
     response.say(ai_text, voice="alice", language="en-US")
     
-    # Ask if they want to continue
+    # Continue listening for next question - NO timeout, NO hangup
     gather = Gather(
         input='speech',
-        action='/voice/continue',
+        action='/voice/process',
         speech_timeout='auto',
-        language='en-US',
-        timeout=3
+        language='en-US'
     )
-    gather.say("Would you like to ask another question?", voice="alice")
     response.append(gather)
     
-    # If no response, thank and hangup
-    response.say("Thank you for using Bakame AI. Goodbye!", voice="alice")
-    response.hangup()
+    # If no speech detected, loop back to keep listening
+    response.redirect('/voice/process')
     
     return Response(content=str(response), media_type="application/xml")
 
@@ -535,96 +559,13 @@ def check_intent(text: str, keywords: list) -> bool:
 
 @app.post("/voice/continue")
 async def handle_continue(request: Request):
-    """Handle user decision to continue or end call"""
+    """Handle user decision to continue or end call - This endpoint is now unused but kept for compatibility"""
     form_data = await request.form()
     call_sid = str(form_data.get("CallSid", ""))
-    user_speech = str(form_data.get("SpeechResult", ""))
     
-    # Log the continuation decision
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO call_logs 
-                    (call_sid, from_number, message, ai_response, timestamp, event_type)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (call_sid, form_data.get("From"), f"Continue prompt response: {user_speech}", 
-                      None, datetime.utcnow(), "continuation_decision"))
-                conn.commit()
-    except Exception as e:
-        print(f"[DB ERROR] Failed to log continuation decision: {e}")
-    
+    # Redirect back to main conversation flow
     response = VoiceResponse()
-    
-    # Check if user wants to continue using whole-word matching
-    exit_keywords = ['no', 'nope', 'stop', 'goodbye', 'bye', 'quit', 'exit', 'done', 'finish', 'end']
-    continue_keywords = ['yes', 'yeah', 'yep', 'sure', 'okay', 'ok', 'continue']
-    
-    if check_intent(str(user_speech), exit_keywords):
-        # End the call
-        if call_sid in call_sessions:
-            session_length = len(call_sessions[call_sid])
-            del call_sessions[call_sid]
-            print(f"[SESSION] Ended conversation for {call_sid} ({session_length} messages)")
-        
-        # Update Twilio call details
-        try:
-            with get_db_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        UPDATE twilio_call_logs 
-                        SET end_time = %s, call_status = 'completed'
-                        WHERE call_sid = %s
-                    """, (datetime.utcnow(), call_sid))
-                    conn.commit()
-        except Exception as e:
-            print(f"[DB ERROR] Failed to update call end time: {e}")
-        
-        response.say("Thank you for using Bakame AI. Goodbye!", voice="alice")
-        response.hangup()
-    elif check_intent(str(user_speech), continue_keywords):
-        # Continue with another question
-        gather = Gather(
-            input='speech',
-            action='/voice/process',
-            speech_timeout='auto',
-            language='en-US'
-        )
-        gather.say("What would you like to know?", voice="alice")
-        response.append(gather)
-        response.redirect('/voice/incoming')
-    else:
-        # Unclear response, ask again
-        gather = Gather(
-            input='speech',
-            action='/voice/continue',
-            speech_timeout='auto',
-            language='en-US',
-            timeout=3
-        )
-        gather.say("I didn't quite catch that. Would you like to continue? Say yes or no.", voice="alice")
-        response.append(gather)
-        
-        # Clear conversation history on timeout
-        if call_sid in call_sessions:
-            del call_sessions[call_sid]
-            print(f"[SESSION] Ended conversation for {call_sid} (timeout)")
-        
-        # Update Twilio call details
-        try:
-            with get_db_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        UPDATE twilio_call_logs 
-                        SET end_time = %s, call_status = 'completed'
-                        WHERE call_sid = %s
-                    """, (datetime.utcnow(), call_sid))
-                    conn.commit()
-        except Exception as e:
-            print(f"[DB ERROR] Failed to update call end time: {e}")
-        
-        response.say("Thank you for using Bakame AI. Goodbye!", voice="alice")
-        response.hangup()
+    response.redirect('/voice/process')
     
     return Response(content=str(response), media_type="application/xml")
 
