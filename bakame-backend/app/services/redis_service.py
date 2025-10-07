@@ -50,10 +50,6 @@ class RedisService:
             self.memory_store[f"user_context:{phone_number}"] = context
     
     def add_to_conversation_history(self, phone_number: str, user_input: str, ai_response: str):
-<<<<<<< HEAD
-        """Add interaction to conversation history - disabled for fresh sessions"""
-        pass
-=======
         """Add interaction to user's conversation history with unlimited storage"""
         context = self.get_user_context(phone_number)
         context["conversation_history"].append({
@@ -72,7 +68,6 @@ class RedisService:
             context["conversation_history"] = recent_history
         
         self.set_user_context(phone_number, context, ttl=86400)
->>>>>>> bakame-mvp-implementation
     
     def set_current_module(self, phone_number: str, module_name: str):
         """Set the current active module for a user"""
