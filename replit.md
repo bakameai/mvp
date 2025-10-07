@@ -85,8 +85,9 @@ Design principle: Modular architecture allows independent module updates without
 **Redis-based session storage** for conversation context:
 - Stores user conversation history
 - Maintains module state across interactions
-- Session timeout: Configurable (default ~10 minutes)
+- Session timeout: 7 days (604800 seconds) - supports unlimited learning sessions
 - Key format: `session:{phone_number}:{session_id}`
+- TTL automatically refreshes with each interaction
 
 **PostgreSQL for persistent data**:
 - User session logs
@@ -94,7 +95,14 @@ Design principle: Modular architecture allows independent module updates without
 - Analytics data
 - Schema designed for both transactional and analytical queries
 
-Rationale: Redis provides fast in-memory access for active conversations, while PostgreSQL ensures data persistence for analytics and compliance.
+**Call Duration Policy**:
+- **AI never hangs up on students** - Only students can end calls
+- Gather timeout set to 3600 seconds (1 hour) to allow unlimited thinking/pause time
+- No time limits on learning sessions
+- Students end calls by saying goodbye, bye, hang up, or end call
+- Conversation flows naturally without "continue?" interruptions
+
+Rationale: Redis provides fast in-memory access for active conversations, while PostgreSQL ensures data persistence for analytics and compliance. The unlimited session duration ensures students can learn at their own pace without being rushed or cut off.
 
 ### Communication Layer
 
