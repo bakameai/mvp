@@ -659,7 +659,7 @@ async def twilio_stream(ws: WebSocket):
                     
                     if ai_response and ai_response.strip() and tts_client and tts_ready:
                         try:
-                            tts_name = "ElevenLabs TTS" if use_elevenlabs else "Google TTS"
+                            tts_name = "Google TTS"
                             print(f"[{tts_name}] Synthesizing final response: {ai_response[:100]}...", flush=True)
                             async for audio_chunk in tts_client.synthesize_response(ai_response):
                                 frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
@@ -697,11 +697,11 @@ async def twilio_stream(ws: WebSocket):
             print(f"[Bridge] Error cancelling task: {e}", flush=True)
         try:
             if tts_client:
-                tts_name = "ElevenLabs TTS" if use_elevenlabs else "Google TTS"
+                tts_name = "Google TTS"
                 print(f"[Bridge] Closing {tts_name} client", flush=True)
                 await tts_client.close()
         except Exception as e:
-            tts_name = "ElevenLabs TTS" if use_elevenlabs else "Google TTS"
+            tts_name = "Google TTS"
             print(f"[Bridge] Error closing {tts_name} client: {e}", flush=True)
         try:
             print(f"[Bridge] Closing Twilio WebSocket, state: {ws.client_state.name}", flush=True)

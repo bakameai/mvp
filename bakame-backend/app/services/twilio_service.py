@@ -34,27 +34,6 @@ class TwilioService:
         except Exception as e:
             response.say(f"Error: {str(e)}", voice='man', language='en-US')
             response.hangup()
-        return str(response)
-                response.say(message, voice='man', language='en-US')
-                response.hangup()
-                    
-        except Exception as e:
-            print(f"Error in voice response generation: {e}")
-            if gather_input:
-                gather = response.gather(
-                    input='speech',
-                    timeout=10,
-                    speech_timeout='auto',
-                    action='/webhook/voice/process',
-                    method='POST'
-                )
-                gather.say("Welcome to BAKAME learning assistant. Please say what you need help with.", voice='man', language='en-US')
-                response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
-                response.redirect('/webhook/voice/process')
-            else:
-                response.say("Thank you for using BAKAME. Goodbye!", voice='man', language='en-US')
-                response.hangup()
->>>>>>> bakame-mvp-implementation
         
         return str(response)
     
