@@ -188,21 +188,24 @@ async def make_outbound_call(to_number: str, message: str):
         from app.config import settings
         telnyx.api_key = settings.telnyx_api_key
         
-        call = telnyx.Call.create(
+        call_response = telnyx.Call.create(
             to=to_number,
             from_=telnyx_service.phone_number,
             webhook_url="https://your-domain.com/telnyx/incoming",
             webhook_url_method="POST"
         )
         
+        # Extract call_control_id from response
+        call_control_id = call_response.get("call_control_id", "")
+        
         # Store initial message for when call is answered
-        call_sessions[call.call_control_id] = {
+        call_sessions[call_control_id] = {
             "initial_message": message
         }
         
         return {
             "status": "success",
-            "call_id": call.call_control_id,
+            "call_id": call_control_id,
             "message": "Outbound call initiated"
         }
         

@@ -35,9 +35,10 @@ The system consists of three separate applications:
 
 ### Voice Processing Pipeline
 
-The system uses a sophisticated WebSocket-based audio routing architecture:
+The system now supports both Twilio (legacy) and Telnyx (new) for voice communications:
 
-**Audio Flow**: Caller → Twilio → FastAPI WebSocket Bridge → Google TTS/ElevenLabs ConvAI → AI Processing → Response Audio → Twilio → Caller
+**Telnyx Audio Flow (New)**: Caller → Telnyx Call Control → FastAPI JSON API → AI Processing → Telnyx Commands → Caller
+**Legacy Twilio Flow**: Caller → Twilio → FastAPI WebSocket Bridge → Google TTS/ElevenLabs ConvAI → AI Processing → Response Audio → Twilio → Caller
 
 Key architectural decisions:
 - **Real-time audio streaming** via WebSocket connections for low latency
@@ -137,11 +138,17 @@ Design decision: Separate deployments allow independent scaling and updates of f
 
 ### Third-Party Services
 
-1. **Twilio** (Voice/SMS Gateway)
+1. **Telnyx** (Primary Voice/SMS Gateway - NEW)
+   - Call Control API v2 for voice handling
+   - JSON-based command system
+   - Event-driven webhooks
+   - Real-time call control via REST API
+   
+2. **Twilio** (Legacy Voice/SMS Gateway - Being Phased Out)
    - Voice API for phone call handling
    - SMS API for text messages
    - Media Streams API for audio streaming
-   - Webhook-based event system
+   - TwiML-based response system
 
 2. **Google Cloud Platform**
    - Text-to-Speech API for voice generation
