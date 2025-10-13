@@ -24,7 +24,6 @@ from app.modules.comprehension_module import comprehension_module
 from app.modules.debate_module import debate_module
 from app.modules.general_module import general_module
 from app.google_tts_client import open_google_tts
-from app.elevenlabs_tts_client import open_elevenlabs_tts
 from app.config import settings
 
 SILENCE_THRESHOLD_MS = 250  # Reduced from 500ms for real-time conversation
@@ -59,7 +58,7 @@ async def twilio_webhook(From: str = Form(...), To: str = Form(...)):
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="wss://{os.getenv('FLY_APP_NAME_DOMAIN', 'bakame-elevenlabs-mcp.fly.dev')}/twilio-stream">
+    <Stream url="wss://{os.getenv('FLY_APP_NAME_DOMAIN', 'bakame.fly.dev')}/twilio-stream">
       <Parameter name="phone_number" value="{phone_number}" />
     </Stream>
   </Connect>
@@ -88,7 +87,7 @@ def enhance_voice_audio(pcm16k: bytes) -> bytes:
 
 def apply_voice_frequency_emphasis(pcm16k: bytes) -> bytes:
     """
-    Advanced audio reconstruction for ElevenLabs compatibility.
+    Advanced audio reconstruction for voice quality enhancement.
     Applies aggressive μ-law artifact removal and spectral enhancement.
     """
     try:
@@ -163,7 +162,7 @@ def apply_voice_frequency_emphasis(pcm16k: bytes) -> bytes:
 def twilio_ulaw8k_to_pcm16_16k(b64_payload: str) -> bytes:
     """
     Twilio sends 8k μ-law audio in base64. Convert -> 16kHz signed 16-bit PCM.
-    Enhanced for ElevenLabs compatibility with improved quality preservation.
+    Enhanced for voice quality with improved quality preservation.
     """
     ulaw = base64.b64decode(b64_payload)
     pcm8k = audioop.ulaw2lin(ulaw, 2)  # width=2 bytes/sample
@@ -186,7 +185,7 @@ def twilio_ulaw8k_to_pcm16_16k(b64_payload: str) -> bytes:
                 normalized_samples.append(clamped)
             
             pcm16k = struct.pack(f'<{len(normalized_samples)}h', *normalized_samples)
-            print(f"[AUDIO] Enhanced Twilio audio: normalized amplitude by {scale_factor:.2f}x for ElevenLabs", flush=True)
+            print(f"[AUDIO] Enhanced Twilio audio: normalized amplitude by {scale_factor:.2f}x for voice quality", flush=True)
         
     except Exception as e:
         print(f"[AUDIO] Audio normalization failed, using original: {e}", flush=True)
@@ -396,20 +395,14 @@ async def twilio_stream(ws: WebSocket):
     tts_task: Optional[asyncio.Task] = None
     tts_ready = False
     audio_conversion_state = None
-    use_elevenlabs = True
 
     try:
-        if use_elevenlabs:
-            print("[ElevenLabs TTS] Connecting...", flush=True)
-            tts_client = await open_elevenlabs_tts()
-            print("[ElevenLabs TTS] Connected successfully!", flush=True)
-        else:
-            print("[Google TTS] Connecting...", flush=True)
-            tts_client = await open_google_tts()
-            print("[Google TTS] Connected successfully!", flush=True)
+        print("[Google TTS] Connecting...", flush=True)
+        tts_client = await open_google_tts()
+        print("[Google TTS] Connected successfully!", flush=True)
         
         tts_ready = True
-        print(f"[TTS] Ready for text synthesis using {'ElevenLabs' if use_elevenlabs else 'Google TTS'}...", flush=True)
+        print("[TTS] Ready for text synthesis using Google TTS...", flush=True)
 
         async def pump_google_tts_monitoring():
             """Monitor Google TTS and maintain frame rate statistics."""
@@ -639,7 +632,7 @@ async def twilio_stream(ws: WebSocket):
                             
                             if ai_response and ai_response.strip() and tts_client and tts_ready:
                                 try:
-                                    tts_name = "ElevenLabs TTS" if use_elevenlabs else "Google TTS"
+                                    tts_name = "Google TTS"
                                     print(f"[{tts_name}] Synthesizing response: {ai_response[:100]}...", flush=True)
                                     async for audio_chunk in tts_client.synthesize_response(ai_response):
                                         frames, audio_conversion_state = pcm16_16k_to_mulaw8k_20ms_frames(audio_chunk, audio_conversion_state)
@@ -651,7 +644,7 @@ async def twilio_stream(ws: WebSocket):
                                             silence_padding_active = False
                                             print(f"[{tts_name}] Sent {len(frames)} frames, total: {frames_sent_count} (audio: {audio_frames_count})", flush=True)
                                 except Exception as e:
-                                    tts_name = "ElevenLabs TTS" if use_elevenlabs else "Google TTS"
+                                    tts_name = "Google TTS"
                                     print(f"[{tts_name}] Error synthesizing response: {e}", flush=True)
 
                     print(f"[Twilio->Google TTS] Received {len(pcm16k)} bytes of audio data", flush=True)

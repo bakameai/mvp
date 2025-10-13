@@ -6,7 +6,6 @@ from typing import Optional
 
 from app.services.twilio_service import twilio_service
 from app.services.openai_service import openai_service
-from app.services.elevenlabs_service import elevenlabs_service
 from app.services.redis_service import redis_service
 from app.services.logging_service import logging_service
 from app.services.offline_service import offline_service
