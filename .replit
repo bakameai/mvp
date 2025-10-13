@@ -49,5 +49,8 @@ task = "shell.exec"
 args = "cd bakame-backend && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 waitForPort = 8000
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [nix]
 channel = "stable-25_05"

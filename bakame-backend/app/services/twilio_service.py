@@ -1,17 +1,42 @@
-from twilio.rest import Client
-from twilio.twiml import TwiML
-from twilio.twiml.voice_response import VoiceResponse
-from twilio.twiml.messaging_response import MessagingResponse
 import requests
 import os
+from typing import Optional
+
+# Legacy Twilio imports - kept for backward compatibility
+# These are now optional as we migrate to Telnyx
+try:
+    from twilio.rest import Client
+    from twilio.twiml import TwiML
+    from twilio.twiml.voice_response import VoiceResponse
+    from twilio.twiml.messaging_response import MessagingResponse
+    TWILIO_AVAILABLE = True
+except ImportError:
+    TWILIO_AVAILABLE = False
+    
 from app.config import settings
 from app.services.deepgram_service import deepgram_service
 from app.services.openai_service import openai_service
 
 class TwilioService:
+    """Legacy Twilio Service - being phased out in favor of Telnyx"""
+    
     def __init__(self):
-        self.client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
-        self.phone_number = settings.twilio_phone_number
+        # Make Twilio initialization optional
+        self.client = None
+        self.phone_number = None
+        
+        if TWILIO_AVAILABLE:
+            # Try to initialize if credentials exist in environment
+            account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+            auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+            phone_number = os.getenv("TWILIO_PHONE_NUMBER")
+            
+            if account_sid and auth_token:
+                self.client = Client(account_sid, auth_token)
+                self.phone_number = phone_number
+                print("[Twilio] Legacy service initialized (for backward compatibility)")
+            else:
+                print("[Twilio] No credentials found - service disabled (using Telnyx instead)")
     
     async def create_voice_response(self, message: str, gather_input: bool = True, timeout: int = 60) -> str:
         """Create TwiML voice response using Twilio Say verb
@@ -21,6 +46,9 @@ class TwilioService:
             gather_input: Whether to gather speech input from the user
             timeout: Seconds to wait for user speech (default 60 seconds)
         """
+        if not TWILIO_AVAILABLE:
+            return "<!-- Twilio not available - using Telnyx instead -->"
+        
         response = VoiceResponse()
         try:
             if gather_input:
@@ -48,6 +76,9 @@ class TwilioService:
     
     def create_sms_response(self, message: str) -> str:
         """Create TwiML SMS response"""
+        if not TWILIO_AVAILABLE:
+            return "<!-- Twilio not available - using Telnyx instead -->"
+        
         response = MessagingResponse()
         response.message(message)
         return str(response)
