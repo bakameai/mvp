@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     twilio_account_sid: str = os.getenv("TWILIO_ACCOUNT_SID", "")
     twilio_auth_token: str = os.getenv("TWILIO_AUTH_TOKEN", "")
     twilio_phone_number: str = os.getenv("TWILIO_PHONE_NUMBER", "")
-    # Use OPENAIAPI instead of OPENAI_API_KEY
+    # Only use OPENAIAPI environment variable
     openai_api_key: str = os.getenv("OPENAIAPI", "")
     llama_api_key: str = os.getenv("LLAMA_API_KEY", "")
     use_llama: bool = False  # Use OpenAI by default
