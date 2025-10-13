@@ -2,12 +2,9 @@ import openai
 from typing import List, Dict, Any
 from app.config import settings
 
-openai.api_key = settings.openai_api_key
-
 class OpenAIService:
     def __init__(self):
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
-    
     
     async def generate_response(self, messages: List[Dict[str, str]], module_name: str = "general") -> str:
         """Generate response using GPT-4 with conversational intelligence"""
@@ -22,7 +19,14 @@ class OpenAIService:
             
             system_prompt = system_prompts.get(module_name, system_prompts["general"])
             
-            full_messages = [{"role": "system", "content": system_prompt}] + messages
+            # Ensure messages don't already have a system prompt
+            if not messages or messages[0].get("role") != "system":
+                full_messages = [{"role": "system", "content": system_prompt}] + messages
+            else:
+                full_messages = messages
+            
+            print(f"[OpenAI] Calling GPT-4o-mini with module: {module_name}")
+            print(f"[OpenAI] Messages: {full_messages}")
             
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -34,9 +38,12 @@ class OpenAIService:
                 frequency_penalty=0.1
             )
             
-            return response.choices[0].message.content.strip()
+            result = response.choices[0].message.content.strip()
+            print(f"[OpenAI] Response: {result[:100]}...")
+            return result
+            
         except Exception as e:
-            print(f"Error generating response: {e}")
+            print(f"[OpenAI] Error generating response: {e}")
             return "I'm sorry, I'm having trouble processing your request right now. Please try again."
 
 openai_service = OpenAIService()
