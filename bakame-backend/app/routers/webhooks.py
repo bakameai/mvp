@@ -25,10 +25,18 @@ async def handle_voice_call(From: str = Form(...)):
     
     phone_number = From
     
-    # Use Twilio Say for voice response
+    # Get user context and let AI generate welcome message
+    user_context = redis_service.get_user_context(phone_number)
+    user_context["phone_number"] = phone_number
+    
+    # Let the general module generate a contextual welcome
+    welcome_message = await general_module.process("Hello", user_context)
+    
+    # Use Twilio Say for voice response with 60 second timeout
     response = await twilio_service.create_voice_response(
-        message="Welcome to BAKAME learning assistant. Please tell me what you would like to learn today.",
-        gather_input=True
+        message=welcome_message,
+        gather_input=True,
+        timeout=60  # Wait 60 seconds for user to speak
     )
     
     return Response(content=response, media_type="application/xml")
@@ -64,15 +72,17 @@ async def process_voice_input(
         if user_input:
             ai_response = await current_module.process(user_input, user_context)
         else:
-            ai_response = "I didn't hear anything. Please tell me what you'd like to learn."
+            # Let AI handle silence contextually
+            ai_response = await current_module.process("[User was silent]", user_context)
         
         # Save context
         redis_service.update_user_context(phone_number, user_context)
         
-        # Create TwiML response with Twilio Say
+        # Create TwiML response with Twilio Say and 60 second timeout
         response = await twilio_service.create_voice_response(
             message=ai_response,
-            gather_input=True  # Keep gathering for continuous conversation
+            gather_input=True,  # Keep gathering for continuous conversation
+            timeout=60  # Wait 60 seconds for user to speak
         )
         
         return Response(content=response, media_type="application/xml")
@@ -81,7 +91,8 @@ async def process_voice_input(
         print(f"Error processing voice input: {e}")
         error_response = await twilio_service.create_voice_response(
             message="I'm sorry, I encountered an error. Please try again.",
-            gather_input=True
+            gather_input=True,
+            timeout=60
         )
         return Response(content=error_response, media_type="application/xml")
 

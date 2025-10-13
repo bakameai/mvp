@@ -13,27 +13,36 @@ class TwilioService:
         self.client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
         self.phone_number = settings.twilio_phone_number
     
-    async def create_voice_response(self, message: str, gather_input: bool = True) -> str:
-        """Create TwiML voice response using Twilio Say verb"""
+    async def create_voice_response(self, message: str, gather_input: bool = True, timeout: int = 60) -> str:
+        """Create TwiML voice response using Twilio Say verb
+        
+        Args:
+            message: The text to speak
+            gather_input: Whether to gather speech input from the user
+            timeout: Seconds to wait for user speech (default 60 seconds)
+        """
         response = VoiceResponse()
         try:
             if gather_input:
                 gather = response.gather(
                     input='speech',
-                    timeout=10,
+                    timeout=timeout,  # Use configurable timeout (default 60 seconds)
                     speech_timeout='auto',
                     action='/webhook/voice/process',
                     method='POST'
                 )
                 gather.say(message, voice='man', language='en-US')
-                response.say("I didn't hear anything. Please try again.", voice='man', language='en-US')
+                # If no speech detected, redirect back to process endpoint
+                # Don't say anything hardcoded, let AI handle it
                 response.redirect('/webhook/voice/process')
             else:
                 response.say(message, voice='man', language='en-US')
-                response.hangup()
+                # Don't hang up - keep the call going
+                response.redirect('/webhook/voice/process')
         except Exception as e:
             response.say(f"Error: {str(e)}", voice='man', language='en-US')
-            response.hangup()
+            # Don't hang up on errors either - try to recover
+            response.redirect('/webhook/voice/process')
         
         return str(response)
     
