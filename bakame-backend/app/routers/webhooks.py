@@ -11,8 +11,8 @@ async def handle_voice_call(From: str = Form(...)):
     
     print(f"[Webhook] New call from {From}")
     
-    # Always call OpenAI for welcome message
-    welcome_message = await general_module.process("User just called", {})
+    # Always call OpenAI for welcome message - fresh greeting each time
+    welcome_message = await general_module.process("Hello", {})
     
     # Create voice response
     response = await twilio_service.create_voice_response(
@@ -30,7 +30,7 @@ async def process_voice_input(
 ):
     """Process voice input - always fresh, no history"""
     
-    user_input = SpeechResult if SpeechResult else "User was silent"
+    user_input = SpeechResult if SpeechResult else "..."
     print(f"[Webhook] Voice input from {From}: {user_input}")
     
     try:
