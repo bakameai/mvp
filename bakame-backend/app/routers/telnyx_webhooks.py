@@ -134,7 +134,7 @@ async def handle_call_answered(call_control_id: str, from_number: str):
     except Exception as e:
         logger.error(f"[Telnyx] Error sending welcome message: {str(e)}")
 
-async def handle_gather_ended(call_control_id: str, from_number: str, digits: str = None):
+async def handle_gather_ended(call_control_id: str, from_number: str, digits: str = ""):
     """
     Handle user input - equivalent to Twilio's /webhook/voice/process
     """
@@ -185,7 +185,8 @@ async def make_outbound_call(to_number: str, message: str):
     """
     try:
         import telnyx
-        telnyx.api_key = telnyx_service.api_key
+        from app.config import settings
+        telnyx.api_key = settings.telnyx_api_key
         
         call = telnyx.Call.create(
             to=to_number,
