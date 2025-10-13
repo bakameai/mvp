@@ -23,7 +23,6 @@ from app.modules.math_module import math_module
 from app.modules.comprehension_module import comprehension_module
 from app.modules.debate_module import debate_module
 from app.modules.general_module import general_module
-from app.google_tts_client import open_google_tts
 from app.config import settings
 
 SILENCE_THRESHOLD_MS = 250  # Reduced from 500ms for real-time conversation

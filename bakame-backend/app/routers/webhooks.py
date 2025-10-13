@@ -20,23 +20,70 @@ from app.modules.general_module import general_module
 router = APIRouter()
 
 @router.post("/call")
-def handle_voice_call(From: str = Form(...)):
-    """Handle incoming voice calls from Twilio - Connect to WebSocket stream with Eleven Labs TTS"""
+async def handle_voice_call(From: str = Form(...)):
+    """Handle incoming voice calls from Twilio using Say verb"""
     
     phone_number = From
-    app_domain = "app-pyzfduqr.fly.dev"  # Your actual Fly.io deployment
-    WS_URL = f"wss://{app_domain}/twilio-stream"
     
-    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Connect>
-    <Stream url="{WS_URL}">
-      <Parameter name="phone_number" value="{phone_number}" />
-    </Stream>
-  </Connect>
-</Response>"""
+    # Use Twilio Say for voice response
+    response = await twilio_service.create_voice_response(
+        message="Welcome to BAKAME learning assistant. Please tell me what you would like to learn today.",
+        gather_input=True
+    )
     
-    return Response(content=twiml, media_type="application/xml")
+    return Response(content=response, media_type="application/xml")
+
+@router.post("/voice/process")
+async def process_voice_input(
+    From: str = Form(...),
+    SpeechResult: str = Form(None)
+):
+    """Process voice input from Twilio gather and respond with Say"""
+    
+    phone_number = From
+    user_input = SpeechResult if SpeechResult else ""
+    
+    try:
+        # Get user context
+        user_context = redis_service.get_user_context(phone_number)
+        user_context["phone_number"] = phone_number
+        
+        MODULES = {
+            "english": english_module,
+            "math": math_module,
+            "comprehension": comprehension_module,
+            "debate": debate_module,
+            "general": general_module
+        }
+        
+        # Determine which module to use
+        current_module_name = redis_service.get_current_module(phone_number) or "general"
+        current_module = MODULES.get(current_module_name, general_module)
+        
+        # Process the input through the appropriate module
+        if user_input:
+            ai_response = await current_module.process(user_input, user_context)
+        else:
+            ai_response = "I didn't hear anything. Please tell me what you'd like to learn."
+        
+        # Save context
+        redis_service.update_user_context(phone_number, user_context)
+        
+        # Create TwiML response with Twilio Say
+        response = await twilio_service.create_voice_response(
+            message=ai_response,
+            gather_input=True  # Keep gathering for continuous conversation
+        )
+        
+        return Response(content=response, media_type="application/xml")
+        
+    except Exception as e:
+        print(f"Error processing voice input: {e}")
+        error_response = await twilio_service.create_voice_response(
+            message="I'm sorry, I encountered an error. Please try again.",
+            gather_input=True
+        )
+        return Response(content=error_response, media_type="application/xml")
 
 @router.post("/sms")
 async def handle_sms(
