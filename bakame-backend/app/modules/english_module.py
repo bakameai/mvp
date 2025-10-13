@@ -10,7 +10,7 @@ class EnglishModule:
     def __init__(self):
         self.module_name = "english"
     
-    async def process_input(self, user_input: str, user_context: Dict[str, Any]) -> str:
+    async def process(self, user_input: str, user_context: Dict[str, Any]) -> str:
         """Process English learning input"""
         
         emotion_data = await emotional_intelligence_service.detect_emotion(user_input)

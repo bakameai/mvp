@@ -11,7 +11,7 @@ class MathModule:
     def __init__(self):
         self.module_name = "math"
     
-    async def process_input(self, user_input: str, user_context: Dict[str, Any]) -> str:
+    async def process(self, user_input: str, user_context: Dict[str, Any]) -> str:
         """Process mental math input with multimodal adaptation"""
         
         phone_number = user_context.get("phone_number", "")

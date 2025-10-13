@@ -46,7 +46,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd bakame-backend && python3 main.py"
+args = "cd bakame-backend && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 waitForPort = 8000
 
 [nix]

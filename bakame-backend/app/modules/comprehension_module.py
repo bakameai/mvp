@@ -54,7 +54,7 @@ class ComprehensionModule:
             }
         ]
     
-    async def process_input(self, user_input: str, user_context: Dict[str, Any]) -> str:
+    async def process(self, user_input: str, user_context: Dict[str, Any]) -> str:
         """Process comprehension learning input"""
         
         user_input_lower = user_input.lower()

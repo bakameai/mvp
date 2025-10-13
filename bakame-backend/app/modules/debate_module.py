@@ -22,7 +22,7 @@ class DebateModule:
             "Is it better to have a few close friends or many acquaintances?"
         ]
     
-    async def process_input(self, user_input: str, user_context: Dict[str, Any]) -> str:
+    async def process(self, user_input: str, user_context: Dict[str, Any]) -> str:
         """Process debate input"""
         
         user_input_lower = user_input.lower()
