@@ -1,35 +1,24 @@
 from fastapi import APIRouter, Request, Form, Response
 from typing import Optional
 from app.services.twilio_service import twilio_service
-from app.services.redis_service import redis_service
 from app.modules.general_module import general_module
 
 router = APIRouter()
 
 @router.post("/call")
 async def handle_voice_call(From: str = Form(...)):
-    """Handle incoming voice calls - pure English conversation teaching"""
+    """Handle incoming voice calls - always fresh, no history"""
     
-    phone_number = From
+    print(f"[Webhook] New call from {From}")
     
-    # Get or create user context
-    user_context = redis_service.get_user_context(phone_number)
-    if not user_context:
-        user_context = {"phone_number": phone_number, "conversation_history": []}
-    else:
-        user_context["phone_number"] = phone_number
+    # Always call OpenAI for welcome message
+    welcome_message = await general_module.process("User just called", {})
     
-    # Generate conversational welcome
-    welcome_message = await general_module.process("Hello", user_context)
-    
-    # Save context
-    redis_service.set_user_context(phone_number, user_context)
-    
-    # Create voice response with 60 second timeout
+    # Create voice response
     response = await twilio_service.create_voice_response(
         message=welcome_message,
         gather_input=True,
-        timeout=60  # Wait 60 seconds for user to speak
+        timeout=60
     )
     
     return Response(content=response, media_type="application/xml")
@@ -39,83 +28,62 @@ async def process_voice_input(
     From: str = Form(...),
     SpeechResult: Optional[str] = Form(None)
 ):
-    """Process voice input - pure English conversation teaching"""
+    """Process voice input - always fresh, no history"""
     
-    phone_number = From
-    user_input = SpeechResult if SpeechResult else "[User was silent]"
+    user_input = SpeechResult if SpeechResult else "User was silent"
+    print(f"[Webhook] Voice input from {From}: {user_input}")
     
     try:
-        # Get user context
-        user_context = redis_service.get_user_context(phone_number)
-        if not user_context:
-            user_context = {"phone_number": phone_number, "conversation_history": []}
-        else:
-            user_context["phone_number"] = phone_number
+        # Always fresh call to OpenAI - no context
+        ai_response = await general_module.process(user_input, {})
         
-        # Process through English conversation
-        ai_response = await general_module.process(user_input, user_context)
-        
-        # Save context
-        redis_service.set_user_context(phone_number, user_context)
-        
-        # Create voice response with 60 second timeout
+        # Create voice response
         response = await twilio_service.create_voice_response(
             message=ai_response,
             gather_input=True,
-            timeout=60  # Wait 60 seconds for user to speak
+            timeout=60
         )
         
         return Response(content=response, media_type="application/xml")
         
     except Exception as e:
-        print(f"Error processing voice input: {e}")
-        error_response = await twilio_service.create_voice_response(
-            message="I didn't quite catch that. Could you please repeat?",
+        print(f"[Webhook] Error: {e}")
+        # Even errors go through OpenAI
+        error_response = await general_module.process("System error occurred", {})
+        response = await twilio_service.create_voice_response(
+            message=error_response,
             gather_input=True,
             timeout=60
         )
-        return Response(content=error_response, media_type="application/xml")
+        return Response(content=response, media_type="application/xml")
 
 @router.post("/sms")
 async def handle_sms(
     From: str = Form(...),
     Body: str = Form(...)
 ):
-    """Handle incoming SMS - pure English conversation teaching"""
+    """Handle incoming SMS - always fresh, no history"""
     
-    phone_number = From
-    user_input = Body.strip()
+    print(f"[Webhook] SMS from {From}: {Body}")
     
     try:
-        # Get user context
-        user_context = redis_service.get_user_context(phone_number)
-        if not user_context:
-            user_context = {"phone_number": phone_number, "conversation_history": []}
-        else:
-            user_context["phone_number"] = phone_number
+        # Always fresh call to OpenAI - no context
+        ai_response = await general_module.process(Body, {})
         
-        # Process through English conversation
-        ai_response = await general_module.process(user_input, user_context)
-        
-        # Save context
-        redis_service.set_user_context(phone_number, user_context)
-        
-        # Send SMS response
         return Response(
             content=twilio_service.create_sms_response(ai_response),
             media_type="application/xml"
         )
         
     except Exception as e:
-        print(f"Error in SMS handler: {e}")
+        print(f"[Webhook] SMS Error: {e}")
+        error_response = await general_module.process("Error processing message", {})
         return Response(
-            content=twilio_service.create_sms_response(
-                "Sorry, I couldn't process your message. Please try again."
-            ),
+            content=twilio_service.create_sms_response(error_response),
             media_type="application/xml"
         )
 
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "BAKAME English Teaching"}
+    return {"status": "healthy", "service": "BAKAME"}

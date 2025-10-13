@@ -1,65 +1,44 @@
 import openai
+import os
 from typing import Dict, Any
-from app.config import settings
 
 class OpenAIService:
     def __init__(self):
-        self.client = openai.OpenAI(api_key=settings.openai_api_key)
+        api_key = os.getenv("OPENAIAPI")
+        if not api_key:
+            raise ValueError("OPENAIAPI environment variable not set")
+        self.client = openai.OpenAI(api_key=api_key)
+        print(f"[OpenAI] Initialized with key: {api_key[:20]}...")
     
     async def generate_response(self, user_input: str, user_context: Dict[str, Any]) -> str:
-        """Generate response using GPT-4 for natural English conversation teaching"""
+        """Generate response using GPT-4 - completely fresh each time, no history"""
         try:
-            # Build conversation history from context
+            # Fresh call every time - no conversation history
             messages = [
                 {
                     "role": "system", 
-                    "content": """You are an English teacher having a natural conversation to help someone learn English. 
-                    Your goal is to teach English through conversation - correct mistakes gently, suggest better ways to express ideas, 
-                    and keep the conversation flowing naturally. Be encouraging and supportive. 
-                    Focus on practical, everyday English. Keep responses conversational and engaging.
-                    Do not mention modules, lessons, or structured curriculum - just have a natural teaching conversation."""
-                }
+                    "content": "You are an English teacher helping someone learn English through natural conversation. Correct mistakes gently and keep the conversation engaging."
+                },
+                {"role": "user", "content": user_input}
             ]
             
-            # Add conversation history if available (last 5 exchanges for context)
-            conversation_history = user_context.get("conversation_history", [])
-            for interaction in conversation_history[-5:]:
-                if "user" in interaction:
-                    messages.append({"role": "user", "content": interaction["user"]})
-                if "ai" in interaction:
-                    messages.append({"role": "assistant", "content": interaction["ai"]})
-            
-            # Add current user input
-            messages.append({"role": "user", "content": user_input})
-            
-            print(f"[OpenAI] Calling GPT-4o-mini for English conversation")
-            print(f"[OpenAI] User said: {user_input}")
+            print(f"[OpenAI] Making fresh API call")
+            print(f"[OpenAI] User input: {user_input}")
             
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
                 max_tokens=300,
-                temperature=0.9,  # Natural conversation temperature
-                top_p=0.95,
-                presence_penalty=0.1,
-                frequency_penalty=0.1
+                temperature=0.9
             )
             
             result = response.choices[0].message.content.strip()
-            print(f"[OpenAI] Response: {result[:100]}...")
-            
-            # Store this interaction in conversation history
-            if "conversation_history" not in user_context:
-                user_context["conversation_history"] = []
-            user_context["conversation_history"].append({
-                "user": user_input,
-                "ai": result
-            })
+            print(f"[OpenAI] API Response received: {result[:100]}...")
             
             return result
             
         except Exception as e:
-            print(f"[OpenAI] Error generating response: {e}")
-            return "I'm having trouble understanding. Could you try saying that again?"
+            print(f"[OpenAI] ERROR calling API: {e}")
+            return f"Error: {str(e)}"
 
 openai_service = OpenAIService()
