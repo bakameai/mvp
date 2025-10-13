@@ -29,22 +29,6 @@ class ModuleUsage(Base):
     last_used = Column(DateTime, default=datetime.utcnow)
     total_duration = Column(Float, default=0.0)
 
-<<<<<<< HEAD
-if "sqlite" in settings.database_url:
-    engine = create_engine(
-        settings.database_url,
-        connect_args={"check_same_thread": False}
-    )
-else:
-    engine = create_engine(
-        settings.database_url,
-        connect_args={"sslmode": "require"},
-        pool_pre_ping=True,
-        pool_recycle=300,
-        pool_timeout=30,
-        max_overflow=0
-    )
-=======
 class User(Base):
     __tablename__ = "users"
     
@@ -113,7 +97,6 @@ class PeerLearningSession(Base):
     session_summary = Column(Text, nullable=True)
 
 engine = create_engine(settings.database_url, connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {})
->>>>>>> bakame-mvp-implementation
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def create_tables():
