@@ -9,7 +9,7 @@ readme = "README.md"
 python = "^3.11"
 fastapi = {extras = ["standard"], version = "^0.116.1"}
 psycopg = {extras = ["binary"], version = "^3.2.9"}
-twilio = "^9.6.5"
+telnyx = "^2.0.0"
 openai = "^1.97.1"
 redis = "^6.2.0"
 psycopg2-binary = "^2.9.10"
