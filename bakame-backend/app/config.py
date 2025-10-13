@@ -3,9 +3,11 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 class Settings(BaseSettings):
-    twilio_account_sid: str = os.getenv("TWILIO_ACCOUNT_SID", "")
-    twilio_auth_token: str = os.getenv("TWILIO_AUTH_TOKEN", "")
-    twilio_phone_number: str = os.getenv("TWILIO_PHONE_NUMBER", "")
+    # Telnyx Configuration (replacing Twilio)
+    telnyx_api_key: str = os.getenv("TELNYX_API_KEY", "")
+    telnyx_phone_number: str = os.getenv("TELNYX_PHONE_NUMBER", "")
+    telnyx_public_key: Optional[str] = os.getenv("TELNYX_PUBLIC_KEY", "")  # For webhook verification
+    telnyx_api_url: str = "https://api.telnyx.com/v2"
     # Only use OPENAIAPI environment variable
     openai_api_key: str = os.getenv("OPENAIAPI", "")
     llama_api_key: str = os.getenv("LLAMA_API_KEY", "")
