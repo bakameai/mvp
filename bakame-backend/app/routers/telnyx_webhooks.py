@@ -128,7 +128,7 @@ async def handle_call_answered(call_control_id: str, from_number: str):
             call_control_id=call_control_id,
             stream_url=stream_url,
             track="both_tracks",  # Stream both caller and AI audio
-            codec="g711_ulaw"  # Use µ-law for compatibility
+            codec="PCMU"  # G.711 µ-law codec (case-sensitive!)
         )
         
         logger.info(f"[Telnyx] Media streaming started for {from_number}")

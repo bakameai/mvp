@@ -253,7 +253,7 @@ class TelnyxService:
     
     async def start_streaming(self, call_control_id: str, stream_url: str,
                              track: str = "both_tracks",
-                             codec: str = "g711_ulaw") -> Dict[str, Any]:
+                             codec: str = "PCMU") -> Dict[str, Any]:
         """
         Start media streaming for a call to enable real-time audio processing.
         
@@ -261,22 +261,20 @@ class TelnyxService:
             call_control_id: The unique identifier for the call
             stream_url: WebSocket URL where audio will be streamed (e.g., wss://yourserver.com/stream)
             track: Which audio to stream - 'inbound_track', 'outbound_track', or 'both_tracks'
-            codec: Audio codec - 'g711_ulaw', 'g711_alaw', 'opus', 'l16', etc.
+            codec: Audio codec - 'PCMU' (G.711 µ-law), 'PCMA', 'OPUS', 'L16', etc. (case-sensitive!)
         """
         try:
             url = f"{self.api_url}/calls/{call_control_id}/actions/streaming_start"
             
             payload = {
                 "stream_url": stream_url,
-                "stream_track": track
+                "stream_track": track,
+                "stream_bidirectional_mode": "rtp",
+                "stream_bidirectional_codec": codec
             }
             
-            # Add codec if specified
-            if codec:
-                payload["stream_bidirectional_codec"] = codec
-                payload["stream_bidirectional_mode"] = "rtp"
-            
             logger.info(f"Starting media stream to {stream_url} with codec {codec}")
+            logger.info(f"Streaming payload: {payload}")
             
             response = requests.post(url, json=payload, headers=self.headers)
             response.raise_for_status()
