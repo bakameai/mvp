@@ -135,6 +135,12 @@ class VoiceBridgeService:
         try:
             session = self.active_sessions.get(call_control_id)
             if not session:
+                logger.warning(f"No session found for call: {call_control_id}")
+                return
+            
+            stream_id = session.get("stream_id")
+            if not stream_id:
+                logger.warning(f"No stream_id available for call: {call_control_id}")
                 return
             
             telnyx_ws = session["telnyx_ws"]
@@ -142,15 +148,17 @@ class VoiceBridgeService:
             # Encode audio as base64
             audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
             
-            # Send to Telnyx in their expected format
+            # Send to Telnyx in their expected format with stream_id
             message = {
                 "event": "media",
+                "stream_id": stream_id,
                 "media": {
                     "payload": audio_base64
                 }
             }
             
             await telnyx_ws.send_text(json.dumps(message))
+            logger.debug(f"Sent {len(audio_bytes)} bytes of audio to Telnyx for call: {call_control_id}")
             
         except Exception as e:
             logger.error(f"Error sending audio to Telnyx: {str(e)}")
@@ -185,10 +193,16 @@ class VoiceBridgeService:
             if not session:
                 return
             
+            stream_id = session.get("stream_id")
+            if not stream_id:
+                logger.warning(f"No stream_id available to clear queue for call: {call_control_id}")
+                return
+            
             telnyx_ws = session["telnyx_ws"]
             
             clear_message = {
-                "event": "clear"
+                "event": "clear",
+                "stream_id": stream_id
             }
             
             await telnyx_ws.send_text(json.dumps(clear_message))
