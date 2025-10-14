@@ -251,6 +251,70 @@ class TelnyxService:
                 logger.error(f"Response: {e.response.text}")
             raise
     
+    async def start_streaming(self, call_control_id: str, stream_url: str,
+                             track: str = "both_tracks",
+                             codec: str = "g711_ulaw") -> Dict[str, Any]:
+        """
+        Start media streaming for a call to enable real-time audio processing.
+        
+        Args:
+            call_control_id: The unique identifier for the call
+            stream_url: WebSocket URL where audio will be streamed (e.g., wss://yourserver.com/stream)
+            track: Which audio to stream - 'inbound_track', 'outbound_track', or 'both_tracks'
+            codec: Audio codec - 'g711_ulaw', 'g711_alaw', 'opus', 'l16', etc.
+        """
+        try:
+            url = f"{self.api_url}/calls/{call_control_id}/actions/streaming_start"
+            
+            payload = {
+                "stream_url": stream_url,
+                "stream_track": track
+            }
+            
+            # Add codec if specified
+            if codec:
+                payload["stream_bidirectional_codec"] = codec
+                payload["stream_bidirectional_mode"] = "rtp"
+            
+            logger.info(f"Starting media stream to {stream_url} with codec {codec}")
+            
+            response = requests.post(url, json=payload, headers=self.headers)
+            response.raise_for_status()
+            
+            result = response.json()
+            logger.info(f"Streaming started: {result}")
+            
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error starting streaming: {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                logger.error(f"Response: {e.response.text}")
+            raise
+    
+    async def stop_streaming(self, call_control_id: str) -> Dict[str, Any]:
+        """
+        Stop media streaming for a call.
+        """
+        try:
+            url = f"{self.api_url}/calls/{call_control_id}/actions/streaming_stop"
+            
+            logger.info(f"Stopping media stream for call: {call_control_id}")
+            
+            response = requests.post(url, json={}, headers=self.headers)
+            response.raise_for_status()
+            
+            result = response.json()
+            logger.info(f"Streaming stopped: {result}")
+            
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error stopping streaming: {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                logger.error(f"Response: {e.response.text}")
+            raise
+    
     def verify_webhook_signature(self, payload: bytes, signature: str) -> bool:
         """
         Verify Telnyx webhook signature for security

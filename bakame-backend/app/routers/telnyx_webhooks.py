@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Request, Response, HTTPException
+from fastapi import APIRouter, Request, Response, HTTPException, WebSocket, WebSocketDisconnect
 from typing import Dict, Any
 import json
 import logging
+import os
 from app.services.telnyx_service import telnyx_service
+from app.services.voice_bridge_service import voice_bridge_service
 from app.modules.general_module import general_module
 
 # Configure logging
@@ -111,25 +113,25 @@ async def handle_call_initiated(call_control_id: str, from_number: str):
 
 async def handle_call_answered(call_control_id: str, from_number: str):
     """
-    Handle call answered event - send welcome message
+    Handle call answered event - start media streaming and connect to OpenAI Realtime API
     """
     try:
-        logger.info(f"[Telnyx] Call answered, sending welcome message")
+        logger.info(f"[Telnyx] Call answered, starting OpenAI Realtime voice session")
         
-        # Get welcome message from AI (same as before)
-        welcome_message = await general_module.process("Hello", {})
+        # Get the WebSocket URL for media streaming
+        # Use environment variable or construct from request
+        replit_domain = os.getenv("REPL_SLUG", "localhost")
+        stream_url = f"wss://{replit_domain}.replit.dev/telnyx/stream/{call_control_id}"
         
-        # Use Telnyx speak command instead of TwiML
-        # This replaces the Twilio <Say> verb
-        await telnyx_service.gather_using_speak(
+        # Start media streaming to our WebSocket endpoint
+        await telnyx_service.start_streaming(
             call_control_id=call_control_id,
-            prompt_text=welcome_message,
-            timeout_millis=60000,  # 60 seconds
-            voice="male",
-            language="en-US"
+            stream_url=stream_url,
+            track="both_tracks",  # Stream both caller and AI audio
+            codec="g711_ulaw"  # Use µ-law for compatibility
         )
         
-        logger.info(f"[Telnyx] Welcome message sent to {from_number}")
+        logger.info(f"[Telnyx] Media streaming started for {from_number}")
         
     except Exception as e:
         logger.error(f"[Telnyx] Error sending welcome message: {str(e)}")
@@ -212,6 +214,26 @@ async def make_outbound_call(to_number: str, message: str):
     except Exception as e:
         logger.error(f"[Telnyx] Error making outbound call: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.websocket("/stream/{call_control_id}")
+async def telnyx_media_stream(websocket: WebSocket, call_control_id: str):
+    """
+    WebSocket endpoint to receive Telnyx media streams and bridge to OpenAI Realtime API.
+    """
+    await websocket.accept()
+    logger.info(f"[Telnyx Stream] WebSocket connected for call: {call_control_id}")
+    
+    try:
+        # Start voice AI session with bidirectional audio streaming
+        await voice_bridge_service.start_session(call_control_id, websocket)
+        
+    except WebSocketDisconnect:
+        logger.info(f"[Telnyx Stream] WebSocket disconnected for call: {call_control_id}")
+    except Exception as e:
+        logger.error(f"[Telnyx Stream] Error in media stream: {str(e)}")
+    finally:
+        # Cleanup
+        await voice_bridge_service.end_session(call_control_id)
 
 @router.get("/health")
 async def health_check():
