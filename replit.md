@@ -35,25 +35,38 @@ The system consists of three separate applications:
 
 ### Voice Processing Pipeline
 
-The system now supports both Twilio (legacy) and Telnyx (new) for voice communications:
+**Current Implementation (OpenAI Realtime API + Telnyx)**:
+The system uses OpenAI's Realtime API for true voice-to-voice conversations with bidirectional audio streaming:
 
-**Telnyx Audio Flow (New)**: Caller → Telnyx Call Control → FastAPI JSON API → AI Processing → Telnyx Commands → Caller
-**Legacy Twilio Flow**: Caller → Twilio → FastAPI WebSocket Bridge → Google TTS/ElevenLabs ConvAI → AI Processing → Response Audio → Twilio → Caller
+**Audio Flow**: Caller → Telnyx Media Stream → WebSocket Bridge → OpenAI Realtime API → WebSocket Bridge → Telnyx → Caller
 
 Key architectural decisions:
-- **Real-time audio streaming** via WebSocket connections for low latency
-- **Audio format conversions**: μ-law 8kHz (Twilio) ↔ PCM 16kHz (AI services)
-- **Silence detection** to determine when user has finished speaking
-- **Buffer management** to handle streaming audio chunks efficiently
+- **Native voice-to-voice processing** via OpenAI Realtime API (no separate STT/TTS needed)
+- **Bidirectional WebSocket streaming** between Telnyx and OpenAI for real-time audio
+- **Audio format**: G.711 µ-law at 8kHz for Telnyx compatibility
+- **Base64 encoding** for audio transmission over WebSocket
+- **Stream ID tracking** for proper message routing in Telnyx protocol
 
-The backend maintains two concurrent WebSocket connections:
-1. Twilio WebSocket for caller audio I/O
-2. Google TTS/ElevenLabs WebSocket for AI voice generation
+The backend maintains a voice bridge service that coordinates:
+1. Telnyx WebSocket connection for caller audio I/O
+2. OpenAI Realtime API WebSocket for AI voice processing
+3. Session management and audio routing between endpoints
+
+**Legacy Implementations**:
+- **Twilio Flow**: Caller → Twilio → FastAPI WebSocket Bridge → Google TTS/ElevenLabs → AI Processing → Response Audio → Twilio → Caller
+- **Telnyx JSON API**: Caller → Telnyx Call Control → FastAPI JSON API → AI Processing → Telnyx Commands → Caller
 
 ### AI Service Architecture
 
-**Primary AI Stack**:
-- **Voice Generation**: Google Cloud Text-to-Speech (primary), ElevenLabs ConvAI (alternative)
+**Primary AI Stack (Current)**:
+- **Voice AI**: OpenAI Realtime API for end-to-end voice conversations
+  - Handles speech-to-text, text generation, and text-to-speech in a single service
+  - WebSocket-based for low-latency streaming
+  - Supports configurable voices and instructions
+  - Real-time bidirectional audio processing
+
+**Legacy AI Services**:
+- **Voice Generation**: Google Cloud Text-to-Speech, ElevenLabs ConvAI
 - **Conversation AI**: OpenAI GPT-4o-mini for response generation
 - **Speech-to-Text**: OpenAI Whisper for audio transcription
 
@@ -62,7 +75,7 @@ The backend maintains two concurrent WebSocket connections:
 - Deepgram as alternative to Whisper
 - Built-in retry logic and error handling
 
-Architectural rationale: Multiple AI providers ensure system resilience. Google TTS provides cost-effective voice synthesis, while ElevenLabs offers more natural conversational AI as a premium option.
+Architectural rationale: OpenAI Realtime API provides the most natural voice conversations by eliminating the latency of separate STT→LLM→TTS pipeline. The system maintains legacy services as fallback options for reliability.
 
 ### Learning Module System
 
