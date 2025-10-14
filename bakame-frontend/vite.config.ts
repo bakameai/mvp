@@ -10,6 +10,20 @@ export default defineConfig(({ mode }) => ({
     port: 5000,
     strictPort: true,
     allowedHosts: true,
+    proxy: {
+      '/telnyx': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/webhook': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     rollupOptions: {
