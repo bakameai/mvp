@@ -120,8 +120,8 @@ async def handle_call_answered(call_control_id: str, from_number: str):
         
         # Get the WebSocket URL for media streaming
         # Use environment variable for the Replit domain
-        replit_domain = os.getenv("REPLIT_DOMAINS", "localhost:8000")
-        stream_url = f"wss://{replit_domain}/telnyx/stream/{call_control_id}"
+        replit_domain = os.getenv("REPLIT_DOMAINS", "localhost")
+        stream_url = f"wss://{replit_domain}:8000/telnyx/stream/{call_control_id}"
         
         # Start media streaming to our WebSocket endpoint
         await telnyx_service.start_streaming(
