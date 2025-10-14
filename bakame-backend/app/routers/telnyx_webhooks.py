@@ -120,11 +120,10 @@ async def handle_call_answered(call_control_id: str, from_number: str):
         
         # Get the WebSocket URL for media streaming
         # Use Fly.io production domain for stable WebSocket connections
-        fly_app_name = os.getenv("FLY_APP_NAME")
-        
-        if fly_app_name:
-            # Running on Fly.io - use the production domain
-            stream_url = f"wss://{fly_app_name}.fly.dev/telnyx/stream/{call_control_id}"
+        # Check if running on Fly.io (FLY_REGION is always set on Fly.io)
+        if os.getenv("FLY_REGION"):
+            # Running on Fly.io - use production domain
+            stream_url = f"wss://bakame-elevenlabs-mcp.fly.dev/telnyx/stream/{call_control_id}"
         else:
             # Running on Replit - use Replit domain with port
             replit_domain = os.getenv("REPLIT_DOMAINS", "localhost")
