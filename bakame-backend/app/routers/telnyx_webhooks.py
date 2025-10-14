@@ -119,9 +119,16 @@ async def handle_call_answered(call_control_id: str, from_number: str):
         logger.info(f"[Telnyx] Call answered, starting OpenAI Realtime voice session")
         
         # Get the WebSocket URL for media streaming
-        # Use environment variable for the Replit domain
-        replit_domain = os.getenv("REPLIT_DOMAINS", "localhost")
-        stream_url = f"wss://{replit_domain}:8000/telnyx/stream/{call_control_id}"
+        # Use Fly.io production domain for stable WebSocket connections
+        fly_app_name = os.getenv("FLY_APP_NAME")
+        
+        if fly_app_name:
+            # Running on Fly.io - use the production domain
+            stream_url = f"wss://{fly_app_name}.fly.dev/telnyx/stream/{call_control_id}"
+        else:
+            # Running on Replit - use Replit domain with port
+            replit_domain = os.getenv("REPLIT_DOMAINS", "localhost")
+            stream_url = f"wss://{replit_domain}:8000/telnyx/stream/{call_control_id}"
         
         # Start media streaming to our WebSocket endpoint
         await telnyx_service.start_streaming(
