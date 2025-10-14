@@ -43,14 +43,14 @@ flyctl secrets set NEWSAPI_KEY="your_newsapi_key"
 
 5. **Update Telnyx webhook URL to:**
    ```
-   https://app-pyzfduqr.fly.dev/telnyx/incoming
+   https://bakame-elevenlabs-mcp.fly.dev/telnyx/incoming
    ```
 
 ## Testing WebSocket
 
 The WebSocket endpoint will be available at:
 ```
-wss://app-pyzfduqr.fly.dev/telnyx/stream/{call_control_id}
+wss://bakame-elevenlabs-mcp.fly.dev/telnyx/stream/{call_control_id}
 ```
 
 ## Troubleshooting
@@ -58,4 +58,4 @@ wss://app-pyzfduqr.fly.dev/telnyx/stream/{call_control_id}
 - Check logs: `flyctl logs`
 - Check app status: `flyctl status`
 - SSH into app: `flyctl ssh console`
-- Restart app: `flyctl apps restart app-pyzfduqr`
+- Restart app: `flyctl apps restart bakame-elevenlabs-mcp`

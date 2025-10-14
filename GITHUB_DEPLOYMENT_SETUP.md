@@ -34,13 +34,13 @@ git push origin main
 ### 4. Monitor Deployment
 
 - Go to **Actions** tab in GitHub to see deployment progress
-- Or check Fly.io logs: `flyctl logs -a app-pyzfduqr`
+- Or check Fly.io logs: `flyctl logs -a bakame-elevenlabs-mcp`
 
 ### 5. Update Telnyx Webhook
 
 After successful deployment, update your Telnyx webhook to:
 ```
-https://app-pyzfduqr.fly.dev/telnyx/incoming
+https://bakame-elevenlabs-mcp.fly.dev/telnyx/incoming
 ```
 
 ## Manual Deployment Trigger
@@ -57,4 +57,4 @@ If deployment fails:
 1. Check GitHub Actions logs for errors
 2. Verify `FLY_API_TOKEN` secret is set correctly
 3. Ensure Fly.io app exists: `flyctl apps list`
-4. Check Fly.io secrets are set: `flyctl secrets list -a app-pyzfduqr`
+4. Check Fly.io secrets are set: `flyctl secrets list -a bakame-elevenlabs-mcp`
