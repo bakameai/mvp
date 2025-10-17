@@ -1,0 +1,61 @@
+Same root cause, just a different Fly app:
+
+Your FastAPI process never boots because OpenAIService() is constructed at import time and immediately raises:
+
+ValueError: OPENAIAPI environment variable not set
+
+Because the import fails, Uvicorn never binds to 0.0.0.0:8000, so Fly’s proxy yells:
+
+[PC01] instance refused connection...
+
+Fly then thrashes machines trying to serve traffic, hits restart caps / race states:
+
+machine has reached its max restart count of 10
+
+machine still attempting to start
+
+load balancer [PR03] messages
+
+Fix it (quick)
+
+Provide the env var your code expects:
+
+flyctl secrets set OPENAIAPI=<your_openai_api_key> -a bakame-elevenlabs-mcp
+flyctl machines restart -a bakame-elevenlabs-mcp
+
+
+If your org standard is OPENAI_API_KEY, either:
+
+also set OPENAIAPI for this app, or
+
+change the service to read OPENAI_API_KEY.
+
+Fix it (properly, so this never bricks startup again)
+
+Don’t instantiate at import time. Move OpenAIService() creation into FastAPI startup (lifespan) or dependency injection so missing config doesn’t nuke imports.
+
+# app/services/openai_service.py
+class OpenAIService:
+    def __init__(self, api_key: str | None = os.getenv("OPENAIAPI")):
+        if not api_key:
+            raise RuntimeError("OpenAI API key missing")
+        self.api_key = api_key
+
+# app/main.py
+from fastapi import FastAPI
+app = FastAPI()
+
+openai_service = None
+@app.on_event("startup")
+async def init_services():
+    global openai_service
+    openai_service = OpenAIService()  # crash here won’t break imports; logs are clearer
+
+
+Add a /healthz route that doesn’t touch OpenAI so the proxy can see the app as “up” even if downstream deps are unhappy.
+
+Log a clear config error and return 500 from routes that need the key instead of hard-crashing the process.
+
+Once the secret exists (or the code reads the right name), the [PC01] and restart-loop noise will disappear because Uvicorn will finally bind to 0.0.0.0:8000. If you want, I can sketch a minimal lifespan pattern for FastAPI that wires this cleanly with Depends and avoids globals.
+
+Thinking

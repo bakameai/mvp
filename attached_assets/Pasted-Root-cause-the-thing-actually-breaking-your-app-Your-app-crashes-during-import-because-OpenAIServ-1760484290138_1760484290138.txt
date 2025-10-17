@@ -1,0 +1,56 @@
+Root cause (the thing actually breaking your app)
+
+Your app crashes during import because OpenAIService() is instantiated at module import time and raises:
+
+ValueError: OPENAIAPI environment variable not set
+
+This happens in /app/app/services/openai_service.py line 9, triggered while importing app.main via Uvicorn.
+
+Symptoms you see because of that crash
+
+Uvicorn never finishes starting, so the proxy can’t connect:
+
+[PC01] instance refused connection. is your app listening on 0.0.0.0:8000?
+
+Fly machines keep thrashing/restarting:
+
+[PM07] failed to change machine state: machine still active
+
+[PM01] machines API returned an error: "rate limit exceeded"
+
+Exit code 1 from the app confirms a hard failure on startup.
+
+Why it’s happening (design-level)
+
+You require an env var named OPENAIAPI. It’s missing in the runtime environment (likely you meant OPENAI_API_KEY).
+
+Because the service is constructed at import time, any missing config nukes the whole app before the server binds its port.
+
+Quick fixes (do these first)
+
+Set the exact env var your code expects, or update the code to match the standard name.
+
+On Fly.io: flyctl secrets set OPENAIAPI=<your_key>
+or change the code to read OPENAI_API_KEY and set that instead.
+
+Redeploy / restart after setting the secret.
+
+Better hardening (prevents this in the future)
+
+Don’t instantiate OpenAIService() at import time. Delay to app startup:
+
+Use a FastAPI @app.on_event("startup") (or lifespan) to create the service.
+
+Validate configuration with helpful logs but don’t crash the entire import; fail specific routes that need the key.
+
+Consider defaulting to a no-op/mock service when the key is missing in non-prod.
+
+Add a healthcheck endpoint that doesn’t touch OpenAI so the proxy sees the app as “up”.
+
+Sanity check after fix
+
+Confirm the server binds to 0.0.0.0:8000 (it’s already configured that way).
+
+Hit the health endpoint; watch logs to ensure there’s no ValueError and no restart loop.
+
+TL;DR: set the missing OPENAIAPI (or rename to OPENAI_API_KEY) and stop constructing OpenAIService() at import time. The rest of the log spam is just your platform trying—and failing—to revive a process that immediately exit
