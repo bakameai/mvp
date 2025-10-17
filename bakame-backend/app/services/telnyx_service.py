@@ -2,6 +2,7 @@ import telnyx
 import requests
 import json
 import logging
+import urllib.parse
 from typing import Optional, Dict, Any
 from app.config import settings
 
@@ -63,7 +64,8 @@ class TelnyxService:
             language: Language code (e.g., 'en-US')
         """
         try:
-            url = f"{self.api_url}/calls/{call_control_id}/actions/speak"
+            encoded_id = urllib.parse.quote(call_control_id, safe='')
+            url = f"{self.api_url}/calls/{encoded_id}/actions/speak"
             
             payload = {
                 "payload": text,
@@ -112,7 +114,8 @@ class TelnyxService:
             await self.speak(call_control_id, prompt_text)
             
             # Then send gather command
-            url = f"{self.api_url}/calls/{call_control_id}/actions/gather"
+            encoded_id = urllib.parse.quote(call_control_id, safe='')
+            url = f"{self.api_url}/calls/{encoded_id}/actions/gather"
             
             payload = {
                 "timeout_millis": timeout_millis,
@@ -147,7 +150,8 @@ class TelnyxService:
         This uses the gather_using_speak endpoint which combines both actions
         """
         try:
-            url = f"{self.api_url}/calls/{call_control_id}/actions/gather_using_speak"
+            encoded_id = urllib.parse.quote(call_control_id, safe='')
+            url = f"{self.api_url}/calls/{encoded_id}/actions/gather_using_speak"
             
             payload = {
                 "payload": prompt_text,
@@ -182,7 +186,8 @@ class TelnyxService:
         Answer an incoming call
         """
         try:
-            url = f"{self.api_url}/calls/{call_control_id}/actions/answer"
+            encoded_id = urllib.parse.quote(call_control_id, safe='')
+            url = f"{self.api_url}/calls/{encoded_id}/actions/answer"
             
             logger.info(f"Answering call: {call_control_id}")
             
@@ -206,7 +211,8 @@ class TelnyxService:
         Equivalent to Twilio's <Hangup> verb
         """
         try:
-            url = f"{self.api_url}/calls/{call_control_id}/actions/hangup"
+            encoded_id = urllib.parse.quote(call_control_id, safe='')
+            url = f"{self.api_url}/calls/{encoded_id}/actions/hangup"
             
             logger.info(f"Hanging up call: {call_control_id}")
             
@@ -229,7 +235,8 @@ class TelnyxService:
         Transfer a call to another number
         """
         try:
-            url = f"{self.api_url}/calls/{call_control_id}/actions/transfer"
+            encoded_id = urllib.parse.quote(call_control_id, safe='')
+            url = f"{self.api_url}/calls/{encoded_id}/actions/transfer"
             
             payload = {
                 "to": to
@@ -264,7 +271,8 @@ class TelnyxService:
             codec: Audio codec - 'PCMU' (G.711 µ-law), 'PCMA', 'OPUS', 'L16', etc. (case-sensitive!)
         """
         try:
-            url = f"{self.api_url}/calls/{call_control_id}/actions/streaming_start"
+            encoded_id = urllib.parse.quote(call_control_id, safe='')
+            url = f"{self.api_url}/calls/{encoded_id}/actions/streaming_start"
             
             payload = {
                 "stream_url": stream_url,
@@ -295,7 +303,8 @@ class TelnyxService:
         Stop media streaming for a call.
         """
         try:
-            url = f"{self.api_url}/calls/{call_control_id}/actions/streaming_stop"
+            encoded_id = urllib.parse.quote(call_control_id, safe='')
+            url = f"{self.api_url}/calls/{encoded_id}/actions/streaming_stop"
             
             logger.info(f"Stopping media stream for call: {call_control_id}")
             

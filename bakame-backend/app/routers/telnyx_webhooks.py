@@ -3,6 +3,7 @@ from typing import Dict, Any
 import json
 import logging
 import os
+import urllib.parse
 from app.services.telnyx_service import telnyx_service
 from app.services.voice_bridge_service import voice_bridge_service
 from app.modules.general_module import general_module
@@ -119,15 +120,18 @@ async def handle_call_answered(call_control_id: str, from_number: str):
         logger.info(f"[Telnyx] Call answered, starting OpenAI Realtime voice session")
         
         # Get the WebSocket URL for media streaming
+        # URL-encode the call_control_id since it contains special characters (v3:...)
+        encoded_call_id = urllib.parse.quote(call_control_id, safe='')
+        
         # Use Fly.io production domain for stable WebSocket connections
         # Check if running on Fly.io (FLY_REGION is always set on Fly.io)
         if os.getenv("FLY_REGION"):
             # Running on Fly.io - use production domain
-            stream_url = f"wss://bakame-elevenlabs-mcp.fly.dev/telnyx/stream/{call_control_id}"
+            stream_url = f"wss://bakame-elevenlabs-mcp.fly.dev/telnyx/stream/{encoded_call_id}"
         else:
             # Running on Replit - use Replit domain (already proxied, no port needed)
             replit_domain = os.getenv("REPLIT_DOMAINS", "localhost")
-            stream_url = f"wss://{replit_domain}/telnyx/stream/{call_control_id}"
+            stream_url = f"wss://{replit_domain}/telnyx/stream/{encoded_call_id}"
         
         # Start media streaming to our WebSocket endpoint
         await telnyx_service.start_streaming(
