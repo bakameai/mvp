@@ -125,9 +125,9 @@ async def handle_call_answered(call_control_id: str, from_number: str):
             # Running on Fly.io - use production domain
             stream_url = f"wss://bakame-elevenlabs-mcp.fly.dev/telnyx/stream/{call_control_id}"
         else:
-            # Running on Replit - use Replit domain with port
+            # Running on Replit - use Replit domain (already proxied, no port needed)
             replit_domain = os.getenv("REPLIT_DOMAINS", "localhost")
-            stream_url = f"wss://{replit_domain}:8000/telnyx/stream/{call_control_id}"
+            stream_url = f"wss://{replit_domain}/telnyx/stream/{call_control_id}"
         
         # Start media streaming to our WebSocket endpoint
         await telnyx_service.start_streaming(

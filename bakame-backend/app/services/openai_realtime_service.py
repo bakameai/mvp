@@ -50,7 +50,7 @@ class OpenAIRealtimeService:
             
             self.ws = await websockets.connect(
                 self.url,
-                extra_headers=headers
+                additional_headers=headers
             )
             
             self.is_connected = True
