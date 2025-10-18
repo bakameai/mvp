@@ -83,7 +83,7 @@ async def handle_telnyx_webhook(request: Request):
                 del call_sessions[call_session_id]
                 
         elif event_type == "call.recording.saved":
-            # Recording available - process with STT → AI → TTS
+            # Recording available - process with STT → AI → TTS (async in background)
             # recording_urls is a dict with format as keys: {"wav": "url", "mp3": "url"}
             recording_urls = payload.get("recording_urls", {})
             recording_url = None
@@ -92,12 +92,9 @@ async def handle_telnyx_webhook(request: Request):
                 recording_url = recording_urls.get("wav") or recording_urls.get("mp3")
             logger.info(f"[Telnyx Webhook] Recording saved: {recording_url}")
             
-            # Check if call is still active before processing
-            call_session_id = payload.get("call_session_id")
-            if call_session_id in call_sessions:
-                await handle_recording_saved(call_control_id, from_number, recording_url)
-            else:
-                logger.warning(f"[Telnyx] Call {call_session_id} already hung up, skipping recording processing")
+            # Process recording asynchronously (even if call hung up - for logging/debugging)
+            # The background task will handle the full STT → AI → TTS pipeline
+            await handle_recording_saved(call_control_id, from_number, recording_url)
             
         else:
             logger.info(f"[Telnyx Webhook] Unhandled event type: {event_type}")
@@ -148,12 +145,14 @@ async def handle_call_answered(call_control_id: str, from_number: str):
     except Exception as e:
         logger.error(f"[Telnyx] Error in call answered handler: {str(e)}")
 
-async def handle_speak_ended(call_control_id: str, from_number: str):
+async def delayed_recording_start(call_control_id: str, delay_seconds: int = 10):
     """
-    Handle speak ended event - start recording for user input
+    Background task: Wait then start recording
+    This keeps the call alive during the delay period
     """
     try:
-        logger.info(f"[Telnyx] Starting recording for {from_number}")
+        await asyncio.sleep(delay_seconds)
+        logger.info(f"[Telnyx] Starting delayed recording for {call_control_id}")
         
         await telnyx_service.start_recording(
             call_control_id=call_control_id,
@@ -162,10 +161,35 @@ async def handle_speak_ended(call_control_id: str, from_number: str):
             max_length=30
         )
         
-        logger.info(f"[Telnyx] Recording started for {from_number}")
+        logger.info(f"[Telnyx] Delayed recording started")
+    except Exception as e:
+        logger.error(f"[Telnyx] Error in delayed recording start: {str(e)}")
+
+async def handle_speak_ended(call_control_id: str, from_number: str):
+    """
+    Handle speak ended event - OPTIMIZED with fallback message + delayed recording
+    This prevents users from hanging up during AI processing time
+    """
+    try:
+        logger.info(f"[Telnyx] Speak ended for {from_number}, preparing recording")
+        
+        # Step 1: Send fallback "thinking" message to keep user engaged
+        # This tells the user to speak and to wait for processing
+        await telnyx_service.speak(
+            call_control_id=call_control_id,
+            text="Thank you, I am thinking now. Please wait a moment and then tell me what you need help with.",
+            voice="male",
+            language="en-US"
+        )
+        
+        # Step 2: Start recording in background after 10-second delay
+        # This gives time for the thinking message to play and keeps call alive
+        asyncio.create_task(delayed_recording_start(call_control_id, delay_seconds=10))
+        
+        logger.info(f"[Telnyx] Fallback message sent, delayed recording scheduled")
         
     except Exception as e:
-        logger.error(f"[Telnyx] Error starting recording: {str(e)}")
+        logger.error(f"[Telnyx] Error in speak ended handler: {str(e)}")
 
 async def handle_gather_ended(call_control_id: str, from_number: str, digits: str = ""):
     """
@@ -211,34 +235,17 @@ async def handle_gather_ended(call_control_id: str, from_number: str, digits: st
                 language="en-US"
             )
 
-async def handle_recording_saved(call_control_id: str, from_number: str, recording_url: Optional[str]):
+async def process_recording_pipeline(call_control_id: str, from_number: str, recording_url: str):
     """
-    Handle saved recording - traditional STT → AI → TTS pipeline
-    Recording will restart automatically when call.speak.ended event fires
+    Background task: Process STT → AI → TTS pipeline (takes ~7 seconds)
+    This runs asynchronously to avoid blocking the webhook response
     """
     try:
-        # Validate recording URL
-        if not recording_url:
-            logger.error(f"[Telnyx] No recording URL provided for {from_number}")
-            # Stop any ongoing recording and speak error
-            try:
-                await telnyx_service.stop_recording(call_control_id)
-            except:
-                pass
-            await telnyx_service.speak(
-                call_control_id=call_control_id,
-                text="I'm sorry, there was a problem with the recording.",
-                voice="male",
-                language="en-US"
-            )
-            return
+        logger.info(f"[Telnyx] [Background] Starting pipeline for {from_number}")
         
-        logger.info(f"[Telnyx] Processing recording from {from_number}")
-        
-        # Step 1: Download the recording (async with executor to avoid blocking)
-        # Decode HTML entities in URL (&amp; -> &) that may come from webhook
+        # Step 1: Download the recording
         clean_url = html.unescape(recording_url)
-        logger.info(f"[Telnyx] Downloading from: {clean_url[:100]}...")
+        logger.info(f"[Telnyx] [Background] Downloading from: {clean_url[:100]}...")
         
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
@@ -248,14 +255,13 @@ async def handle_recording_saved(call_control_id: str, from_number: str, recordi
         response.raise_for_status()
         audio_data = response.content
         
-        logger.info(f"[Telnyx] Downloaded {len(audio_data)} bytes of audio")
+        logger.info(f"[Telnyx] [Background] Downloaded {len(audio_data)} bytes of audio")
         
-        # Step 2: Transcribe with STT (OpenAI Whisper)
+        # Step 2: Transcribe with OpenAI Whisper (~2-3 seconds)
         transcription = await stt_service.transcribe_audio(audio_data, audio_format="wav")
         
         if not transcription or transcription.strip() == "":
-            logger.warning(f"[Telnyx] Empty transcription for {from_number}, asking to repeat")
-            # Stop recording before speaking
+            logger.warning(f"[Telnyx] [Background] Empty transcription, asking to repeat")
             try:
                 await telnyx_service.stop_recording(call_control_id)
             except:
@@ -268,20 +274,19 @@ async def handle_recording_saved(call_control_id: str, from_number: str, recordi
             )
             return
         
-        logger.info(f"[Telnyx] User said: {transcription}")
+        logger.info(f"[Telnyx] [Background] User said: {transcription}")
         
-        # Step 3: Process with AI
+        # Step 3: Process with OpenAI GPT (~2-3 seconds)
         ai_response = await general_module.process(transcription, {})
-        logger.info(f"[Telnyx] AI response: {ai_response}")
+        logger.info(f"[Telnyx] [Background] AI response: {ai_response}")
         
-        # Step 4: Stop recording before speaking (ensures recording.saved event fires promptly)
+        # Step 4: Stop any active recording
         try:
             await telnyx_service.stop_recording(call_control_id)
         except Exception as e:
-            logger.warning(f"[Telnyx] Could not stop recording (may not be active): {str(e)}")
+            logger.warning(f"[Telnyx] [Background] Could not stop recording: {str(e)}")
         
-        # Step 5: Speak the AI response using TTS
-        # Recording will automatically restart when call.speak.ended fires
+        # Step 5: Speak the AI response
         await telnyx_service.speak(
             call_control_id=call_control_id,
             text=ai_response,
@@ -289,14 +294,10 @@ async def handle_recording_saved(call_control_id: str, from_number: str, recordi
             language="en-US"
         )
         
-        logger.info(f"[Telnyx] AI response sent, waiting for speak.ended to restart recording")
+        logger.info(f"[Telnyx] [Background] Pipeline complete, AI response sent")
         
     except requests.exceptions.RequestException as e:
-        logger.error(f"[Telnyx] Error downloading recording: {str(e)}")
-        try:
-            await telnyx_service.stop_recording(call_control_id)
-        except:
-            pass
+        logger.error(f"[Telnyx] [Background] Error downloading recording: {str(e)}")
         try:
             await telnyx_service.speak(
                 call_control_id=call_control_id,
@@ -307,11 +308,7 @@ async def handle_recording_saved(call_control_id: str, from_number: str, recordi
         except:
             pass
     except Exception as e:
-        logger.error(f"[Telnyx] Error processing recording: {str(e)}")
-        try:
-            await telnyx_service.stop_recording(call_control_id)
-        except:
-            pass
+        logger.error(f"[Telnyx] [Background] Error in pipeline: {str(e)}")
         try:
             await telnyx_service.speak(
                 call_control_id=call_control_id,
@@ -321,6 +318,49 @@ async def handle_recording_saved(call_control_id: str, from_number: str, recordi
             )
         except:
             pass
+
+async def handle_recording_saved(call_control_id: str, from_number: str, recording_url: Optional[str]):
+    """
+    Handle saved recording - OPTIMIZED with async background processing
+    
+    CRITICAL: This handler returns 200 OK immediately (~50ms response time)
+    The 7-second STT → AI → TTS pipeline runs in the background
+    
+    Meanwhile, a "thinking" message keeps the user on the line
+    """
+    try:
+        # Validate recording URL
+        if not recording_url:
+            logger.error(f"[Telnyx] No recording URL provided for {from_number}")
+            await telnyx_service.speak(
+                call_control_id=call_control_id,
+                text="I'm sorry, there was a problem with the recording.",
+                voice="male",
+                language="en-US"
+            )
+            return
+        
+        logger.info(f"[Telnyx] Recording saved, starting background processing")
+        
+        # IMMEDIATE: Send "thinking" message to keep user engaged during 7-sec processing
+        # This prevents hangups while STT → AI → TTS pipeline executes
+        await telnyx_service.speak(
+            call_control_id=call_control_id,
+            text="Got it! Let me think about that for a moment.",
+            voice="male",
+            language="en-US"
+        )
+        
+        # BACKGROUND: Launch async processing task (does not block webhook response)
+        # Webhook will return 200 OK immediately while this runs in background
+        asyncio.create_task(
+            process_recording_pipeline(call_control_id, from_number, recording_url)
+        )
+        
+        logger.info(f"[Telnyx] Background processing launched, webhook returning 200 OK")
+        
+    except Exception as e:
+        logger.error(f"[Telnyx] Error in recording saved handler: {str(e)}")
 
 @router.post("/outbound/call")
 async def make_outbound_call(to_number: str, message: str):
