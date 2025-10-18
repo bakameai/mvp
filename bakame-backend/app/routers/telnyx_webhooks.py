@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Request, Response, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Request, Response, HTTPException
 from typing import Dict, Any
 import json
 import logging
 import os
-import urllib.parse
+import asyncio
+import requests
 from app.services.telnyx_service import telnyx_service
-from app.services.voice_bridge_service import voice_bridge_service
+from app.services.stt_service import stt_service
 from app.modules.general_module import general_module
 
 # Configure logging
@@ -64,9 +65,9 @@ async def handle_telnyx_webhook(request: Request):
             await handle_call_answered(call_control_id, from_number)
             
         elif event_type == "call.speak.ended":
-            # Speaking has finished, ready for next action
-            logger.info(f"[Telnyx Webhook] Speak ended for call {call_control_id}")
-            # Could initiate gather here if needed
+            # Speaking has finished, start recording for next user input
+            logger.info(f"[Telnyx Webhook] Speak ended for call {call_control_id}, starting recording")
+            await handle_speak_ended(call_control_id, from_number)
             
         elif event_type == "call.gather.ended":
             # User input received
@@ -81,9 +82,14 @@ async def handle_telnyx_webhook(request: Request):
                 del call_sessions[call_session_id]
                 
         elif event_type == "call.recording.saved":
-            # Recording available (if recording was enabled)
-            recording_url = payload.get("recording_urls", {}).get("wav")
+            # Recording available - process with STT → AI → TTS
+            # recording_urls is a list, get the first WAV URL
+            recording_urls = payload.get("recording_urls", [])
+            recording_url = None
+            if isinstance(recording_urls, list) and len(recording_urls) > 0:
+                recording_url = recording_urls[0]
             logger.info(f"[Telnyx Webhook] Recording saved: {recording_url}")
+            await handle_recording_saved(call_control_id, from_number, recording_url)
             
         else:
             logger.info(f"[Telnyx Webhook] Unhandled event type: {event_type}")
@@ -114,37 +120,44 @@ async def handle_call_initiated(call_control_id: str, from_number: str):
 
 async def handle_call_answered(call_control_id: str, from_number: str):
     """
-    Handle call answered event - start media streaming and connect to OpenAI Realtime API
+    Handle call answered event - speak greeting
+    Recording will start automatically when call.speak.ended event fires
     """
     try:
-        logger.info(f"[Telnyx] Call answered, starting OpenAI Realtime voice session")
+        logger.info(f"[Telnyx] Call answered from {from_number}")
         
-        # Get the WebSocket URL for media streaming
-        # URL-encode the call_control_id since it contains special characters (v3:...)
-        encoded_call_id = urllib.parse.quote(call_control_id, safe='')
-        
-        # Use Fly.io production domain for stable WebSocket connections
-        # Check if running on Fly.io (FLY_REGION is always set on Fly.io)
-        if os.getenv("FLY_REGION"):
-            # Running on Fly.io - use production domain
-            stream_url = f"wss://bakame-elevenlabs-mcp.fly.dev/telnyx/stream/{encoded_call_id}"
-        else:
-            # Running on Replit - use Replit domain (already proxied, no port needed)
-            replit_domain = os.getenv("REPLIT_DOMAINS", "localhost")
-            stream_url = f"wss://{replit_domain}/telnyx/stream/{encoded_call_id}"
-        
-        # Start media streaming to our WebSocket endpoint
-        await telnyx_service.start_streaming(
+        # Speak a greeting - recording will start when speak ends
+        greeting = "Hello! I'm your AI assistant. How can I help you today?"
+        await telnyx_service.speak(
             call_control_id=call_control_id,
-            stream_url=stream_url,
-            track="both_tracks",  # Stream both caller and AI audio
-            codec="PCMU"  # G.711 µ-law codec (case-sensitive!)
+            text=greeting,
+            voice="male",
+            language="en-US"
         )
         
-        logger.info(f"[Telnyx] Media streaming started for {from_number}")
+        logger.info(f"[Telnyx] Greeting sent to {from_number}")
         
     except Exception as e:
-        logger.error(f"[Telnyx] Error sending welcome message: {str(e)}")
+        logger.error(f"[Telnyx] Error in call answered handler: {str(e)}")
+
+async def handle_speak_ended(call_control_id: str, from_number: str):
+    """
+    Handle speak ended event - start recording for user input
+    """
+    try:
+        logger.info(f"[Telnyx] Starting recording for {from_number}")
+        
+        await telnyx_service.start_recording(
+            call_control_id=call_control_id,
+            format="wav",
+            channels="single",
+            max_length=30
+        )
+        
+        logger.info(f"[Telnyx] Recording started for {from_number}")
+        
+    except Exception as e:
+        logger.error(f"[Telnyx] Error starting recording: {str(e)}")
 
 async def handle_gather_ended(call_control_id: str, from_number: str, digits: str = ""):
     """
@@ -190,6 +203,113 @@ async def handle_gather_ended(call_control_id: str, from_number: str, digits: st
                 language="en-US"
             )
 
+async def handle_recording_saved(call_control_id: str, from_number: str, recording_url: str):
+    """
+    Handle saved recording - traditional STT → AI → TTS pipeline
+    Recording will restart automatically when call.speak.ended event fires
+    """
+    try:
+        # Validate recording URL
+        if not recording_url:
+            logger.error(f"[Telnyx] No recording URL provided for {from_number}")
+            # Stop any ongoing recording and speak error
+            try:
+                await telnyx_service.stop_recording(call_control_id)
+            except:
+                pass
+            await telnyx_service.speak(
+                call_control_id=call_control_id,
+                text="I'm sorry, there was a problem with the recording.",
+                voice="male",
+                language="en-US"
+            )
+            return
+        
+        logger.info(f"[Telnyx] Processing recording from {from_number}")
+        
+        # Step 1: Download the recording (async with executor to avoid blocking)
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: requests.get(recording_url, timeout=30)
+        )
+        response.raise_for_status()
+        audio_data = response.content
+        
+        logger.info(f"[Telnyx] Downloaded {len(audio_data)} bytes of audio")
+        
+        # Step 2: Transcribe with STT (OpenAI Whisper)
+        transcription = await stt_service.transcribe_audio(audio_data, audio_format="wav")
+        
+        if not transcription or transcription.strip() == "":
+            logger.warning(f"[Telnyx] Empty transcription for {from_number}, asking to repeat")
+            # Stop recording before speaking
+            try:
+                await telnyx_service.stop_recording(call_control_id)
+            except:
+                pass
+            await telnyx_service.speak(
+                call_control_id=call_control_id,
+                text="I'm sorry, I didn't catch that. Could you please repeat?",
+                voice="male",
+                language="en-US"
+            )
+            return
+        
+        logger.info(f"[Telnyx] User said: {transcription}")
+        
+        # Step 3: Process with AI
+        ai_response = await general_module.process(transcription, {})
+        logger.info(f"[Telnyx] AI response: {ai_response}")
+        
+        # Step 4: Stop recording before speaking (ensures recording.saved event fires promptly)
+        try:
+            await telnyx_service.stop_recording(call_control_id)
+        except Exception as e:
+            logger.warning(f"[Telnyx] Could not stop recording (may not be active): {str(e)}")
+        
+        # Step 5: Speak the AI response using TTS
+        # Recording will automatically restart when call.speak.ended fires
+        await telnyx_service.speak(
+            call_control_id=call_control_id,
+            text=ai_response,
+            voice="male",
+            language="en-US"
+        )
+        
+        logger.info(f"[Telnyx] AI response sent, waiting for speak.ended to restart recording")
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[Telnyx] Error downloading recording: {str(e)}")
+        try:
+            await telnyx_service.stop_recording(call_control_id)
+        except:
+            pass
+        try:
+            await telnyx_service.speak(
+                call_control_id=call_control_id,
+                text="I'm sorry, I had trouble accessing the recording. Please try again.",
+                voice="male",
+                language="en-US"
+            )
+        except:
+            pass
+    except Exception as e:
+        logger.error(f"[Telnyx] Error processing recording: {str(e)}")
+        try:
+            await telnyx_service.stop_recording(call_control_id)
+        except:
+            pass
+        try:
+            await telnyx_service.speak(
+                call_control_id=call_control_id,
+                text="I'm sorry, there was an error processing your message. Please try again.",
+                voice="male",
+                language="en-US"
+            )
+        except:
+            pass
+
 @router.post("/outbound/call")
 async def make_outbound_call(to_number: str, message: str):
     """
@@ -225,25 +345,6 @@ async def make_outbound_call(to_number: str, message: str):
         logger.error(f"[Telnyx] Error making outbound call: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.websocket("/stream/{call_control_id}")
-async def telnyx_media_stream(websocket: WebSocket, call_control_id: str):
-    """
-    WebSocket endpoint to receive Telnyx media streams and bridge to OpenAI Realtime API.
-    """
-    await websocket.accept()
-    logger.info(f"[Telnyx Stream] WebSocket connected for call: {call_control_id}")
-    
-    try:
-        # Start voice AI session with bidirectional audio streaming
-        await voice_bridge_service.start_session(call_control_id, websocket)
-        
-    except WebSocketDisconnect:
-        logger.info(f"[Telnyx Stream] WebSocket disconnected for call: {call_control_id}")
-    except Exception as e:
-        logger.error(f"[Telnyx Stream] Error in media stream: {str(e)}")
-    finally:
-        # Cleanup
-        await voice_bridge_service.end_session(call_control_id)
 
 @router.get("/health")
 async def health_check():

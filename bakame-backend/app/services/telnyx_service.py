@@ -2,8 +2,10 @@ import telnyx
 import requests
 import json
 import logging
+import asyncio
 import urllib.parse
 from typing import Optional, Dict, Any
+from functools import partial
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -76,7 +78,11 @@ class TelnyxService:
             
             logger.info(f"Sending speak command: {payload}")
             
-            response = requests.post(url, json=payload, headers=self.headers)
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                partial(requests.post, url, json=payload, headers=self.headers)
+            )
             response.raise_for_status()
             
             result = response.json()
@@ -318,6 +324,74 @@ class TelnyxService:
             
         except requests.exceptions.RequestException as e:
             logger.error(f"Error stopping streaming: {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                logger.error(f"Response: {e.response.text}")
+            raise
+    
+    async def start_recording(self, call_control_id: str, format: str = "wav", channels: str = "single", max_length: int = 120) -> Dict[str, Any]:
+        """
+        Start recording the call audio.
+        
+        Args:
+            call_control_id: The unique identifier for the call
+            format: Recording format (wav, mp3)
+            channels: Recording channels (single or dual)
+            max_length: Maximum recording length in seconds
+        """
+        try:
+            encoded_id = urllib.parse.quote(call_control_id, safe='')
+            url = f"{self.api_url}/calls/{encoded_id}/actions/record_start"
+            
+            payload = {
+                "format": format,
+                "channels": channels,
+                "max_length": max_length
+            }
+            
+            logger.info(f"Starting recording for call: {call_control_id}")
+            
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                partial(requests.post, url, json=payload, headers=self.headers)
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            logger.info(f"Recording started: {result}")
+            
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error starting recording: {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                logger.error(f"Response: {e.response.text}")
+            raise
+    
+    async def stop_recording(self, call_control_id: str) -> Dict[str, Any]:
+        """
+        Stop recording the call audio.
+        """
+        try:
+            encoded_id = urllib.parse.quote(call_control_id, safe='')
+            url = f"{self.api_url}/calls/{encoded_id}/actions/record_stop"
+            
+            logger.info(f"Stopping recording for call: {call_control_id}")
+            
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                partial(requests.post, url, json={}, headers=self.headers)
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            logger.info(f"Recording stopped: {result}")
+            
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error stopping recording: {str(e)}")
             if hasattr(e, 'response') and e.response:
                 logger.error(f"Response: {e.response.text}")
             raise
