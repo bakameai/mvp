@@ -145,51 +145,27 @@ async def handle_call_answered(call_control_id: str, from_number: str):
     except Exception as e:
         logger.error(f"[Telnyx] Error in call answered handler: {str(e)}")
 
-async def delayed_recording_start(call_control_id: str, delay_seconds: int = 10):
+async def handle_speak_ended(call_control_id: str, from_number: str):
     """
-    Background task: Wait then start recording
-    This keeps the call alive during the delay period
+    Handle speak ended event - START RECORDING IMMEDIATELY
+    User speaks FIRST, then AI processes in background
     """
     try:
-        await asyncio.sleep(delay_seconds)
-        logger.info(f"[Telnyx] Starting delayed recording for {call_control_id}")
+        logger.info(f"[Telnyx] Speak ended for {from_number}, starting recording NOW")
         
+        # Start recording IMMEDIATELY so user can speak
+        # Recording will auto-save after max_length (30 seconds) or when stopped
         await telnyx_service.start_recording(
             call_control_id=call_control_id,
             format="wav",
             channels="single",
-            max_length=30
+            max_length=30  # 30 seconds max recording
         )
         
-        logger.info(f"[Telnyx] Delayed recording started")
-    except Exception as e:
-        logger.error(f"[Telnyx] Error in delayed recording start: {str(e)}")
-
-async def handle_speak_ended(call_control_id: str, from_number: str):
-    """
-    Handle speak ended event - OPTIMIZED with fallback message + delayed recording
-    This prevents users from hanging up during AI processing time
-    """
-    try:
-        logger.info(f"[Telnyx] Speak ended for {from_number}, preparing recording")
-        
-        # Step 1: Send fallback "thinking" message to keep user engaged
-        # This tells the user to speak and to wait for processing
-        await telnyx_service.speak(
-            call_control_id=call_control_id,
-            text="Thank you, I am thinking now. Please wait a moment and then tell me what you need help with.",
-            voice="male",
-            language="en-US"
-        )
-        
-        # Step 2: Start recording in background after 10-second delay
-        # This gives time for the thinking message to play and keeps call alive
-        asyncio.create_task(delayed_recording_start(call_control_id, delay_seconds=10))
-        
-        logger.info(f"[Telnyx] Fallback message sent, delayed recording scheduled")
+        logger.info(f"[Telnyx] Recording started, waiting for user to speak")
         
     except Exception as e:
-        logger.error(f"[Telnyx] Error in speak ended handler: {str(e)}")
+        logger.error(f"[Telnyx] Error starting recording: {str(e)}")
 
 async def handle_gather_ended(call_control_id: str, from_number: str, digits: str = ""):
     """
