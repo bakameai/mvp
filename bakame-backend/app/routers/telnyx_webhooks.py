@@ -5,6 +5,7 @@ import logging
 import os
 import asyncio
 import requests
+import html
 from app.services.telnyx_service import telnyx_service
 from app.services.stt_service import stt_service
 from app.modules.general_module import general_module
@@ -83,13 +84,20 @@ async def handle_telnyx_webhook(request: Request):
                 
         elif event_type == "call.recording.saved":
             # Recording available - process with STT → AI → TTS
-            # recording_urls is a list, get the first WAV URL
-            recording_urls = payload.get("recording_urls", [])
+            # recording_urls is a dict with format as keys: {"wav": "url", "mp3": "url"}
+            recording_urls = payload.get("recording_urls", {})
             recording_url = None
-            if isinstance(recording_urls, list) and len(recording_urls) > 0:
-                recording_url = recording_urls[0]
+            if isinstance(recording_urls, dict):
+                # Prefer WAV format for best quality
+                recording_url = recording_urls.get("wav") or recording_urls.get("mp3")
             logger.info(f"[Telnyx Webhook] Recording saved: {recording_url}")
-            await handle_recording_saved(call_control_id, from_number, recording_url)
+            
+            # Check if call is still active before processing
+            call_session_id = payload.get("call_session_id")
+            if call_session_id in call_sessions:
+                await handle_recording_saved(call_control_id, from_number, recording_url)
+            else:
+                logger.warning(f"[Telnyx] Call {call_session_id} already hung up, skipping recording processing")
             
         else:
             logger.info(f"[Telnyx Webhook] Unhandled event type: {event_type}")
@@ -228,10 +236,14 @@ async def handle_recording_saved(call_control_id: str, from_number: str, recordi
         logger.info(f"[Telnyx] Processing recording from {from_number}")
         
         # Step 1: Download the recording (async with executor to avoid blocking)
+        # Decode HTML entities in URL (&amp; -> &) that may come from webhook
+        clean_url = html.unescape(recording_url)
+        logger.info(f"[Telnyx] Downloading from: {clean_url[:100]}...")
+        
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            lambda: requests.get(recording_url, timeout=30)
+            lambda: requests.get(clean_url, timeout=30)
         )
         response.raise_for_status()
         audio_data = response.content
@@ -328,7 +340,12 @@ async def make_outbound_call(to_number: str, message: str):
         )
         
         # Extract call_control_id from response
-        call_control_id = call_response.get("call_control_id", "")
+        # Note: Telnyx SDK response structure varies by version
+        call_control_id = ""
+        if hasattr(call_response, 'call_control_id'):
+            call_control_id = call_response.call_control_id
+        elif isinstance(call_response, dict):
+            call_control_id = call_response.get("call_control_id", "")
         
         # Store initial message for when call is answered
         call_sessions[call_control_id] = {
