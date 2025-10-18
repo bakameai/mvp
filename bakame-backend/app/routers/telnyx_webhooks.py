@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Response, HTTPException
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import json
 import logging
 import os
@@ -203,7 +203,7 @@ async def handle_gather_ended(call_control_id: str, from_number: str, digits: st
                 language="en-US"
             )
 
-async def handle_recording_saved(call_control_id: str, from_number: str, recording_url: str):
+async def handle_recording_saved(call_control_id: str, from_number: str, recording_url: Optional[str]):
     """
     Handle saved recording - traditional STT → AI → TTS pipeline
     Recording will restart automatically when call.speak.ended event fires
