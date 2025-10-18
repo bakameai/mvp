@@ -159,14 +159,14 @@ class OpenAIRealtimeService:
             elif event_type == "session.updated":
                 logger.info("Session updated successfully")
             
-            elif event_type == "response.audio.delta":
+            elif event_type == "response.output_audio.delta":
                 # Audio chunk received from AI
                 audio_base64 = event.get("delta", {}).get("audio", "")
                 if audio_base64 and self.on_audio_delta:
                     audio_bytes = base64.b64decode(audio_base64)
                     await self.on_audio_delta(audio_bytes)
             
-            elif event_type == "response.audio.done":
+            elif event_type == "response.output_audio.done":
                 logger.info("Audio response completed")
             
             elif event_type == "response.audio_transcript.delta":
@@ -191,7 +191,7 @@ class OpenAIRealtimeService:
                     await self.on_error(error_msg)
             
             else:
-                logger.debug(f"Unhandled event type: {event_type}")
+                logger.warning(f"Unhandled OpenAI event type: {event_type}")
                 
         except Exception as e:
             logger.error(f"Error handling event {event_type}: {str(e)}")
